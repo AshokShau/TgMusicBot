@@ -372,7 +372,7 @@ tgmusic
 
 - **OWNER_ID** – Your Telegram User ID
 - **MONGO_URI** – Get from [MongoDB Cloud](https://cloud.mongodb.com)
-- **API_URL** – Buy from [@AshokShau](https://t.me/AshokShau) (API for unlimited downloads)
+- **API_URL** – Get from [@FallenApiBot](https://t.me/FallenApiBot) (API for unlimited downloads)
 - **API_KEY** – Required for API_URL
 - **DOWNLOADS_DIR** – Directory for downloads and TDLib database
 - **SUPPORT_GROUP** – Support Group Link

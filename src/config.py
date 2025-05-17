@@ -32,7 +32,7 @@ def get_env_int(name: str, default: Optional[int] = None) -> Optional[int]:
     try:
         return int(value)
     except (TypeError, ValueError):
-        LOGGER.warning("Invalid value for %s: %s", name, value)
+        LOGGER.warning("Invalid value for %s: %s (default: %s)", name, value, default)
         return default
 
 

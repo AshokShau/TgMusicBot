@@ -18,12 +18,14 @@ from src.helpers import (
     db,
     get_string,
 )
-from src.helpers import chat_cache
+from src.helpers import chat_cache, ChannelPlay
+
 from src.logger import LOGGER
-from src.modules.utils import Filter, SupportButton, get_audio_duration, sec_to_min, check_user_status
+from src.modules.utils import Filter, SupportButton, get_audio_duration, sec_to_min, check_user_status, is_channel_cmd, \
+    control_buttons
 from src.modules.utils import user_status_cache, join_ub
 from src.modules.utils.admins import is_admin, load_admin_cache, is_owner
-from src.modules.utils.buttons import PlayButton
+
 from src.modules.utils.play_helpers import (
     del_msg,
     edit_text,
@@ -66,15 +68,6 @@ def build_song_selection_message(
 ) -> tuple[str, types.ReplyMarkupInlineKeyboard]:
     """
     Build a message and inline keyboard for song selection.
-
-    Args:
-        user_by: The username of the person requesting the song selection.
-        tracks: A list of MusicTrack objects representing available tracks.
-
-    Returns:
-        A tuple containing:
-        - A text prompt for song selection.
-        - A ReplyMarkupInlineKeyboard object with buttons for track selection.
     """
     text = f"{user_by}, select a song to play:" if user_by else "Select a song to play:"
     buttons = [
@@ -128,7 +121,7 @@ async def _update_msg_with_thumb(
 async def _handle_single_track(
     c: Client,
     msg: types.Message,
-    chat_id: int,
+    channel: ChannelPlay,
     track: MusicTrack,
     user_by: str,
     file_path: str = None,
@@ -137,6 +130,7 @@ async def _handle_single_track(
     """
     Handle playback of a single track.
     """
+    chat_id = channel.chat_id
     lang = await db.get_lang(msg.chat_id)
     song = CachedTrack(
         name=track.name,
@@ -150,6 +144,7 @@ async def _handle_single_track(
         platform=track.platform,
         is_video=is_video,
         url=track.url,
+        channel=channel,
     )
 
     if not song.file_path:
@@ -176,7 +171,7 @@ async def _handle_single_track(
             msg,
             text,
             thumb,
-            PlayButton if await db.get_buttons_status(chat_id) else None,
+            control_buttons("play", song.channel.is_channel) if await db.get_buttons_status(chat_id) else None,
         )
         return None
 
@@ -200,7 +195,7 @@ async def _handle_single_track(
         msg,
         text,
         thumb,
-        PlayButton if await db.get_buttons_status(chat_id) else None,
+        control_buttons("play", channel.is_channel) if await db.get_buttons_status(chat_id) else None,
     )
     if isinstance(reply, types.Error):
         LOGGER.info("sending reply: %s", reply)
@@ -208,12 +203,11 @@ async def _handle_single_track(
     return None
 
 
-async def _handle_multiple_tracks(
-    _: Client, msg: types.Message, chat_id: int, tracks: list[MusicTrack], user_by: str
-):
+async def _handle_multiple_tracks(msg: types.Message, tracks: list[MusicTrack], user_by: str, channel: ChannelPlay):
     """
     Handle multiple tracks (playlist/album).
     """
+    chat_id = channel.chat_id
     lang = await db.get_lang(msg.chat_id)
     is_active = chat_cache.is_active(chat_id)
     queue = chat_cache.get_queue(chat_id)
@@ -222,6 +216,8 @@ async def _handle_multiple_tracks(
         + get_string("added_to_queue", lang)
         + ":</b>\n<blockquote expandable>\n"
     )
+
+
     for index, track in enumerate(tracks):
         position = len(queue) + index
         chat_cache.add_song(
@@ -238,6 +234,7 @@ async def _handle_multiple_tracks(
                 platform=track.platform,
                 is_video=False,
                 url=track.url,
+                channel=channel,
             ),
         )
         text += f"<b>{position}.</b> {track.name}\n└ {get_string('duration', lang)}: {sec_to_min(track.duration)}\n"
@@ -260,7 +257,7 @@ async def _handle_multiple_tracks(
     if not is_active:
         await call.play_next(chat_id)
 
-    await edit_text(msg, text, reply_markup=PlayButton)
+    await edit_text(msg, text, reply_markup=control_buttons("play", channel.is_channel))
 
 
 async def play_music(
@@ -268,6 +265,7 @@ async def play_music(
     msg: types.Message,
     url_data: PlatformTracks,
     user_by: str,
+    channel: ChannelPlay,
     tg_file_path: str = None,
     is_video: bool = False,
 ):
@@ -278,13 +276,12 @@ async def play_music(
     if not url_data or not url_data.tracks:
         return await edit_text(msg, get_string("unable_to_retrieve_song_info", lang))
 
-    chat_id = msg.chat_id
     await edit_text(msg, text=get_string("song_found_downloading", lang))
     if len(url_data.tracks) == 1:
         return await _handle_single_track(
-            c, msg, chat_id, url_data.tracks[0], user_by, tg_file_path, is_video
+            c, msg, channel, url_data.tracks[0], user_by, tg_file_path, is_video
         )
-    return await _handle_multiple_tracks(c, msg, chat_id, url_data.tracks, user_by)
+    return await _handle_multiple_tracks(msg, url_data.tracks, user_by, channel)
 
 
 async def _handle_recommendations(
@@ -309,7 +306,7 @@ async def _handle_recommendations(
 
 async def _handle_telegram_file(
     c: Client,
-    _: types.Message,
+    channel: ChannelPlay,
     reply: types.Message,
     reply_message: types.Message,
     user_by: str,
@@ -317,22 +314,32 @@ async def _handle_telegram_file(
     """
     Handle Telegram audio/video files.
     """
-    lang = await db.get_lang(reply.chat_id)
+    lang = await db.get_lang(channel.chat_id)
     telegram = Telegram(reply)
-    docs_vid = isinstance(
-        reply.content, types.Document
-    ) and reply.content.mime_type.startswith("video/")
-    is_video = isinstance(reply.content, types.MessageVideo) or docs_vid
 
+    # Determine if the message contains a video (Document or Video type)
+    content = reply.content
+    docs_vid = (
+        isinstance(content, types.Document) and content.mime_type.startswith("video/")
+    ) or (
+        isinstance(content, types.MessageDocument)
+        and content.document.mime_type.startswith("video/")
+    )
+    is_video = isinstance(content, types.MessageVideo) or docs_vid
+
+    # Download the file
     file_path, file_name = await telegram.dl(reply_message)
     if isinstance(file_path, types.Error):
         return await edit_text(
             reply_message,
             text=get_string("telegram_file_download_failed", lang).format(
-                file=file_name, error=str(file_path.message)
+                file=file_name, error=file_path.message
             ),
         )
 
+    duration = await get_audio_duration(file_path.path)
+
+    # Wrap in a consistent track structure
     _song = PlatformTracks(
         tracks=[
             MusicTrack(
@@ -341,27 +348,28 @@ async def _handle_telegram_file(
                 id=reply.remote_unique_file_id,
                 year=0,
                 cover="",
-                duration=await get_audio_duration(file_path.path),
+                duration=duration,
                 url="",
                 platform="telegram",
             )
         ]
     )
 
-    await play_music(c, reply_message, _song, user_by, file_path.path, is_video)
+    await play_music(c, reply_message, _song, user_by, channel, file_path.path, is_video)
     return None
 
 
 async def _handle_text_search(
     c: Client,
     msg: types.Message,
-    chat_id: int,
+    channel: ChannelPlay,
     wrapper: MusicServiceWrapper,
     user_by: str,
 ):
     """
     Handle text-based music search.
     """
+    chat_id = channel.chat_id
     lang = await db.get_lang(chat_id)
     play_type = await db.get_play_type(chat_id)
     search = await wrapper.search()
@@ -376,7 +384,7 @@ async def _handle_text_search(
     if play_type == 0:
         url = search.tracks[0].url
         if song := await MusicServiceWrapper(url).get_info():
-            return await play_music(c, msg, song, user_by)
+            return await play_music(c, msg, song, user_by, channel)
 
         return await edit_text(
             msg,
@@ -395,7 +403,13 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
     """
     Generic handler for /play and /vplay.
     """
-    chat_id = msg.chat_id
+    is_channel = is_channel_cmd(msg.text)
+    chat_id = await db.get_channel_id(msg.chat_id) if is_channel else msg.chat_id
+    channel = ChannelPlay(
+        chat_id=chat_id,
+        is_channel=is_channel and chat_id != msg.chat_id,
+    )
+
     lang = await db.get_lang(chat_id)
     if chat_id > 0:
         return await msg.reply_text(get_string("only_supergroup", lang))
@@ -463,7 +477,7 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
 
     # Telegram file support
     if reply and Telegram(reply).is_valid():
-        return await _handle_telegram_file(c, msg, reply, reply_message, user_by)
+        return await _handle_telegram_file(c, channel, reply, reply_message, user_by)
 
     if url:
         if not wrapper.is_valid(url):
@@ -474,7 +488,7 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
             )
 
         if song := await wrapper.get_info():
-            return await play_music(c, reply_message, song, user_by, is_video=is_video)
+            return await play_music(c, reply_message, song, user_by, channel, is_video=is_video)
 
         return await edit_text(
             reply_message,
@@ -493,7 +507,7 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
             )
 
         if song := await MusicServiceWrapper(search.tracks[0].url).get_info():
-            return await play_music(c, reply_message, song, user_by, is_video=True)
+            return await play_music(c, reply_message, song, user_by, channel, is_video=True)
 
         return await edit_text(
             reply_message,
@@ -501,45 +515,29 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
             reply_markup=SupportButton,
         )
     else:
-        return await _handle_text_search(c, reply_message, chat_id, wrapper, user_by)
+        return await _handle_text_search(c, reply_message, channel, wrapper, user_by)
 
 
-@Client.on_message(filters=Filter.command("play"))
+@Client.on_message(filters=Filter.command(["play", "cplay"]))
 async def play_audio(c: Client, msg: types.Message) -> None:
-    """
-    Handle the /play command to play audio.
-
-    This function listens for the /play command and invokes the
-    handle_play_command function with the is_video flag set to False,
-    indicating that the request is to play audio.
-
-    Returns:
-        None
-    """
-    await handle_play_command(c, msg, is_video=False)
+    await handle_play_command(c, msg, False)
 
 
-@Client.on_message(filters=Filter.command("vplay"))
+@Client.on_message(filters=Filter.command(["vplay", "cvplay"]))
 async def play_video(c: Client, msg: types.Message) -> None:
-    """
-    Handle the /vplay command to play videos.
+    await handle_play_command(c, msg, True)
 
-    This function listens for the /vplay command and invokes the
-    handle_play_command function with the is_video flag set to True,
-    indicating that the request is to play a video.
-
-    Returns:
-        None
-    """
-    await handle_play_command(c, msg, is_video=True)
-
-
-@Client.on_message(filters=Filter.command("direct"))
+@Client.on_message(filters=Filter.command(["direct", "cdirect"]))
 async def play_file(_: Client, msg: types.Message) -> None:
     """Play a direct link. JUST FOR TESTING"""
+    is_channel = is_channel_cmd(msg.text)
+    chat_id = await db.get_channel_id(msg.chat_id) if is_channel else msg.chat_id
+    channel = ChannelPlay(
+        chat_id=chat_id,
+        is_channel=is_channel and chat_id != msg.chat_id,
+    )
 
-    chat_id = msg.chat_id
-    lang = await db.get_lang(chat_id)
+    lang = await db.get_lang(msg.chat_id)
     if chat_id > 0:
         await msg.reply_text(get_string("only_supergroup", lang))
         return None
@@ -557,11 +555,10 @@ async def play_file(_: Client, msg: types.Message) -> None:
         await msg.reply_text("Give me an direct playable link to play.")
         return None
 
-    chat_id = msg.chat_id
     _call = await call.play_media(chat_id, link, True)
     if isinstance(_call, types.Error):
         await edit_text(msg, text=f"⚠️ {str(_call)}")
         return None
 
-    chat_cache.add_song(chat_id, CachedTrack(name="", artist="", track_id="", loop=0, duration=0, file_path=link, thumbnail="", user="", platform="", is_video=True, url=link))
+    chat_cache.add_song(chat_id, CachedTrack(name="", artist="", track_id="", loop=0, duration=0, file_path=link, thumbnail="", user="", platform="", is_video=True, url=link, channel=channel))
     return None

@@ -26,7 +26,6 @@ chat_invite_cache = TTLCache(maxsize=1000, ttl=1000)
 async def check_user_status(c: Client, chat_id: int, user_id: int) -> ChatMemberStatusResult:
     cache_key = f"{chat_id}:{user_id}"
     user_status = user_status_cache.get(cache_key)
-
     if not user_status:
         user = await c.getChatMember(chat_id=chat_id, member_id=types.MessageSenderUser(user_id))
         if isinstance(user, types.Error):

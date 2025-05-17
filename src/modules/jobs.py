@@ -71,8 +71,9 @@ class InactiveCallManager:
                 return
 
             # Notify the chat and end the call
+            _chat_id = await db.get_chat_id_by_channel(chat_id) or chat_id
             reply = await self.bot.sendTextMessage(
-                chat_id, "⚠️ No active listeners detected. ⏹️ Leaving voice chat..."
+                _chat_id, "⚠️ No active listeners detected. ⏹️ Leaving voice chat..."
             )
             if isinstance(reply, types.Error):
                 self.bot.logger.warning(f"Error sending message: {reply}")

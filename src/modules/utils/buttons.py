@@ -1,30 +1,34 @@
 #  Copyright (c) 2025 AshokShau
 #  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
 #  Part of the TgMusicBot project. All rights reserved where applicable.
+from typing import Literal
 
 from pytdbot import types
-
 from src import config
 
-# ─────────────────────
-# Inline Button Definitions
-# ─────────────────────
 
-SKIP_BTN = types.InlineKeyboardButton(
-    text="‣‣I", type=types.InlineKeyboardButtonTypeCallback(b"play_skip")
-)
+def control_buttons(mode: Literal["play", "pause", "resume"], is_channel: bool) -> types.ReplyMarkupInlineKeyboard:
+    prefix = "cplay" if is_channel else "play"
 
-STOP_BTN = types.InlineKeyboardButton(
-    text="▢", type=types.InlineKeyboardButtonTypeCallback(b"play_stop")
-)
+    def btn(text: str, name: str) -> types.InlineKeyboardButton:
+        return types.InlineKeyboardButton(
+            text=text,
+            type=types.InlineKeyboardButtonTypeCallback(f"{prefix}_{name}".encode())
+        )
 
-PAUSE_BTN = types.InlineKeyboardButton(
-    text="II", type=types.InlineKeyboardButtonTypeCallback(b"play_pause")
-)
+    skip_btn = btn("‣‣I", "skip")
+    stop_btn = btn("▢", "stop")
+    pause_btn = btn("II", "pause")
+    resume_btn = btn("▷", "resume")
+    close_btn = btn("ᴄʟᴏsᴇ", "close")
 
-RESUME_BTN = types.InlineKeyboardButton(
-    text="▷", type=types.InlineKeyboardButtonTypeCallback(b"play_resume")
-)
+    layouts = {
+        "play": [[skip_btn, stop_btn, pause_btn, resume_btn], [close_btn]],
+        "pause": [[skip_btn, stop_btn, resume_btn], [close_btn]],
+        "resume": [[skip_btn, stop_btn, pause_btn], [close_btn]],
+    }
+
+    return types.ReplyMarkupInlineKeyboard(layouts.get(mode, [[close_btn]]))
 
 CLOSE_BTN = types.InlineKeyboardButton(
     text="ᴄʟᴏsᴇ", type=types.InlineKeyboardButtonTypeCallback(b"play_close")
@@ -58,22 +62,6 @@ DEVS_BTN = types.InlineKeyboardButton(
     text="Devs Commands", type=types.InlineKeyboardButtonTypeCallback(b"help_devs")
 )
 
-# ─────────────────────
-# Inline Keyboard Markups
-# ─────────────────────
-
-PlayButton = types.ReplyMarkupInlineKeyboard(
-    [[SKIP_BTN, STOP_BTN, PAUSE_BTN, RESUME_BTN], [CLOSE_BTN]]
-)
-
-PauseButton = types.ReplyMarkupInlineKeyboard(
-    [[SKIP_BTN, STOP_BTN, RESUME_BTN], [CLOSE_BTN]]
-)
-
-ResumeButton = types.ReplyMarkupInlineKeyboard(
-    [[SKIP_BTN, STOP_BTN, PAUSE_BTN], [CLOSE_BTN]]
-)
-
 SupportButton = types.ReplyMarkupInlineKeyboard([[CHANNEL_BTN, GROUP_BTN], [CLOSE_BTN]])
 
 HelpMenu = types.ReplyMarkupInlineKeyboard(
@@ -81,6 +69,7 @@ HelpMenu = types.ReplyMarkupInlineKeyboard(
 )
 
 BackHelpMenu = types.ReplyMarkupInlineKeyboard([[HELP_BTN, CLOSE_BTN]])
+
 
 # ─────────────────────
 # Dynamic Keyboard Generator

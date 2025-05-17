@@ -1,6 +1,6 @@
 [project]
 name = "tgmusicbot"
-version = "1.2.0"
+version = "1.2.0.dev0"
 description = "Telegram Music Bot with full playback support using PyTdBot and PyTgCalls"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -27,15 +27,15 @@ dependencies = [
     "cachetools~=5.5.2",
     "kurigram~=2.2.3",
     "meval~=2.5",
-    "ntgcalls==2.0.0rc5",
+    "ntgcalls~=2.0.0rc6",
     "pillow~=11.2.1",
     "psutil~=7.0.0",
     "py-yt-search~=0.3",
     "pycryptodome~=3.22.0",
     "pydantic~=2.11.4",
     "pymongo~=4.13.0",
-    "py-tgcalls==2.2.0rc3",
-    "PyTgCrypto~=1.2.9.2",
+    "py-tgcalls~=2.2.0rc3",
+    "pytgcrypto~=1.2.11",
     "python-dotenv~=1.1.0",
     "pytdbot~=0.9.3",
     "pytz~=2025.2",

@@ -2,7 +2,7 @@
 #  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
 #  Part of the TgMusicBot project. All rights reserved where applicable.
 
-from typing import Optional
+from typing import Optional, Union
 
 from cachetools import TTLCache
 from pymongo import AsyncMongoClient
@@ -74,6 +74,26 @@ class Database:
 
     async def set_assistant(self, chat_id: int, assistant: str) -> None:
         await self._update_chat_field(chat_id, "assistant", assistant)
+
+    async def get_channel_id(self, chat_id: int) -> int:
+        chat = await self.get_chat(chat_id)
+        channel_id = chat.get("channel_id") if chat else None
+        return channel_id if channel_id is not None else chat_id
+
+    async def set_channel_id(self, chat_id: int, channel_id: Union[int, None]) -> None:
+        await self._update_chat_field(chat_id, "channel_id", channel_id)
+
+    async def get_chat_id_by_channel(self, channel_id: int) -> Optional[int]:
+        """
+        Find the chat ID associated with the given channel ID.
+        """
+        try:
+            chat = await self.chat_db.find_one({"channel_id": channel_id})
+            return chat["_id"] if chat else None
+        except Exception as e:
+            LOGGER.warning("Error getting chat_id by channel_id: %s", e)
+            return None
+
 
     async def clear_all_assistants(self) -> int:
         # Clear assistants from all chats in the database

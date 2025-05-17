@@ -5,7 +5,7 @@
 from ._api import ApiData
 from ._cacher import chat_cache
 from ._database import db
-from ._dataclass import CachedTrack, MusicTrack, PlatformTracks, TrackInfo
+from ._dataclass import CachedTrack, MusicTrack, PlatformTracks, TrackInfo, ChannelPlay
 from ._downloader import MusicServiceWrapper
 from ._jiosaavn import JiosaavnData
 from ._lang import load_translations, get_string, LangsButtons
@@ -32,4 +32,5 @@ __all__ = [
     "start_clients",
     "Telegram",
     "YouTubeData",
+    "ChannelPlay"
 ]

@@ -22,11 +22,13 @@ from pytgcalls.types import (
     UpdatedGroupCallParticipant,
     VideoQuality,
     stream,
+    GroupCallConfig,
+    CallConfig,
 )
 
 from src import config
 from src.logger import LOGGER
-from src.modules.utils import PlayButton, get_audio_duration, sec_to_min, send_logger
+from src.modules.utils import get_audio_duration, sec_to_min, send_logger, control_buttons
 from src.modules.utils.thumbnails import gen_thumb
 from ._api import ApiData
 from ._cacher import chat_cache
@@ -37,12 +39,13 @@ from ._jiosaavn import JiosaavnData
 from ._youtube import YouTubeData
 
 
-class MusicBot:
+class Call:
     def __init__(self):
         self.calls: dict[str, PyTgCalls] = {}
         self.client_counter: int = 1
         self.available_clients: list[str] = []
         self.bot: Optional[Client] = None
+        self._client_assignment_lock = asyncio.Lock()
 
     async def add_bot(self, client: Client) -> types.Ok:
         """Register the main bot client.
@@ -57,34 +60,29 @@ class MusicBot:
         return types.Ok()
 
     async def _get_client_name(self, chat_id: int) -> Union[str, types.Error]:
-        """Get an available client session for a chat.
-
-        Args:
-            chat_id: Target chat ID
-
-        Returns:
-            Client name string or types.Error if no clients available
-        """
+        """Get an available client session for a chat."""
         if not self.available_clients:
-            return types.Error(
-                code=503,
-                message="No available client sessions.\n"
-                "Please try again later or report this issue.",
-            )
+            return types.Error(code=500, message="No clients available\nReport this issue")
 
-        if chat_id == 1:  # Special case for testing
+        if chat_id == 1:
             return random.choice(self.available_clients)
 
-        # Try to get previously assigned assistant
-        assistant = await db.get_assistant(chat_id)
-        if assistant and assistant in self.available_clients:
-            return assistant
+        async with self._client_assignment_lock:
+            assistant = await db.get_assistant(chat_id)
+            if assistant and assistant in self.available_clients:
+                return assistant
 
-        # Assign new random client
-        new_client = random.choice(self.available_clients)
-        await db.set_assistant(chat_id, assistant=new_client)
-        LOGGER.info(f"Assigned client {new_client} to chat {chat_id}")
-        return new_client
+            new_client = random.choice(self.available_clients)
+            await db.set_assistant(chat_id, assistant=new_client)
+            LOGGER.info("Set assistant for %s to %s", chat_id, new_client)
+            return new_client
+
+    async def _group_assistant(self, chat_id: int) -> Union[PyTgCalls, types.Error]:
+        client_name = await self._get_client_name(chat_id)
+        if isinstance(client_name, types.Error):
+            return client_name
+
+        return self.calls[client_name]
 
     async def get_client(self, chat_id: int) -> Union[PyroClient, types.Error]:
         """Get the pyrogram client instance for a chat.
@@ -95,11 +93,11 @@ class MusicBot:
         Returns:
             PyroClient instance or types.Error if unavailable
         """
-        client_name = await self._get_client_name(chat_id)
-        if isinstance(client_name, types.Error):
-            return client_name
+        client = await self._group_assistant(chat_id)
+        if isinstance(client, types.Error):
+            return client
 
-        ub = self.calls[client_name].mtproto_client
+        ub = client.mtproto_client
         if ub is None or not hasattr(ub, "me") or ub.me is None:
             return types.Error(
                 code=500,
@@ -140,19 +138,18 @@ class MusicBot:
 
     async def register_decorators(self) -> None:
         """Register pytgcalls event handlers."""
-        for call_instance in self.calls.values():
+        for _call in self.calls.values():
 
-            @call_instance.on_update()
-            async def general_handler(_, update: Update):
+            @_call.on_update()
+            async def general_handler(_, update: Update, _call=_call):
                 try:
-                    LOGGER.debug("Received update: %s", update)
-
+                    # LOGGER.debug("Received update from call %s: %s", _call, update)
                     if isinstance(update, stream.StreamEnded):
                         await self.play_next(update.chat_id)
                     elif isinstance(update, UpdatedGroupCallParticipant):
                         return
                     elif isinstance(update, ChatUpdate) and (
-                        update.status.KICKED or update.status.LEFT_GROUP
+                            update.status.KICKED or update.status.LEFT_GROUP
                     ):
                         LOGGER.debug(
                             "Cleaning up chat %s after leaving", update.chat_id
@@ -183,14 +180,12 @@ class MusicBot:
             "Playing media for chat %s: %s (video=%s)", chat_id, file_path, video
         )
 
-        client_name = await self._get_client_name(chat_id)
-        if isinstance(client_name, types.Error):
-            return client_name
+        client = await self._group_assistant(chat_id)
+        if isinstance(client, types.Error):
+            return client
 
         # Validate media file exists if not URL
-        if not str(file_path).startswith(
-            ("http://", "https://")
-        ) and not os.path.exists(file_path):
+        if not re.match("^https?://", str(file_path)) and not os.path.exists(file_path):
             return types.Error(
                 code=404, message="Media file not found. It may have been deleted."
             )
@@ -206,8 +201,9 @@ class MusicBot:
             ffmpeg_parameters=ffmpeg_parameters,
         )
 
+        call_config = GroupCallConfig(auto_start=False) if chat_id < 0 else CallConfig(timeout=50)
         try:
-            await self.calls[client_name].play(chat_id, _stream)
+            await client.play(chat_id, _stream, call_config)
             # Send playback log if enabled
             if await db.get_logger_status(self.bot.me.id):
                 self.bot.loop.create_task(
@@ -234,6 +230,9 @@ class MusicBot:
                 code=502,
                 message="Telegram server issues detected. Please try again later.",
             )
+        except errors.RPCError as e:
+            LOGGER.error("Playback failed in chat %s: %s", chat_id, str(e))
+            return types.Error(code=e.CODE or 500, message=f"Playback error: {str(e)}")
         except Exception as e:
             LOGGER.error(
                 "Playback failed in chat %s: %s", chat_id, str(e), exc_info=True
@@ -336,7 +335,7 @@ class MusicBot:
                     message_id=reply.id,
                     input_message_content=input_content,
                     reply_markup=(
-                        PlayButton if await db.get_buttons_status(chat_id) else None
+                        control_buttons("play", song.channel.is_channel) if await db.get_buttons_status(chat_id) else None
                     ),
                 )
             else:
@@ -348,7 +347,7 @@ class MusicBot:
                         link_preview_options=types.LinkPreviewOptions(is_disabled=True),
                     ),
                     reply_markup=(
-                        PlayButton if await db.get_buttons_status(chat_id) else None
+                        control_buttons("play", song.channel.is_channel) if await db.get_buttons_status(chat_id) else None
                     ),
                 )
 
@@ -399,7 +398,7 @@ class MusicBot:
         """
         try:
             await self.end(chat_id)
-
+            _chat_id = await db.get_chat_id_by_channel(chat_id) or chat_id
             # Try to get recommendations
             try:
                 recommendations = await MusicServiceWrapper().get_recommendations()
@@ -417,7 +416,7 @@ class MusicBot:
                     ]
 
                     await self.bot.sendTextMessage(
-                        chat_id,
+                        _chat_id,
                         text="🎵 Queue finished. Try these recommendations:\n",
                         reply_markup=types.ReplyMarkupInlineKeyboard(buttons),
                     )
@@ -427,7 +426,7 @@ class MusicBot:
 
             # Fallback message
             await self.bot.sendTextMessage(
-                chat_id, text="🎵 Queue finished.\nUse /play to add more songs!"
+                _chat_id, text="🎵 Queue finished.\nUse /play to add more songs!"
             )
 
         except Exception as e:
@@ -449,14 +448,14 @@ class MusicBot:
         """
         LOGGER.info("Ending playback for chat %s", chat_id)
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
             chat_cache.clear_chat(chat_id)
 
             try:
-                await self.calls[client_name].leave_call(chat_id)
+                await client.leave_call(chat_id)
             except (exceptions.NotInCallError, errors.GroupCallInvalid):
                 pass  # Already not in call
 
@@ -552,14 +551,14 @@ class MusicBot:
             None on success or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
             if volume < 1 or volume > 200:
                 return types.Error(code=400, message="Volume must be between 1 and 200")
 
-            await self.calls[client_name].change_volume_call(chat_id, volume)
+            await client.change_volume_call(chat_id, volume)
             return None
         except Exception as e:
             LOGGER.error(
@@ -577,11 +576,11 @@ class MusicBot:
             types.Ok on success or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
-            await self.calls[client_name].mute(chat_id)
+            await client.mute(chat_id)
             return types.Ok()
         except Exception as e:
             LOGGER.error("Mute failed for chat %s: %s", chat_id, str(e), exc_info=True)
@@ -597,11 +596,11 @@ class MusicBot:
             types.Ok on success or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
-            await self.calls[client_name].unmute(chat_id)
+            await client.unmute(chat_id)
             return types.Ok()
         except Exception as e:
             LOGGER.error(
@@ -619,11 +618,11 @@ class MusicBot:
             types.Ok on success or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
-            await self.calls[client_name].resume(chat_id)
+            await client.resume(chat_id)
             return types.Ok()
         except Exception as e:
             LOGGER.error(
@@ -641,11 +640,11 @@ class MusicBot:
             types.Ok on success or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
-            await self.calls[client_name].pause(chat_id)
+            await client.pause(chat_id)
             return types.Ok()
         except Exception as e:
             LOGGER.error("Pause failed for chat %s: %s", chat_id, str(e), exc_info=True)
@@ -661,11 +660,11 @@ class MusicBot:
             Current position in seconds or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
-            return await self.calls[client_name].time(chat_id)
+            return await client.time(chat_id)
         except exceptions.NotInCallError:
             chat_cache.clear_chat(chat_id)
             return 0
@@ -687,11 +686,11 @@ class MusicBot:
             List of participants or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
-            return await self.calls[client_name].get_participants(chat_id)
+            return await client.get_participants(chat_id)
         except exceptions.UnsupportedMethod:
             return types.Error(
                 code=501, message="This method is not supported by the server"
@@ -717,13 +716,13 @@ class MusicBot:
             Tuple of (ping, cpu_usage) or types.Error on failure
         """
         try:
-            client_name = await self._get_client_name(chat_id)
-            if isinstance(client_name, types.Error):
-                return client_name
+            client = await self._group_assistant(chat_id)
+            if isinstance(client, types.Error):
+                return client
 
             return (
-                self.calls[client_name].ping,
-                await self.calls[client_name].cpu_usage,
+                client.ping,
+                await client.cpu_usage,
             )
         except Exception as e:
             LOGGER.error(
@@ -747,4 +746,4 @@ async def start_clients() -> None:
         raise SystemExit(1) from exc
 
 
-call: MusicBot = MusicBot()
+call: Call = Call()

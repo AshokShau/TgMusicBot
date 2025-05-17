@@ -9,7 +9,7 @@ from pytdbot import Client, types
 from src.helpers import db, get_string
 from src.logger import LOGGER
 from src.modules.utils import Filter
-from src.modules.utils.admins import is_admin, is_owner
+from src.modules.utils.admins import is_admin, is_owner, load_admin_cache
 from src.modules.utils.play_helpers import extract_argument
 
 
@@ -54,7 +54,7 @@ async def _validate_auth_command(msg: types.Message) -> Union[types.Message, Non
     return reply
 
 
-@Client.on_message(filters=Filter.command("auth"))
+@Client.on_message(filters=Filter.command(["auth"]))
 async def auth(c: Client, msg: types.Message) -> None:
     reply = await _validate_auth_command(msg)
     if not reply:
@@ -75,7 +75,7 @@ async def auth(c: Client, msg: types.Message) -> None:
             c.logger.warning(reply.message)
 
 
-@Client.on_message(filters=Filter.command("unauth"))
+@Client.on_message(filters=Filter.command(["unauth"]))
 async def un_auth(c: Client, msg: types.Message) -> None:
     reply = await _validate_auth_command(msg)
     if not reply:
@@ -96,7 +96,7 @@ async def un_auth(c: Client, msg: types.Message) -> None:
             c.logger.warning(reply.message)
 
 
-@Client.on_message(filters=Filter.command("authlist"))
+@Client.on_message(filters=Filter.command(["authlist"]))
 async def auth_list(c: Client, msg: types.Message) -> None:
     chat_id = msg.chat_id
     lang = await db.get_lang(chat_id)
@@ -167,20 +167,16 @@ async def _handle_toggle_command(
     if arg in ["on", "enable"]:
         await set_func(chat_id, True)
         reply = await msg.reply_text(get_string(f"{key}_status_enabled", lang))
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
     elif arg in ["off", "disable"]:
         await set_func(chat_id, False)
         reply = await msg.reply_text(get_string(f"{key}_status_disabled", lang))
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
     else:
         reply = await msg.reply_text(get_string("invalid_toggle_usage", lang).format(key=key))
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
+    if isinstance(reply, types.Error):
+        LOGGER.warning(reply.message)
 
 
-@Client.on_message(filters=Filter.command("buttons"))
+@Client.on_message(filters=Filter.command(["buttons"]))
 async def buttons(_: Client, msg: types.Message) -> None:
     await _handle_toggle_command(
         msg, "buttons", "Button control", db.get_buttons_status, db.set_buttons_status
@@ -194,3 +190,60 @@ async def thumbnail(_: Client, msg: types.Message) -> None:
         msg, "thumbnail", "Thumbnail", db.get_thumb_status, db.set_thumb_status
     )
     return
+
+@Client.on_message(filters=Filter.command("channelplay"))
+async def set_channel_id(c: Client, msg: types.Message) -> None:
+    chat_id = msg.chat_id
+    lang = await db.get_lang(chat_id)
+    if chat_id > 0:
+        await msg.reply_text(get_string("only_supergroup", lang))
+        return
+
+    user_id = msg.from_id
+    reply = await msg.getRepliedMessage() if msg.reply_to_message_id else None
+    args = extract_argument(msg.text)
+    if args and args.lower() in ["off", "disable"]:
+        await db.set_channel_id(chat_id, None)
+        await msg.reply_text("Play channel removed.")
+        return
+
+    # Ensure the message is a reply with a forwarded channel message
+    if not reply or not reply.forward_info:
+        text = "⚠️ Reply to a forwarded message from a channel to set it as the play channel."
+        if channel_id := await db.get_channel_id(chat_id):
+            text += f"\n\nCurrent channel: <code>{channel_id}</code>"
+            text += f"\nChat ID: <code>{chat_id}</code>"
+        await msg.reply_text(text)
+        return
+
+    origin = reply.forward_info.origin
+    if not origin or origin.getType() != types.MessageOriginChannel().getType():
+        await msg.reply_text("⚠️ The forwarded message must be from a channel.")
+        return
+
+    channel_id = origin.chat_id
+    reload, _ = await load_admin_cache(c, channel_id, True)
+    if not reload:
+        await msg.reply_text("❌ I must be an admin of the channel to link it.")
+        return
+
+    # bot admin checks
+    if not await is_admin(chat_id, c.me.id):
+        await msg.reply_text("❌ I must be an admin of this chat to set a play channel.\nUse /reload if i'm admin.")
+        return
+
+    if not await is_admin(channel_id, c.me.id):
+        await msg.reply_text("❌ I must also be an admin of the channel to link it.")
+        return
+
+    # Owner checks
+    if not await is_owner(chat_id, user_id):
+        await msg.reply_text("❌ You must be the owner of this chat to set a play channel.\nUse /reload if you are.")
+        return
+
+    if not await is_owner(channel_id, user_id):
+        await msg.reply_text("❌ You must also be the owner of the channel to link it.\nUse /creload if you are.")
+        return
+
+    await db.set_channel_id(chat_id, channel_id)
+    await msg.reply_text(f"✅ Channel set to: <code>{channel_id}</code>")

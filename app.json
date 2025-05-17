@@ -99,7 +99,7 @@
             "required": false
         },
         "API_KEY": {
-            "description": "API key for the bot",
+            "description": "API key for the bot, get it from https://t.me/FallenApiBot",
             "value": "",
             "required": false
         },

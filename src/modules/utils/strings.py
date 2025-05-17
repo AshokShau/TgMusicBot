@@ -32,6 +32,7 @@ UserCommands = """
 /vplay [song name or reply to video] – Play video in voice chat.
 /privacy – View privacy policy.
 /lang – Change the bot's language.
+
 """
 
 AdminCommands = """
@@ -64,6 +65,7 @@ ChatOwnerCommands = """
 /buttons – Toggle playback buttons display.
 /thumb – Toggle thumbnail display.
 /autoend [on/off] – Automatically ends voice chats when no one is listening.
+/channelplay [off | reply to channel message] – Connect Group to a channel.
 """
 
 BotDevsCommands = """

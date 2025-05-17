@@ -88,5 +88,6 @@
   "loop_reply": "🔄 Loop {0}\n│ \n└ Action by: {1}",
   "set_play_type_usage": "Usage: /setPlayType 0/1\n\n0 = Directly play the first search result.\n1 = Show a list of songs to choose from.",
   "invalid_play_type": "Invalid option! Please use: /setPlayType 0/1",
-  "play_type_set": "✅ Play type set to {0}"
+  "play_type_set": "✅ Play type set to {0}",
+  "no_channel": "❌ No channel found for this group."
 }

@@ -398,20 +398,16 @@ async def auto_end(c: Client, message: types.Message) -> None:
     if args in ["on", "enabled"]:
         await db.set_auto_end(c.me.id, True)
         reply = await message.reply_text("✅ <b>Auto End</b> has been <b>enabled</b>.")
-        if isinstance(reply, types.Error):
-            c.logger.warning(reply.message)
     elif args in ["off", "disabled"]:
         await db.set_auto_end(c.me.id, False)
         reply = await message.reply_text("❌ <b>Auto End</b> has been <b>disabled</b>.")
-        if isinstance(reply, types.Error):
-            c.logger.warning(reply.message)
     else:
         reply = await message.reply_text(
             f"⚠️ Unknown argument: <b>{args}</b>\nUse <code>/autoend on</code> or <code>/autoend off</code>.",
             disable_web_page_preview=True
         )
-        if isinstance(reply, types.Error):
-            c.logger.warning(reply.message)
+    if isinstance(reply, types.Error):
+        c.logger.warning(reply.message)
 
 
 @Client.on_message(filters=Filter.command(["clearass", "clearallassistants"]))

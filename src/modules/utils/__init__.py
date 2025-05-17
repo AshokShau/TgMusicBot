@@ -6,9 +6,6 @@ __all__ = [
     "Filter",
     "sec_to_min",
     "get_audio_duration",
-    "PlayButton",
-    "PauseButton",
-    "ResumeButton",
     "SupportButton",
     "send_logger",
     "user_status_cache",
@@ -16,6 +13,8 @@ __all__ = [
     "join_ub",
     "check_user_status",
     "ChatMemberStatus",
+    "is_channel_cmd",
+    "control_buttons",
 ]
 
 import asyncio
@@ -25,10 +24,17 @@ from pytdbot import Client, types
 
 from ._filters import Filter
 from ._join_ub import user_status_cache, ChatMemberStatus, join_ub, check_user_status, chat_invite_cache
-from .buttons import PauseButton, PlayButton, ResumeButton, SupportButton
+from .buttons import SupportButton, control_buttons
 from ... import config
 from ...helpers import CachedTrack
 from ...logger import LOGGER
+
+
+def is_channel_cmd(text: str) -> bool:
+    if not text:
+        return False
+    text = text.strip().lower()
+    return any(text.startswith(prefix) for prefix in ("/c", "!c", ".c", "cplay"))
 
 
 def sec_to_min(seconds):

@@ -98,13 +98,13 @@ class HttpxClient:
 
         try:
             async with self._session.stream(
-                    "GET", url, timeout=self._download_timeout, headers=headers
-            ) as response:
+                            "GET", url, timeout=self._download_timeout, headers=headers
+                    ) as response:
                 response.raise_for_status()
                 if file_path is None:
                     cd = response.headers.get("Content-Disposition", "")
                     match = re.search(r'filename="?([^"]+)"?', cd)
-                    filename = unquote(match.group(1)) if match else (Path(url).name or uuid.uuid4().hex)
+                    filename = unquote(match[1]) if match else (Path(url).name or uuid.uuid4().hex)
                     path = Path(DOWNLOADS_DIR) / filename
                 else:
                     path = Path(file_path) if isinstance(file_path, str) else file_path
