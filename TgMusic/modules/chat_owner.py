@@ -192,7 +192,7 @@ async def thumbnail(_: Client, msg: types.Message) -> None:
             LOGGER.warning(reply.message)
         return
 
-    current = await db.get_thumbnail_status(chat_id)
+    current = await db.get_thumb_status(chat_id)
     args = extract_argument(msg.text)
 
     if not args:
@@ -207,10 +207,10 @@ async def thumbnail(_: Client, msg: types.Message) -> None:
 
     arg = args.lower()
     if arg in ["on", "enable"]:
-        await db.set_thumbnail_status(chat_id, True)
+        await db.set_thumb_status(chat_id, True)
         reply = await msg.reply_text("✅ Thumbnails enabled.")
     elif arg in ["off", "disable"]:
-        await db.set_thumbnail_status(chat_id, False)
+        await db.set_thumb_status(chat_id, False)
         reply = await msg.reply_text("❌ Thumbnails disabled.")
     else:
         reply = await msg.reply_text(
