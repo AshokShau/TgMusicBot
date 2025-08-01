@@ -119,7 +119,6 @@ class YouTubeUtils:
             "id": track_data.get("id", ""),
             "name": track_data.get("title", "Unknown Title"),
             "duration": YouTubeUtils.duration_to_seconds(duration),
-            "artist": track_data.get("channel", {}).get("name", "Unknown Artist"),
             "cover": cover_url,
             "year": 0,
             "url": f"https://www.youtube.com/watch?v={track_data.get('id', '')}",
@@ -133,11 +132,8 @@ class YouTubeUtils:
             cdnurl="None",
             key="None",
             name=track_data.get("name", "Unknown Title"),
-            artist=track_data.get("artist", "Unknown Artist"),
             tc=track_data.get("id", ""),
-            album="YouTube",
             cover=track_data.get("cover", ""),
-            lyrics="None",
             duration=track_data.get("duration", 0),
             platform="youtube",
             url=f"https://youtube.com/watch?v={track_data.get('id', '')}",
@@ -388,16 +384,13 @@ class YouTubeData(MusicService):
         """
         self.query = YouTubeUtils.clean_query(query) if query else None
 
-    def is_valid(self, url: Optional[str]) -> bool:
+    def is_valid(self) -> bool:
         """Validate YouTube URL format.
-
-        Args:
-            url: URL to validate
 
         Returns:
             bool: True if URL matches YouTube patterns
         """
-        return YouTubeUtils.is_valid_url(url)
+        return YouTubeUtils.is_valid_url(self.query)
 
     async def get_info(self) -> Union[PlatformTracks, types.Error]:
         """Retrieve track information from YouTube URL.
@@ -406,7 +399,7 @@ class YouTubeData(MusicService):
             PlatformTracks: Contains track metadata
             types.Error: If URL is invalid or request fails
         """
-        if not self.query or not self.is_valid(self.query):
+        if not self.query or not self.is_valid():
             return types.Error(code=400, message="Invalid YouTube URL provided")
 
         data = await self._fetch_data(self.query)
@@ -426,7 +419,7 @@ class YouTubeData(MusicService):
             return types.Error(code=400, message="No search query provided")
 
         # Handle direct URL searches
-        if self.is_valid(self.query):
+        if self.is_valid():
             return await self.get_info()
 
         try:

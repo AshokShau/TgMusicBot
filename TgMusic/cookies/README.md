@@ -13,10 +13,10 @@ To authenticate requests using browser cookies, follow these steps:
 Use a browser extension to export cookies as a **`cookies.txt`** file in **Netscape HTTP format**:  
 
 ### **🌐 Recommended Extensions:**  
-| Browser | Extension | Download Link |  
-|---------|-----------|---------------|  
-| **Chrome** | `Get cookies.txt` | [Chrome Web Store](https://chromewebstore.google.com/detail/get-cookiestxt-clean/ahmnmhfbokciafffnknlekllgcnafnie) |  
-| **Firefox** | `cookies.txt` | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/) |  
+| Browser     | Extension         | Download Link                                                                                                      |  
+|-------------|-------------------|--------------------------------------------------------------------------------------------------------------------|  
+| **Chrome**  | `Get cookies.txt` | [Chrome Web Store](https://chromewebstore.google.com/detail/get-cookiestxt-clean/ahmnmhfbokciafffnknlekllgcnafnie) |  
+| **Firefox** | `cookies.txt`     | [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/)                                     |  
 
 ### **📥 How to Export:**  
 1. Install the extension.  

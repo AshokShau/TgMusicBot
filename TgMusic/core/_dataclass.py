@@ -11,7 +11,6 @@ from pydantic import BaseModel
 class CachedTrack(BaseModel):
     url: str
     name: str
-    artist: str
     loop: int
     user: str
     file_path: Union[str, Path]
@@ -27,11 +26,8 @@ class TrackInfo(BaseModel):
     cdnurl: str
     key: str
     name: str
-    artist: str
-    album: str
     tc: str
     cover: str
-    lyrics: str
     duration: int
     year: int
     platform: str
@@ -40,7 +36,6 @@ class TrackInfo(BaseModel):
 class MusicTrack(BaseModel):
     url: str
     name: str
-    artist: str
     id: str
     year: int
     cover: str

@@ -91,4 +91,4 @@ class ChatCacher:
         ]
 
 
-chat_cache = ChatCacher()
+chat_cache: ChatCacher = ChatCacher()

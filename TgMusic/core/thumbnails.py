@@ -169,7 +169,7 @@ async def gen_thumb(song: CachedTrack) -> str:
     if await aiopath.exists(save_dir):
         return save_dir
 
-    title, artist = clean_text(song.name), clean_text(song.artist or "Spotify")
+    title, artist = clean_text(song.name), clean_text("Spotify")
     duration = song.duration or 0
 
     thumb = await fetch_image(song.thumbnail)

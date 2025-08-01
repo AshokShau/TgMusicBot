@@ -172,7 +172,7 @@ class Calls:
             chat_id: Target chat ID
             file_path: Path to media file
             video: Whether to stream video
-            ffmpeg_parameters: Custom FFmpeg parameters
+            ffmpeg_parameters: Custom ffmpeg parameters
 
         Returns:
             types.Ok on success or types.Error on failure
@@ -371,7 +371,7 @@ class Calls:
         """
         song_url = song.url
         wrapper = DownloaderWrapper(song_url)
-        if wrapper.is_valid(song_url):
+        if wrapper.is_valid():
             track_info = await wrapper.get_track()
             if isinstance(track_info, types.Error):
                 return track_info

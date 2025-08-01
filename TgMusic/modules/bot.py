@@ -14,9 +14,6 @@ from TgMusic.core import (
 )
 from TgMusic.core.admins import load_admin_cache
 from TgMusic.modules.utils import sec_to_min
-from TgMusic.modules.utils.play_helpers import (
-    extract_argument,
-)
 
 
 @Client.on_message(filters=Filter.command("privacy"))

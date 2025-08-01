@@ -66,20 +66,17 @@ class JiosaavnData(MusicService):
             "socket_timeout": 10,
         }
 
-    def is_valid(self, url: str) -> bool:
+    def is_valid(self) -> bool:
         """Validate if URL matches JioSaavn patterns.
-
-        Args:
-            url: URL to validate
 
         Returns:
             bool: True if URL matches song or playlist pattern
         """
-        if not url:
+        if not self.query:
             return False
         return bool(
-            self.JIOSAAVN_SONG_PATTERN.match(url)
-            or self.JIOSAAVN_PLAYLIST_PATTERN.match(url)
+            self.JIOSAAVN_SONG_PATTERN.match(self.query)
+            or self.JIOSAAVN_PLAYLIST_PATTERN.match(self.query)
         )
 
     async def search(self) -> Union[PlatformTracks, types.Error]:
@@ -93,7 +90,7 @@ class JiosaavnData(MusicService):
             return types.Error(code=400, message="Search query cannot be empty")
 
         # Handle direct URL searches
-        if self.is_valid(self.query):
+        if self.is_valid():
             return await self.get_info()
 
         try:
@@ -128,7 +125,7 @@ class JiosaavnData(MusicService):
             PlatformTracks: Contains track metadata
             types.Error: If URL is invalid or request fails
         """
-        if not self.query or not self.is_valid(self.query):
+        if not self.query or not self.is_valid():
             return types.Error(code=400, message="Invalid JioSaavn URL provided")
 
         try:
@@ -160,7 +157,7 @@ class JiosaavnData(MusicService):
         # Normalize URL format
         url = (
             self.query
-            if self.is_valid(self.query)
+            if self.is_valid()
             else self.format_jiosaavn_url(self.query)
         )
 
@@ -173,11 +170,8 @@ class JiosaavnData(MusicService):
             cdnurl=track_data.get("cdnurl", ""),
             key="nil",
             name=track_data.get("name", ""),
-            artist=track_data.get("artist", self.DEFAULT_ARTIST),
             tc=track_data.get("id", ""),
-            album=track_data.get("album", self.DEFAULT_ALBUM),
             cover=track_data.get("cover", ""),
-            lyrics="None",
             duration=track_data.get("duration", self.DEFAULT_DURATION),
             year=track_data.get("year", self.DEFAULT_YEAR),
             url=track_data.get("url", ""),
@@ -300,13 +294,6 @@ class JiosaavnData(MusicService):
         # Get best available audio format
         formats = track_data.get("formats", [])
         best_format = max(formats, key=lambda x: x.get("abr", 0), default={})
-
-        # Extract artist information
-        artists = track_data.get("artists", [])
-        artist = track_data.get("artist") or (
-            artists[0] if artists else cls.DEFAULT_ARTIST
-        )
-
         # Generate display ID from title and URL
         title = track_data.get("title", "")
         url_parts = track_data.get("url", "").split("/")
@@ -316,9 +303,7 @@ class JiosaavnData(MusicService):
             "id": track_data.get("display_id", display_id),
             "tc": track_data.get("display_id", display_id),
             "name": title,
-            "album": track_data.get("album", cls.DEFAULT_ALBUM),
             "duration": track_data.get("duration", cls.DEFAULT_DURATION),
-            "artist": artist,
             "cover": track_data.get("thumbnail", ""),
             "year": track_data.get("release_year", cls.DEFAULT_YEAR),
             "platform": "jiosaavn",

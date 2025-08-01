@@ -86,18 +86,18 @@ class SpotifyDownload:
             chunk_size = 8192  # 8KB chunks
             async with (
                 aiofiles.open(self.encrypted_file, "rb") as fin,
-                aiofiles.open(self.decrypted_file, "wb") as fout,
+                aiofiles.open(self.decrypted_file, "wb") as f,
             ):
                 while chunk := await fin.read(chunk_size):
                     decrypted_chunk = cipher.decrypt(chunk)
-                    await fout.write(decrypted_chunk)
+                    await f.write(decrypted_chunk)
         except Exception as e:
             LOGGER.error("Error decrypting audio file: %s", e)
             raise
 
     async def fix_audio(self) -> None:
         """
-        Fix the decrypted audio file using FFmpeg.
+        Fix the decrypted audio file using ffmpeg.
         """
         try:
             process = await asyncio.create_subprocess_exec(
@@ -112,7 +112,7 @@ class SpotifyDownload:
             )
             _, stderr = await process.communicate()
             if process.returncode != 0:
-                LOGGER.error("FFmpeg error: %s", stderr.decode().strip())
+                LOGGER.error("ffmpeg error: %s", stderr.decode().strip())
                 raise subprocess.CalledProcessError(process.returncode, "ffmpeg")
         except Exception as e:
             LOGGER.error("Error fixing audio file: %s", e)

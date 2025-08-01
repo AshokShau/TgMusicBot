@@ -1,11 +1,10 @@
-#  Copyright (c) 2025 AshokShau
-#  Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
-#  Part of the TgMusicBot project. All rights reserved where applicable.
+# Copyright (c) 2025 AshokShau
+# Licensed under the GNU AGPL v3.0: https://www.gnu.org/licenses/agpl-3.0.html
+# Part of the TgMusicBot project. All rights reserved where applicable.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Union
-
 from pytdbot import types
 from ._config import config
 from ._dataclass import PlatformTracks, TrackInfo
@@ -13,7 +12,7 @@ from ._dataclass import PlatformTracks, TrackInfo
 
 class MusicService(ABC):
     @abstractmethod
-    def is_valid(self, url: str) -> bool: ...
+    def is_valid(self) -> bool: ...
 
     @abstractmethod
     async def get_info(self) -> Union[PlatformTracks, types.Error]: ...
@@ -25,9 +24,7 @@ class MusicService(ABC):
     async def get_track(self) -> Union[TrackInfo, types.Error]: ...
 
     @abstractmethod
-    async def download_track(
-        self, track_info: TrackInfo, video: bool = False
-    ) -> Union[Path, types.Error]: ...
+    async def download_track(self, track_info: TrackInfo, video: bool = False) -> Union[Path, types.Error]: ...
 
 
 class DownloaderWrapper(MusicService):
@@ -41,24 +38,22 @@ class DownloaderWrapper(MusicService):
         from ._jiosaavn import JiosaavnData
 
         services = [YouTubeData, JiosaavnData, ApiData]
-        for service_cls in services:
-            if service_cls().is_valid(self.query):
-                return service_cls(self.query)
+        service = next((s(self.query) for s in services if s(self.query).is_valid()), None)
 
-        fallback_map = {
+        if service:
+            return service
+
+        fallback = {
             "youtube": YouTubeData,
             "spotify": ApiData,
-            "jiosaavn": JiosaavnData,
-        }
-        fallback_cls = fallback_map.get(config.DEFAULT_SERVICE, YouTubeData)
-        return (
-            ApiData(self.query)
-            if fallback_cls == ApiData and config.API_URL and config.API_KEY
-            else fallback_cls(self.query)
-        )
+            "jiosaavn": JiosaavnData
+        }.get(config.DEFAULT_SERVICE, YouTubeData)
 
-    def is_valid(self, url: str) -> bool:
-        return self.service.is_valid(url)
+        return ApiData(self.query) if fallback == ApiData and config.API_URL and config.API_KEY else fallback(
+            self.query)
+
+    def is_valid(self) -> bool:
+        return self.service.is_valid()
 
     async def get_info(self) -> Union[PlatformTracks, types.Error]:
         return await self.service.get_info()
@@ -69,7 +64,5 @@ class DownloaderWrapper(MusicService):
     async def get_track(self) -> Union[TrackInfo, types.Error]:
         return await self.service.get_track()
 
-    async def download_track(
-        self, track_info: TrackInfo, video: bool = False
-    ) -> Union[Path, types.Error]:
+    async def download_track(self, track_info: TrackInfo, video: bool = False) -> Union[Path, types.Error]:
         return await self.service.download_track(track_info, video)
