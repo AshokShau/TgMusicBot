@@ -9,10 +9,6 @@ from pytdbot import filters, types
 class Filter:
     @staticmethod
     def _extract_text(event) -> str | None:
-        """
-        Fast text extraction from pytdbot events.
-        """
-        # Direct attribute access without multiple isinstance chains
         if isinstance(event, types.Message) and hasattr(event.content, "text"):
             return event.content.text.text
         if isinstance(event, types.UpdateNewMessage) and hasattr(event.message, "text"):

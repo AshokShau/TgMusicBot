@@ -480,7 +480,7 @@ class YouTubeData(MusicService):
             return types.Error(code=400, message="Invalid track information provided")
 
         # Try API download first if configured
-        if config.API_URL and config.API_KEY:
+        if not video and config.API_URL and config.API_KEY:
             if api_result := await YouTubeUtils.download_with_api(track.tc, video):
                 return api_result
 
