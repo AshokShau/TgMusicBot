@@ -74,28 +74,14 @@ class ApiData(MusicService):
         Returns:
             bool: True if URL matches any platform pattern
         """
-        if not self.query or not self.api_url or not self.api_key:
+        if not all([self.query, self.api_key, self.api_url]):
             return False
+
         return any(pattern.match(self.query) for pattern in self.URL_PATTERNS.values())
 
     async def _make_api_request(
         self, endpoint: str, params: Optional[dict] = None
     ) -> Optional[dict]:
-        """Make authenticated API requests to the music service.
-
-        Args:
-            endpoint: API endpoint to call
-            params: Query parameters for the request
-
-        Returns:
-            dict: JSON response from API or None if failed
-        """
-        if not self.api_url or not self.api_key:
-            LOGGER.warning(
-                "API configuration incomplete - Get credentials from @FallenAPIBot"
-            )
-            return None
-
         request_url = f"{self.api_url}/{endpoint.lstrip('/')}"
         return await self.client.make_request(request_url, params=params)
 

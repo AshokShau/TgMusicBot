@@ -29,7 +29,6 @@ class TrackInfo(BaseModel):
     tc: str
     cover: str
     duration: int
-    year: int
     platform: str
 
 
@@ -37,7 +36,6 @@ class MusicTrack(BaseModel):
     url: str
     name: str
     id: str
-    year: int
     cover: str
     duration: int
     platform: str

@@ -137,7 +137,6 @@ class YouTubeUtils:
             duration=track_data.get("duration", 0),
             platform="youtube",
             url=f"https://youtube.com/watch?v={track_data.get('id', '')}",
-            year=track_data.get("year", 0),
         )
 
     @staticmethod

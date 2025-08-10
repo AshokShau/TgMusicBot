@@ -19,7 +19,6 @@ class Database:
         self.chat_db = _db["chats"]
         self.users_db = _db["users"]
         self.bot_db = _db["bot"]
-        self.language = _db["language"]
 
         self.chat_cache = TTLCache(maxsize=1000, ttl=1200)
         self.bot_cache = TTLCache(maxsize=1000, ttl=1200)

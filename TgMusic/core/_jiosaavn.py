@@ -47,10 +47,7 @@ class JiosaavnData(MusicService):
     )
 
     # Default values for missing metadata
-    DEFAULT_ARTIST = "Unknown Artist"
-    DEFAULT_ALBUM = "Unknown Album"
     DEFAULT_DURATION = 0  # seconds
-    DEFAULT_YEAR = 0
 
     def __init__(self, query: Optional[str] = None) -> None:
         """Initialize with optional query (URL or search term).
@@ -173,7 +170,6 @@ class JiosaavnData(MusicService):
             tc=track_data.get("id", ""),
             cover=track_data.get("cover", ""),
             duration=track_data.get("duration", self.DEFAULT_DURATION),
-            year=track_data.get("year", self.DEFAULT_YEAR),
             url=track_data.get("url", ""),
             platform="jiosaavn",
         )
@@ -305,7 +301,6 @@ class JiosaavnData(MusicService):
             "name": title,
             "duration": track_data.get("duration", cls.DEFAULT_DURATION),
             "cover": track_data.get("thumbnail", ""),
-            "year": track_data.get("release_year", cls.DEFAULT_YEAR),
             "platform": "jiosaavn",
             "url": track_data.get("webpage_url", ""),
             "cdnurl": best_format.get("url", ""),
