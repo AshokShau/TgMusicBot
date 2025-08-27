@@ -7,9 +7,9 @@ import time
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, config, db
+from TgMusic.core import Filter, db, admins_only
 from TgMusic.logger import LOGGER
-from TgMusic.modules.utils.play_helpers import del_msg, extract_argument
+from TgMusic.modules.utils.play_helpers import extract_argument
 
 REQUEST_LIMIT = 30
 BATCH_SIZE = 400
@@ -106,11 +106,8 @@ async def broadcast_to_targets(
 
 
 @Client.on_message(filters=Filter.command("broadcast"))
+@admins_only(only_dev=True)
 async def broadcast(c: Client, message: types.Message) -> None:
-    if int(message.from_id) != config.OWNER_ID:
-        await del_msg(message)
-        return None
-
     args = extract_argument(message.text)
     if not args:
         reply = await message.reply_text(

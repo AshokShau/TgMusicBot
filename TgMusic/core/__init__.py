@@ -3,7 +3,7 @@
 #  Part of the TgMusicBot project. All rights reserved where applicable.
 
 
-from .admins import is_admin, is_owner
+from ._admins import is_admin, is_owner, admins_only
 from ._database import db
 from ._downloader import DownloaderWrapper
 from ._tgcalls import call
@@ -23,6 +23,7 @@ from .buttons import SupportButton, control_buttons
 from ._save_cookies import save_all_cookies
 
 __all__ = [
+    "admins_only",
     "is_admin",
     "is_owner",
     "config",

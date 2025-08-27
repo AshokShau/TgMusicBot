@@ -11,9 +11,8 @@ from os import execvp
 
 from pytdbot import Client, types
 
-from TgMusic.core import chat_cache, call, Filter, config
+from TgMusic.core import chat_cache, call, Filter, admins_only
 from TgMusic.logger import LOGGER
-from TgMusic.modules.utils.play_helpers import del_msg
 
 
 def is_docker():
@@ -31,12 +30,9 @@ def is_docker():
 
 
 @Client.on_message(filters=Filter.command(["update", "restart"]))
+@admins_only(only_dev=True)
 async def update(c: Client, message: types.Message) -> None:
     """Handle /update and /restart commands."""
-    if message.from_id not in config.DEVS:
-        await del_msg(message)
-        return
-
     command = message.text.strip().split()[0].lstrip("/")
     msg = await message.reply_text(
         f"{'Updating and ' if command == 'update' else ''}Restarting the bot..."

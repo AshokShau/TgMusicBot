@@ -7,8 +7,7 @@ import re
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, chat_cache, call
-from TgMusic.core.admins import is_admin
+from TgMusic.core import Filter, chat_cache, call, admins_only
 
 
 def extract_number(text: str) -> float | None:
@@ -17,15 +16,12 @@ def extract_number(text: str) -> float | None:
     return float(match.group()) if match else None
 
 
-@Client.on_message(filters=Filter.command(["speed", "cspeed"]))
+@Client.on_message(filters=Filter.command("speed"))
+@admins_only(is_bot=True, is_auth=True)
 async def change_speed(_: Client, msg: types.Message) -> None:
     """Adjust the playback speed of the current track."""
     chat_id = msg.chat_id
     if chat_id > 0:
-        return
-
-    if not await is_admin(chat_id, msg.from_id):
-        await msg.reply_text("⛔ Administrator privileges required.")
         return
 
     args = extract_number(msg.text)

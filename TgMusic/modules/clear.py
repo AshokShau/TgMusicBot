@@ -4,20 +4,15 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, chat_cache
-from TgMusic.core.admins import is_admin
+from TgMusic.core import Filter, chat_cache, admins_only
 
 
 @Client.on_message(filters=Filter.command("clear"))
+@admins_only(is_bot=True, is_auth=True)
 async def clear_queue(c: Client, msg: types.Message) -> None:
     """Clear the current playback queue."""
     chat_id = msg.chat_id
-
     if chat_id > 0:
-        return None
-
-    if not await is_admin(chat_id, msg.from_id):
-        await msg.reply_text("⛔ Administrator privileges required.")
         return None
 
     if not chat_cache.is_active(chat_id):

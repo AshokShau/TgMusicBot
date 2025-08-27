@@ -4,20 +4,17 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, call
-from .funcs import is_admin_or_reply
+from TgMusic.core import Filter, call, admins_only, chat_cache
 from .utils.play_helpers import extract_argument
 
 
-@Client.on_message(filters=Filter.command(["volume", "cvolume"]))
+@Client.on_message(filters=Filter.command("volume"))
+@admins_only(is_bot=True, is_auth=True)
 async def volume(c: Client, msg: types.Message) -> None:
     """Adjust the playback volume (1-200%)."""
-    chat_id = await is_admin_or_reply(msg)
-    if isinstance(chat_id, types.Error):
-        c.logger.warning(f"⚠️ Admin check failed: {chat_id.message}")
-        return None
-
-    if isinstance(chat_id, types.Message):
+    chat_id = msg.chat_id
+    if not chat_cache.is_active(chat_id):
+        await msg.reply_text("⏸ No active playback session")
         return None
 
     args = extract_argument(msg.text, enforce_digit=True)

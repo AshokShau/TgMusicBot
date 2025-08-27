@@ -6,7 +6,7 @@ from typing import Union
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, db, is_admin
+from TgMusic.core import Filter, db, admins_only
 from TgMusic.logger import LOGGER
 
 
@@ -14,12 +14,6 @@ async def _validate_auth_command(msg: types.Message) -> Union[types.Message, Non
     """Validate authorization command requirements."""
     chat_id = msg.chat_id
     if chat_id > 0:
-        return None
-
-    if not await is_admin(chat_id, msg.from_id):
-        reply = await msg.reply_text("⛔ Only the group administrator can use this command.")
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
         return None
 
     if not msg.reply_to_message_id:
@@ -53,6 +47,7 @@ async def _validate_auth_command(msg: types.Message) -> Union[types.Message, Non
 
 
 @Client.on_message(filters=Filter.command(["auth"]))
+@admins_only(permissions="can_manage_chat")
 async def auth(c: Client, msg: types.Message) -> None:
     """Grant authorization permissions to a user."""
     reply = await _validate_auth_command(msg)
@@ -76,6 +71,7 @@ async def auth(c: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["unauth"]))
+@admins_only(permissions="can_manage_chat")
 async def un_auth(c: Client, msg: types.Message) -> None:
     """Revoke authorization permissions from a user."""
     reply = await _validate_auth_command(msg)
@@ -99,17 +95,12 @@ async def un_auth(c: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["authlist"]))
+@admins_only(permissions="can_manage_chat")
 async def auth_list(c: Client, msg: types.Message) -> None:
     """List all authorized users."""
     chat_id = msg.chat_id
     if chat_id > 0:
         reply = await msg.reply_text("❌ This command is only available in groups.")
-        if isinstance(reply, types.Error):
-            c.logger.warning(reply.message)
-        return
-
-    if not await is_admin(chat_id, msg.from_id):
-        reply = await msg.reply_text("⛔ Administrator privileges required.")
         if isinstance(reply, types.Error):
             c.logger.warning(reply.message)
         return
@@ -127,4 +118,3 @@ async def auth_list(c: Client, msg: types.Message) -> None:
     reply = await msg.reply_text(text)
     if isinstance(reply, types.Error):
         c.logger.warning(reply.message)
-

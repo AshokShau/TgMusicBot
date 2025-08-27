@@ -7,9 +7,8 @@ import time
 
 from pytdbot import Client, types
 
-from TgMusic.core import tg
+from TgMusic.core import tg, is_admin
 from TgMusic.logger import LOGGER
-from TgMusic.core.admins import is_admin
 
 download_progress = {}
 

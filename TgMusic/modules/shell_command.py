@@ -8,8 +8,8 @@ import uuid
 
 from pytdbot import Client, types
 
+from TgMusic.core import Filter, admins_only
 from TgMusic.logger import LOGGER
-from TgMusic.core import Filter, config
 
 
 async def run_shell_command(cmd: str, timeout: int = 60) -> tuple[str, str, int]:
@@ -105,9 +105,8 @@ async def shellrunner(message: types.Message) -> types.Ok | types.Error | types.
 
 
 @Client.on_message(filters=Filter.command("sh"))
+@admins_only(only_dev=True)
 async def shell_command(_: Client, m: types.Message) -> None:
-    if int(m.from_id) != config.OWNER_ID:
-        return None
     done = await shellrunner(m)
     if isinstance(done, types.Error):
         LOGGER.warning(done.message)

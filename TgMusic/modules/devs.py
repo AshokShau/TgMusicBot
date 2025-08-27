@@ -25,8 +25,8 @@ from pytdbot import __version__ as py_td_ver
 from pytgcalls import __version__ as pytgver
 
 from TgMusic import StartTime
-from TgMusic.core import Filter, chat_cache, config, call, db
-from TgMusic.modules.utils.play_helpers import del_msg, extract_argument
+from TgMusic.core import Filter, chat_cache, config, call, db, admins_only
+from TgMusic.modules.utils.play_helpers import extract_argument
 
 
 def format_exception(
@@ -54,13 +54,11 @@ def format_exception(
 
 
 @Client.on_message(filters=Filter.command("eval"))
+@admins_only(only_dev=True)
 async def exec_eval(c: Client, m: types.Message) -> None:
     """
     Run python code.
     """
-    if int(m.from_id) != config.OWNER_ID:
-        return None
-
     text = m.text.split(None, 1)
     if len(text) <= 1:
         reply = await m.reply_text("Usage: /eval &lt code &gt")
@@ -166,12 +164,9 @@ async def exec_eval(c: Client, m: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command("stats"))
+@admins_only(only_dev=True)
 async def sys_stats(client: Client, message: types.Message) -> None:
     """Get comprehensive bot and system statistics including hardware, software, and performance metrics."""
-    if message.from_id not in config.DEVS:
-        await del_msg(message)
-        return None
-
     sys_msg = await message.reply_text(
         f"📊 Gathering <b>{client.me.first_name}</b> system statistics..."
     )
@@ -284,14 +279,11 @@ async def sys_stats(client: Client, message: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["activevc", "av"]))
+@admins_only(only_dev=True)
 async def active_vc(c: Client, message: types.Message) -> None:
     """
     Get active voice chats.
     """
-    if message.from_id not in config.DEVS:
-        await del_msg(message)
-        return None
-
     active_chats = chat_cache.get_active_chats()
     if not active_chats:
         reply = await message.reply_text("No active voice chats.")
@@ -326,14 +318,11 @@ async def active_vc(c: Client, message: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command("logger"))
+@admins_only(only_dev=True)
 async def logger(c: Client, message: types.Message) -> None:
     """
     Enable or disable logging.
     """
-    if message.from_id not in config.DEVS:
-        await del_msg(message)
-        return
-
     if not config.LOGGER_ID or config.LOGGER_ID == 0:
         reply = await message.reply_text("Please set LOGGER_ID in .env first.")
         if isinstance(reply, types.Error):
@@ -374,13 +363,9 @@ async def logger(c: Client, message: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["autoend", "auto_end"]))
+@admins_only(only_dev=True)
 async def auto_end(c: Client, message: types.Message) -> None:
-    if message.from_id not in config.DEVS:
-        await del_msg(message)
-        return
-
     args = extract_argument(message.text)
-
     if not args:
         status = await db.get_auto_end(c.me.id)
         status_text = "enabled ✅" if status else "disabled ❌"
@@ -411,11 +396,8 @@ async def auto_end(c: Client, message: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["clearass", "clearallassistants"]))
+@admins_only(only_dev=True)
 async def clear_all_assistants(c: Client, message: types.Message) -> None:
-    if message.from_id not in config.DEVS:
-        await del_msg(message)
-        return
-
     count = await db.clear_all_assistants()
     c.logger.info(
         "Cleared assistants from %s chats by command from %s", count, message.from_id
@@ -427,11 +409,8 @@ async def clear_all_assistants(c: Client, message: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command("logs"))
+@admins_only(only_dev=True)
 async def logs(c: Client, message: types.Message) -> None:
-    if message.from_id not in config.DEVS:
-        await del_msg(message)
-        return
-
     reply = await message.reply_document(
         document=types.InputFileLocal("bot.log"),
         disable_notification=True,

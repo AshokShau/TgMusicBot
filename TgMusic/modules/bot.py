@@ -12,7 +12,7 @@ from TgMusic.core import (
     call,
     Filter,
 )
-from TgMusic.core.admins import load_admin_cache
+from TgMusic.core._admins import load_admin_cache
 from TgMusic.modules.utils import sec_to_min
 
 

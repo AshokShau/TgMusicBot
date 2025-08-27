@@ -19,7 +19,7 @@ from TgMusic.core import (
     SupportButton,
     control_buttons,
 )
-from TgMusic.core.admins import is_admin, load_admin_cache
+from TgMusic.core import admins_only
 from TgMusic.modules.utils import sec_to_min, get_audio_duration
 from TgMusic.modules.utils.play_helpers import (
     del_msg,
@@ -64,7 +64,7 @@ def build_song_selection_message(
             types.InlineKeyboardButton(
                 text=f"{track.name[:18]} - {track.artist}",
                 type=types.InlineKeyboardButtonTypeCallback(
-                    f"play_{track.platform.lower()}_{track.id}".encode()
+                    f"vcplay_{track.platform.lower()}_{track.id}".encode()
                 ),
             )
         ]
@@ -367,15 +367,6 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
             "⚠️ Queue limit reached (10 tracks max). Use /end to clear queue."
         )
 
-
-    # Verify bot admin status
-    await load_admin_cache(c, chat_id)
-    if not await is_admin(chat_id, c.me.id):
-        return await msg.reply_text(
-            "⚠️ I need admin privileges with 'Invite Users' permission "
-            "to play music. Promote me and try again or use /reload."
-        )
-
     reply = await msg.getRepliedMessage() if msg.reply_to_message_id else None
     url = await get_url(msg, reply)
 
@@ -471,12 +462,14 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
 
 
 @Client.on_message(filters=Filter.command("play"), position=-5)
+@admins_only(permissions="can_invite_users", is_bot=True)
 async def play_audio(c: Client, msg: types.Message) -> None:
     """Audio playback command handler."""
     await handle_play_command(c, msg, False)
 
 
 @Client.on_message(filters=Filter.command("vplay"), position=-4)
+@admins_only(permissions="can_invite_users", is_bot=True)
 async def play_video(c: Client, msg: types.Message) -> None:
     """Video playback command handler."""
     await handle_play_command(c, msg, True)

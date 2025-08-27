@@ -4,12 +4,12 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, chat_cache
-from TgMusic.core.admins import is_admin
+from TgMusic.core import Filter, chat_cache, admins_only
 from .utils.play_helpers import extract_argument
 
 
 @Client.on_message(filters=Filter.command("remove"))
+@admins_only(is_bot=True, is_auth=True)
 async def remove_song(c: Client, msg: types.Message) -> None:
     """Remove a specific track from the playback queue."""
     chat_id = msg.chat_id
@@ -17,11 +17,6 @@ async def remove_song(c: Client, msg: types.Message) -> None:
         return None
 
     args = extract_argument(msg.text, enforce_digit=True)
-
-    if not await is_admin(chat_id, msg.from_id):
-        await msg.reply_text("⛔ Administrator privileges required.")
-        return None
-
     if not chat_cache.is_active(chat_id):
         await msg.reply_text("⏸ No active playback session.")
         return None
@@ -40,7 +35,6 @@ async def remove_song(c: Client, msg: types.Message) -> None:
         return None
 
     _queue = chat_cache.get_queue(chat_id)
-
     if not _queue:
         await msg.reply_text("📭 The queue is currently empty.")
         return None
@@ -51,9 +45,9 @@ async def remove_song(c: Client, msg: types.Message) -> None:
         )
         return None
 
-    removed_track = chat_cache.remove_track(chat_id, track_num)
+    chat_cache.remove_track(chat_id, track_num)
     reply = await msg.reply_text(
-        f"✅ Track <b>{removed_track.name[:45]}</b> removed by {await msg.mention()}"
+        f"✅ Track No. {track_num} removed by {await msg.mention()}"
     )
 
     if isinstance(reply, types.Error):

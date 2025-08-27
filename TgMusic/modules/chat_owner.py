@@ -4,25 +4,17 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, db, is_owner
+from TgMusic.core import Filter, db, is_owner, admins_only
 from TgMusic.logger import LOGGER
 from TgMusic.modules.utils.play_helpers import extract_argument
 
 
 @Client.on_message(filters=Filter.command(["buttons"]))
+@admins_only(only_owner=True)
 async def buttons(_: Client, msg: types.Message) -> None:
     """Toggle button controls."""
     chat_id = msg.chat_id
     if chat_id > 0:
-        reply = await msg.reply_text("❌ This command is only available in groups.")
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
-        return
-
-    if not await is_owner(chat_id, msg.from_id):
-        reply = await msg.reply_text("⛔ Group owner privileges required.")
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
         return
 
     current = await db.get_buttons_status(chat_id)
@@ -55,19 +47,11 @@ async def buttons(_: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["thumbnail", "thumb"]))
+@admins_only(only_owner=True)
 async def thumbnail(_: Client, msg: types.Message) -> None:
     """Toggle thumbnail settings."""
     chat_id = msg.chat_id
     if chat_id > 0:
-        reply = await msg.reply_text("❌ This command is only available in groups.")
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
-        return
-
-    if not await is_owner(chat_id, msg.from_id):
-        reply = await msg.reply_text("⛔ Group owner privileges required.")
-        if isinstance(reply, types.Error):
-            LOGGER.warning(reply.message)
         return
 
     current = await db.get_thumbnail_status(chat_id)

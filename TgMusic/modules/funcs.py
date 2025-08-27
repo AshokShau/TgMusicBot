@@ -5,20 +5,16 @@
 from typing import Union
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, chat_cache, call, db
-from TgMusic.core.admins import is_admin
+from TgMusic.core import Filter, chat_cache, call, db, admins_only
 from TgMusic.modules.utils.play_helpers import extract_argument
 
 
 @Client.on_message(filters=Filter.command(["playtype", "setPlayType"]))
+@admins_only(is_bot=True, is_auth=True)
 async def set_play_type(_: Client, msg: types.Message) -> None:
     """Configure playback mode."""
     chat_id = msg.chat_id
     if chat_id > 0:
-        return
-
-    if not await is_admin(chat_id, msg.from_id):
-        await msg.reply_text("⛔ Administrator privileges required")
         return
 
     play_type = extract_argument(msg.text, enforce_digit=True)
@@ -45,9 +41,6 @@ async def is_admin_or_reply(
     if not chat_cache.is_active(chat_id):
         return await msg.reply_text("⏸ No active playback session")
 
-    if not await is_admin(chat_id, msg.from_id):
-        return await msg.reply_text("⛔ Administrator privileges required")
-
     return chat_id
 
 
@@ -72,6 +65,7 @@ async def handle_playback_action(
 
 
 @Client.on_message(filters=Filter.command("pause"))
+@admins_only(is_bot=True, is_auth=True)
 async def pause_song(c: Client, msg: types.Message) -> None:
     """Pause current playback."""
     await handle_playback_action(
@@ -80,6 +74,7 @@ async def pause_song(c: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command("resume"))
+@admins_only(is_bot=True, is_auth=True)
 async def resume(c: Client, msg: types.Message) -> None:
     """Resume paused playback."""
     await handle_playback_action(
@@ -88,6 +83,7 @@ async def resume(c: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command("mute"))
+@admins_only(is_bot=True, is_auth=True)
 async def mute_song(c: Client, msg: types.Message) -> None:
     """Mute audio playback."""
     await handle_playback_action(
@@ -96,6 +92,7 @@ async def mute_song(c: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command("unmute"))
+@admins_only(is_bot=True, is_auth=True)
 async def unmute_song(c: Client, msg: types.Message) -> None:
     """Unmute audio playback."""
     await handle_playback_action(

@@ -4,19 +4,16 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, call
-from .funcs import is_admin_or_reply
+from TgMusic.core import Filter, call, admins_only, chat_cache
 
 
 @Client.on_message(filters=Filter.command(["stop", "end"]))
+@admins_only(is_bot=True, is_auth=True)
 async def stop_song(c: Client, msg: types.Message) -> None:
     """Stop the current playback and clear the queue."""
-    chat_id = await is_admin_or_reply(msg)
-    if isinstance(chat_id, types.Error):
-        c.logger.warning(f"Error in admin check: {chat_id.message}")
-        return None
-
-    if isinstance(chat_id, types.Message):
+    chat_id = msg.chat_id
+    if not chat_cache.is_active(chat_id):
+        await msg.reply_text("⏸ No active playback session")
         return None
 
     _end = await call.end(chat_id)

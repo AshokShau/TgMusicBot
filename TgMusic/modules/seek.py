@@ -5,22 +5,17 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, chat_cache, call
-from TgMusic.core.admins import is_admin
+from TgMusic.core import Filter, chat_cache, call, admins_only
 from .utils import sec_to_min
 from .utils.play_helpers import extract_argument
 
 
 @Client.on_message(filters=Filter.command("seek"))
+@admins_only(is_bot=True, is_auth=True)
 async def seek_song(_: Client, msg: types.Message) -> None:
     """Seek to a specific position in the currently playing track."""
     chat_id = msg.chat_id
-
     if chat_id > 0:
-        return
-
-    if not await is_admin(chat_id, msg.from_id):
-        await msg.reply_text("⛔ Administrator privileges required.")
         return
 
     curr_song = chat_cache.get_playing_track(chat_id)

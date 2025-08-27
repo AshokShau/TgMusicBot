@@ -17,7 +17,7 @@ from TgMusic.core import (
     config,
 )
 from TgMusic.logger import LOGGER
-from TgMusic.core.admins import load_admin_cache
+from TgMusic.core._admins import load_admin_cache
 from TgMusic.core.buttons import add_me_markup
 
 
