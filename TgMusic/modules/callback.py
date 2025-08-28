@@ -11,7 +11,65 @@ from .utils.play_helpers import edit_text
 from ..core import DownloaderWrapper
 
 
-@Client.on_updateNewCallbackQuery(filters=Filter.regex(r"(c)?play_\w+"))
+@Client.on_updateNewCallbackQuery(filters=Filter.regex(r"vcplay_\w+"))
+async def callback_query_vc_play(c: Client, message: types.UpdateNewCallbackQuery) -> None:
+    data = message.payload.data.decode()
+    chat_id = message.chat_id
+
+    if data == "vcplay_close":
+        delete_result = await c.deleteMessages(
+            chat_id, [message.message_id], revoke=True
+        )
+        if isinstance(delete_result, types.Error):
+            await message.answer(
+                f"⚠️ Interface closure failed\n{delete_result.message}", show_alert=True
+            )
+            return None
+        await message.answer("✅ Interface closed successfully", show_alert=True)
+        return None
+
+    user_id = message.sender_user_id
+    user = await c.getUser(user_id)
+    if isinstance(user, types.Error):
+        c.logger.warning(f"Failed to get user info: {user.message}")
+        return None
+
+    user_name = user.first_name
+    # Handle music playback requests
+    try:
+        _, platform, song_id = data.split("_", 2)
+    except ValueError:
+        c.logger.error(f"Malformed callback data received: {data}")
+        await message.answer("⚠️ Invalid request format", show_alert=True)
+        return None
+
+    await message.answer(f"🔍 Preparing playback for {user_name}", show_alert=True)
+    reply = await message.edit_message_text(
+        f"🔍 Searching...\nRequested by: {user_name}"
+    )
+    if isinstance(reply, types.Error):
+        c.logger.warning(f"Message edit failed: {reply.message}")
+        return None
+
+    url = _get_platform_url(platform, song_id)
+    if not url:
+        c.logger.error(f"Unsupported platform: {platform} | Data: {data}")
+        await edit_text(reply, text=f"⚠️ Unsupported platform: {platform}")
+        return None
+
+    song = await DownloaderWrapper(url).get_info()
+    if song:
+        if isinstance(song, types.Error):
+            await edit_text(reply, text=f"⚠️ Retrieval error\n{song.message}")
+            return None
+
+        return await play_music(c, reply, song, user_name)
+
+    await edit_text(reply, text="⚠️ Requested content not found")
+    return None
+
+
+@Client.on_updateNewCallbackQuery(filters=Filter.regex(r"play_\w+"))
 @admins_only(is_bot=True, is_auth=True)
 async def callback_query(c: Client, message: types.UpdateNewCallbackQuery) -> None:
     """Handle all playback control callback queries (skip, stop, pause, resume)."""
@@ -116,61 +174,4 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery) -> No
 
     if data.startswith("play_c_"):
         return await _handle_play_c_data(data, message, chat_id, user_id, user_name, c)
-    return None
-
-@Client.on_updateNewCallbackQuery(filters=Filter.regex(r"(c)?vcplay_\w+"))
-async def callback_query_vc_play(c: Client, message: types.UpdateNewCallbackQuery) -> None:
-    data = message.payload.data.decode()
-    chat_id = message.chat_id
-
-    if data == "vcplay_close":
-        delete_result = await c.deleteMessages(
-            chat_id, [message.message_id], revoke=True
-        )
-        if isinstance(delete_result, types.Error):
-            await message.answer(
-                f"⚠️ Interface closure failed\n{delete_result.message}", show_alert=True
-            )
-            return None
-        await message.answer("✅ Interface closed successfully", show_alert=True)
-        return None
-
-    user_id = message.sender_user_id
-    user = await c.getUser(user_id)
-    if isinstance(user, types.Error):
-        c.logger.warning(f"Failed to get user info: {user.message}")
-        return None
-
-    user_name = user.first_name
-    # Handle music playback requests
-    try:
-        _, platform, song_id = data.split("_", 2)
-    except ValueError:
-        c.logger.error(f"Malformed callback data received: {data}")
-        await message.answer("⚠️ Invalid request format", show_alert=True)
-        return None
-
-    await message.answer(f"🔍 Preparing playback for {user_name}", show_alert=True)
-    reply = await message.edit_message_text(
-        f"🔍 Searching...\nRequested by: {user_name}"
-    )
-    if isinstance(reply, types.Error):
-        c.logger.warning(f"Message edit failed: {reply.message}")
-        return None
-
-    url = _get_platform_url(platform, song_id)
-    if not url:
-        c.logger.error(f"Unsupported platform: {platform} | Data: {data}")
-        await edit_text(reply, text=f"⚠️ Unsupported platform: {platform}")
-        return None
-
-    song = await DownloaderWrapper(url).get_info()
-    if song:
-        if isinstance(song, types.Error):
-            await edit_text(reply, text=f"⚠️ Retrieval error\n{song.message}")
-            return None
-
-        return await play_music(c, reply, song, user_name)
-
-    await edit_text(reply, text="⚠️ Requested content not found")
     return None
