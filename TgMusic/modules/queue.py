@@ -4,11 +4,12 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, chat_cache, call
+from TgMusic.core import Filter, chat_cache, call, admins_only
 from TgMusic.modules.utils import sec_to_min
 
 
 @Client.on_message(filters=Filter.command("queue"))
+@admins_only(is_bot=True)
 async def queue_info(_: Client, msg: types.Message) -> None:
     """Display the current playback queue with detailed information."""
     if msg.chat_id > 0:

@@ -12,7 +12,8 @@ from TgMusic.core import (
 )
 from TgMusic.core.buttons import add_me_markup, HelpMenu, BackHelpMenu
 
-startText = """
+
+START_TEXT = """
 ʜᴇʏ {};
 
 ◎ ᴛʜɪꜱ ɪꜱ {}!
@@ -24,8 +25,73 @@ startText = """
 ◎ ᴄʟɪᴄᴋ ᴏɴ ᴛʜᴇ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ᴛᴏ ɢᴇᴛ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ ᴀʙᴏᴜᴛ ᴍʏ ᴍᴏᴅᴜʟᴇꜱ ᴀɴᴅ ᴄᴏᴍᴍᴀɴᴅꜱ.
 """
 
+HELP_CATEGORIES = {
+    "help_user": {
+        "title": "🎧 User Commands",
+        "content": """
+<b>▶️ Playback:</b>
+• <code>/play [song]</code> — Play audio in VC
+• <code>/vplay [video]</code> — Play video in VC
+
+<b>🛠 Utilities:</b>
+• <code>/start</code> — Intro message
+• <code>/privacy</code> — Privacy policy
+• <code>/queue</code> — View track queue
+""",
+        "markup": BackHelpMenu,
+    },
+    "help_admin": {
+        "title": "⚙️ Admin Commands",
+        "content": """
+<b>🎛 Playback Controls:</b>
+• <code>/skip</code> — Skip current track
+• <code>/pause</code> — Pause playback
+• <code>/resume</code> — Resume playback
+• <code>/seek [sec]</code> — Jump to a position
+• <code>/volume [1-200]</code> — Set playback volume
+
+<b>📋 Queue Management:</b>
+• <code>/remove [x]</code> — Remove track number x
+• <code>/clear</code> — Clear the entire queue
+• <code>/loop [0-10]</code> — Repeat queue x times
+
+<b>👑 Permissions:</b>
+• <code>/auth [reply]</code> — Grant approval to use commands 
+• <code>/unauth [reply]</code> — Revoke authorization
+• <code>/authlist</code> — View authorized users
+""",
+        "markup": BackHelpMenu,
+    },
+    "help_owner": {
+        "title": "🔐 Owner Commands",
+        "content": """
+<b>⚙️ Settings:</b>
+• <code>/buttons</code> — Toggle control buttons
+• <code>/thumb</code> — Toggle thumbnail mode
+""",
+        "markup": BackHelpMenu,
+    },
+    "help_devs": {
+        "title": "🛠 Developer Tools",
+        "content": """
+<b>📊 System Tools:</b>
+• <code>/stats</code> — Show usage stats
+• <code>/logger</code> — Toggle log mode
+• <code>/broadcast</code> — Send a message to all
+
+<b>🧹 Maintenance:</b>
+• <code>/activevc</code> — Show active voice chats
+• <code>/clearallassistants</code> — Remove all assistants data from DB
+• <code>/autoend</code> — Enable auto-leave when VC is empty
+""",
+        "markup": BackHelpMenu,
+    },
+}
+
+
 @Client.on_message(filters=Filter.command(["start", "help"]))
-async def start_cmd(c: Client, message: types.Message):
+async def start_cmd(c: Client, message: types.Message) -> None:
+    """Handle /start and /help commands."""
     chat_id = message.chat_id
     bot_name = c.me.first_name
     mention = await message.mention()
@@ -45,27 +111,26 @@ async def start_cmd(c: Client, message: types.Message):
             disable_web_page_preview=True,
             reply_markup=SupportButton,
         )
-
     else:  # Private chat
-        bot_username = c.me.usernames.editable_username
         reply = await message.reply_photo(
             photo=config.START_IMG,
-            caption=startText.format(mention, bot_name),
-            reply_markup=add_me_markup(bot_username),
+            caption=START_TEXT.format(mention, bot_name),
+            reply_markup=add_me_markup(c.me.usernames.editable_username),
         )
 
     if isinstance(reply, types.Error):
-        c.logger.warning(reply.message)
+        c.logger.warning(f"Failed to send start/help reply: {reply.message}")
 
 
 @Client.on_updateNewCallbackQuery(filters=Filter.regex(r"help_\w+"))
 async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) -> None:
+    """Handle help menu callback queries."""
     data = message.payload.data.decode()
 
     if data == "help_all":
         user = await c.getUser(message.sender_user_id)
         await message.answer("📚 Opening Help Menu...")
-        welcome_text = (
+        text = (
             f"👋 <b>Hello {user.first_name}!</b>\n\n"
             f"Welcome to <b>{c.me.first_name}</b> — your ultimate music bot.\n"
             f"<code>Version: v{__version__}</code>\n\n"
@@ -75,89 +140,31 @@ async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) 
             "• Private and group usage\n\n"
             "🔍 <i>Select a help category below to continue.</i>"
         )
-        edit = await message.edit_message_caption(welcome_text, reply_markup=HelpMenu)
-        if isinstance(edit, types.Error):
-            c.logger.error(f"Failed to edit message: {edit}")
-        return
+
+        result = await message.edit_message_caption(text, reply_markup=HelpMenu)
+        if isinstance(result, types.Error):
+            c.logger.error(f"Edit failed: {result.message}")
+        return None
 
     if data == "help_back":
-        await message.answer("HOME ..")
+        await message.answer("🏠 Returning to home...")
         user = await c.getUser(message.sender_user_id)
-        await message.edit_message_caption(
-            caption=startText.format(user.first_name, c.me.first_name),
-            reply_markup=add_me_markup(c.me.usernames.editable_username),
-        )
-        return
 
-    help_categories = {
-        "help_user": {
-            "title": "🎧 User Commands",
-            "content": (
-                "<b>▶️ Playback:</b>\n"
-                "• <code>/play [song]</code> — Play audio in VC\n"
-                "• <code>/vplay [video]</code> — Play video in VC\n"
-                "<b>🛠 Utilities:</b>\n"
-                "• <code>/start</code> — Intro message\n"
-                "• <code>/privacy</code> — Privacy policy\n"
-                "• <code>/queue</code> — View track queue\n"
-            ),
-            "markup": BackHelpMenu,
-        },
-        "help_admin": {
-            "title": "⚙️ Admin Commands",
-            "content": (
-                "<b>🎛 Playback Controls:</b>\n"
-                "• <code>/skip</code> — Skip current track\n"
-                "• <code>/pause</code> — Pause playback\n"
-                "• <code>/resume</code> — Resume playback\n"
-                "• <code>/seek [sec]</code> — Jump to a position\n"
-                "• <code>/volume [1-200]</code> — Set playback volume\n\n"
-                "<b>📋 Queue Management:</b>\n"
-                "• <code>/remove [x]</code> — Remove track number x\n"
-                "• <code>/clear</code> — Clear the entire queue\n"
-                "• <code>/loop [0-10]</code> — Repeat queue x times\n\n"
-                "<b>👑 Permissions:</b>\n"
-                "• <code>/auth [reply]</code> — Grant approval to use commands \n"
-                "• <code>/unauth [reply]</code> — Revoke authorization\n"
-                "• <code>/authlist</code> — View authorized users\n\n"
-            ),
-            "markup": BackHelpMenu,
-        },
-        "help_owner": {
-            "title": "🔐 Owner Commands",
-            "content": (
-                "<b>⚙️ Settings:</b>\n"
-                "• <code>/buttons</code> — Toggle control buttons\n"
-                "• <code>/thumb</code> — Toggle thumbnail mode"
-            ),
-            "markup": BackHelpMenu,
-        },
-        "help_devs": {
-            "title": "🛠 Developer Tools",
-            "content": (
-                "<b>📊 System Tools:</b>\n"
-                "• <code>/stats</code> — Show usage stats\n"
-                "• <code>/logger</code> — Toggle log mode\n"
-                "• <code>/broadcast</code> — Send a message to all\n\n"
-                "<b>🧹 Maintenance:</b>\n"
-                "• <code>/activevc</code> — Show active voice chats\n"
-                "• <code>/clearallassistants</code> — Remove all assistants data from DB\n"
-                "• <code>/autoend</code> — Enable auto-leave when VC is empty"
-            ),
-            "markup": BackHelpMenu,
-        },
-    }
+        result = await message.edit_message_caption(START_TEXT.format(user.first_name, c.me.first_name), reply_markup=add_me_markup(c.me.usernames.editable_username))
+        if isinstance(result, types.Error):
+            c.logger.error(f"Edit failed: {result.message}")
+        return None
 
-    if category := help_categories.get(data):
+    # Handle categories
+    category = HELP_CATEGORIES.get(data)
+    if category:
         await message.answer(f"📖 {category['title']}")
-        formatted_text = (
-            f"<b>{category['title']}</b>\n\n"
-            f"{category['content']}\n\n"
-            "🔙 <i>Use the buttons below to go back.</i>"
-        )
-        edit = await message.edit_message_caption(formatted_text, reply_markup=category["markup"])
-        if isinstance(edit, types.Error):
-            c.logger.error(f"Failed to edit message: {edit}")
-        return
+        text = f"<b>{category['title']}</b>\n\n{category['content']}\n\n🔙 <i>Use the buttons below to go back.</i>"
+
+        result = await message.edit_message_caption(text, reply_markup=category["markup"])
+        if isinstance(result, types.Error):
+            c.logger.error(f"Edit failed: {result.message}")
+        return None
 
     await message.answer("⚠️ Unknown command category.")
+    return None

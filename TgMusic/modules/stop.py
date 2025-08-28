@@ -9,7 +9,7 @@ from TgMusic.core import Filter, call, admins_only, chat_cache
 
 @Client.on_message(filters=Filter.command(["stop", "end"]))
 @admins_only(is_bot=True, is_auth=True)
-async def stop_song(c: Client, msg: types.Message) -> None:
+async def stop_song(_: Client, msg: types.Message) -> None:
     """Stop the current playback and clear the queue."""
     chat_id = msg.chat_id
     if not chat_cache.is_active(chat_id):

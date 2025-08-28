@@ -4,7 +4,7 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, db, is_owner, admins_only
+from TgMusic.core import Filter, db, admins_only
 from TgMusic.logger import LOGGER
 from TgMusic.modules.utils.play_helpers import extract_argument
 
