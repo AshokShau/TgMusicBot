@@ -9,35 +9,34 @@ from pytdbot import types
 
 from ._config import config
 
+CLOSE_BTN = types.InlineKeyboardButton(
+    text="Cʟᴏsᴇ", type=types.InlineKeyboardButtonTypeCallback(b"vcplay_close")
+)
 
 def control_buttons(
     mode: Literal["play", "pause", "resume"],
 ) -> types.ReplyMarkupInlineKeyboard:
-    prefix = "play"
     def btn(text: str, name: str) -> types.InlineKeyboardButton:
         return types.InlineKeyboardButton(
             text=text,
-            type=types.InlineKeyboardButtonTypeCallback(f"{prefix}_{name}".encode()),
+            type=types.InlineKeyboardButtonTypeCallback(f"play_{name}".encode()),
         )
 
     skip_btn = btn("‣‣I", "skip")
     stop_btn = btn("▢", "stop")
     pause_btn = btn("II", "pause")
     resume_btn = btn("▷", "resume")
-    close_btn = btn("ᴄʟᴏsᴇ", "close")
 
     layouts = {
-        "play": [[skip_btn, stop_btn, pause_btn, resume_btn], [close_btn]],
-        "pause": [[skip_btn, stop_btn, resume_btn], [close_btn]],
-        "resume": [[skip_btn, stop_btn, pause_btn], [close_btn]],
+        "play": [[skip_btn, stop_btn, pause_btn, resume_btn], [CLOSE_BTN]],
+        "pause": [[skip_btn, stop_btn, resume_btn], [CLOSE_BTN]],
+        "resume": [[skip_btn, stop_btn, pause_btn], [CLOSE_BTN]],
     }
 
-    return types.ReplyMarkupInlineKeyboard(layouts.get(mode, [[close_btn]]))
+    return types.ReplyMarkupInlineKeyboard(layouts.get(mode, [[CLOSE_BTN]]))
 
 
-CLOSE_BTN = types.InlineKeyboardButton(
-    text="Cʟᴏsᴇ", type=types.InlineKeyboardButtonTypeCallback(b"play_close")
-)
+
 
 CHANNEL_BTN = types.InlineKeyboardButton(
     text="ᴜᴘᴅᴀᴛᴇꜱ", type=types.InlineKeyboardButtonTypeUrl(config.SUPPORT_CHANNEL)

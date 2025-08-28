@@ -114,7 +114,16 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery) -> No
             reply_markup=markup,
         )
 
-    if data == "play_close":
+    if data.startswith("play_c_"):
+        return await _handle_play_c_data(data, message, chat_id, user_id, user_name, c)
+    return None
+
+@Client.on_updateNewCallbackQuery(filters=Filter.regex(r"(c)?vcplay_\w+"))
+async def callback_query_vc_play(c: Client, message: types.UpdateNewCallbackQuery) -> None:
+    data = message.payload.data.decode()
+    chat_id = message.chat_id
+
+    if data == "vcplay_close":
         delete_result = await c.deleteMessages(
             chat_id, [message.message_id], revoke=True
         )
@@ -126,13 +135,6 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery) -> No
         await message.answer("✅ Interface closed successfully", show_alert=True)
         return None
 
-    if data.startswith("play_c_"):
-        return await _handle_play_c_data(data, message, chat_id, user_id, user_name, c)
-    return None
-
-@Client.on_updateNewCallbackQuery(filters=Filter.regex(r"(c)?vcplay_\w+"))
-async def callback_query_vc_play(c: Client, message: types.UpdateNewCallbackQuery) -> None:
-    data = message.payload.data.decode()
     user_id = message.sender_user_id
     user = await c.getUser(user_id)
     if isinstance(user, types.Error):
