@@ -3,7 +3,7 @@
 #  Part of the TgMusicBot project. All rights reserved where applicable.
 
 
-from ._admins import is_admin, is_owner, admins_only
+from ._admins import is_admin, is_owner, admins_only, load_admin_cache
 from ._database import db
 from ._downloader import DownloaderWrapper
 from ._tgcalls import call
@@ -26,6 +26,7 @@ __all__ = [
     "admins_only",
     "is_admin",
     "is_owner",
+    "load_admin_cache",
     "config",
     "db",
     "DownloaderWrapper",

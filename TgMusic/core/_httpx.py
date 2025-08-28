@@ -61,7 +61,7 @@ class HttpxClient:
             LOGGER.error("Error closing HTTP session: %s", repr(e), exc_info=True)
 
     @staticmethod
-    def _get_headers(url: str, base_headers: Dict[str, str]) -> Dict[str, str]:
+    def _set_headers(url: str, base_headers: Dict[str, str]) -> Dict[str, str]:
         headers = base_headers.copy()
         if config.API_URL and url.startswith(config.API_URL):
             headers["X-API-Key"] = config.API_KEY
@@ -92,7 +92,7 @@ class HttpxClient:
             LOGGER.error(error_msg)
             return DownloadResult(success=False, error=error_msg)
 
-        headers = self._get_headers(url, kwargs.pop("headers", {}))
+        headers = self._set_headers(url, kwargs.pop("headers", {}))
 
         try:
             async with self._session.stream(
@@ -187,7 +187,7 @@ class HttpxClient:
             LOGGER.error("Empty URL provided")
             return None
 
-        headers = self._get_headers(url, kwargs.pop("headers", {}))
+        headers = self._set_headers(url, kwargs.pop("headers", {}))
         last_error = None
 
         for attempt in range(max_retries):

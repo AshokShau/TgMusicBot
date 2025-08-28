@@ -13,8 +13,6 @@ from py_yt import Playlist, VideosSearch
 from pytdbot import types
 
 from TgMusic.logger import LOGGER
-from ._api import ApiData
-
 from ._config import config
 from ._dataclass import MusicTrack, PlatformTracks, TrackInfo
 from ._downloader import MusicService

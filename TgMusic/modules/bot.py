@@ -11,8 +11,9 @@ from TgMusic.core import (
     chat_cache,
     call,
     Filter,
+    load_admin_cache,
 )
-from TgMusic.core._admins import load_admin_cache
+
 from TgMusic.modules.utils import sec_to_min
 
 

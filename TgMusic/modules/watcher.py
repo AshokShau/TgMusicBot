@@ -15,9 +15,10 @@ from TgMusic.core import (
     db,
     SupportButton,
     config,
+    load_admin_cache,
 )
+
 from TgMusic.logger import LOGGER
-from TgMusic.core._admins import load_admin_cache
 from TgMusic.core.buttons import add_me_markup
 
 

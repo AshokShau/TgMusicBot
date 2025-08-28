@@ -106,7 +106,7 @@ class Calls:
         if ub.me.is_bot:
             return types.Error(
                 code=500,
-                message="Client session is a bot account. " "Please report this issue.",
+                message="Client session is a bot account, Please use user account.",
             )
         return ub
 
