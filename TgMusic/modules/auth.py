@@ -47,7 +47,7 @@ async def _validate_auth_command(msg: types.Message) -> Union[types.Message, Non
 
 
 @Client.on_message(filters=Filter.command(["auth"]))
-@admins_only(permissions="can_manage_chat")
+@admins_only(permissions="can_manage_chat", is_both=True)
 async def auth(c: Client, msg: types.Message) -> None:
     """Grant authorization permissions to a user."""
     reply = await _validate_auth_command(msg)
@@ -71,7 +71,7 @@ async def auth(c: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["unauth"]))
-@admins_only(permissions="can_manage_chat")
+@admins_only(permissions="can_manage_chat", is_both=True)
 async def un_auth(c: Client, msg: types.Message) -> None:
     """Revoke authorization permissions from a user."""
     reply = await _validate_auth_command(msg)
@@ -95,7 +95,7 @@ async def un_auth(c: Client, msg: types.Message) -> None:
 
 
 @Client.on_message(filters=Filter.command(["authlist"]))
-@admins_only(permissions="can_manage_chat")
+@admins_only(permissions="can_manage_chat", is_both=True)
 async def auth_list(c: Client, msg: types.Message) -> None:
     """List all authorized users."""
     chat_id = msg.chat_id

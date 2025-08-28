@@ -195,7 +195,6 @@ def admins_only(
                 user_id = message.from_id
                 is_anonymous = message.sender_id and isinstance(message.sender_id, types.MessageSenderChat)
 
-
             chat_id = message.chat_id
 
             if only_dev and user_id != config.OWNER_ID:
@@ -236,10 +235,6 @@ def admins_only(
                 return await sender("Only the chat owner can use this command.")
 
             async def check_and_notify(subject_id: int, subject_name: str) -> Optional[bool]:
-                if is_auth and (auth_users := await db.get_auth_users(chat_id)):
-                    if subject_id in auth_users:
-                        return True
-
                 if not await is_admin(chat_id, subject_id):
                     if no_reply:
                         return None
@@ -260,6 +255,16 @@ def admins_only(
 
             if is_user and not await check_and_notify(user_id, "You"):
                 return None
+
+            if is_auth:
+                auth_users = await db.get_auth_users(chat_id)
+                is_admin_user = await is_admin(chat_id, user_id)
+                is_authorized = user_id in auth_users if auth_users else False
+                if not (is_admin_user or is_authorized):
+                    if no_reply:
+                        return None
+                    await sender("You need to be either an admin or an authorized user to use this command.")
+                    return None
 
             if is_both and (
                 not await check_and_notify(user_id, "You")

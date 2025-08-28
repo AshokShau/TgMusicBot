@@ -385,7 +385,8 @@ async def handle_play_command(c: Client, msg: types.Message, is_video: bool = Fa
         LOGGER.error("Failed to send status message: %s", status_msg)
         return None
 
-    await del_msg(msg)  # Clean up command message
+    c.loop.create_task(del_msg(msg)) # Clean up command message
+
     args = extract_argument(msg.text)
     # Initialize appropriate downloader
     wrapper = (YouTubeData if is_video else DownloaderWrapper)(url or args)

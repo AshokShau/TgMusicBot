@@ -12,7 +12,7 @@ from ..core import DownloaderWrapper
 
 
 @Client.on_updateNewCallbackQuery(filters=Filter.regex(r"(c)?play_\w+"))
-@admins_only(is_both=True)
+@admins_only(is_bot=True, is_auth=True)
 async def callback_query(c: Client, message: types.UpdateNewCallbackQuery) -> None:
     """Handle all playback control callback queries (skip, stop, pause, resume)."""
     data = message.payload.data.decode()
