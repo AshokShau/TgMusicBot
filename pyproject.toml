@@ -47,7 +47,7 @@ dependencies = [
     "pytdbot~=0.9.6.dev1",
     "tdjson~=1.8.52",
     "ujson~=5.11.0",
-    "yt-dlp~=2025.8.22",
+    "yt-dlp~=2025.8.27",
 ]
 
 [project.license]
