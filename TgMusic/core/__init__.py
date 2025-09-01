@@ -21,6 +21,7 @@ from ._dataclass import CachedTrack, MusicTrack, PlatformTracks, TrackInfo
 from ._filters import Filter
 from .buttons import SupportButton, control_buttons
 from ._save_cookies import save_all_cookies
+from ._health import HealthCheck
 
 __all__ = [
     "admins_only",
@@ -46,4 +47,5 @@ __all__ = [
     "PlatformTracks",
     "SupportButton",
     "Filter",
+    "HealthCheck"
 ]

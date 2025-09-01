@@ -39,6 +39,7 @@ class BotConfig:
         self.LOGGER_ID: int = self._get_env_int("LOGGER_ID", -1002166934878)
 
         # Optional Settings
+        self.PORT: int = self._get_env_int("PORT", 5068)
         self.PROXY: Optional[str] = os.getenv("PROXY")
         self.DEFAULT_SERVICE: str = os.getenv("DEFAULT_SERVICE", "youtube").lower()
         self.MIN_MEMBER_COUNT: int = self._get_env_int("MIN_MEMBER_COUNT", 50)
