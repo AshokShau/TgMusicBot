@@ -23,11 +23,15 @@ class HealthCheck:
         })
 
     async def health_check(self, _: web.Request):
+        import logging
+
         if not self.client:
-            raise web.HTTPServiceUnavailable(text="Client not initialized")
+            logging.error("HealthCheck failed: Client not initialized")
+            raise web.HTTPServiceUnavailable(text="Service temporarily unavailable")
 
         if not getattr(self.client, 'is_running', False):
-            raise web.HTTPServiceUnavailable(text="Client not running")
+            logging.error("HealthCheck failed: Client not running")
+            raise web.HTTPServiceUnavailable(text="Service temporarily unavailable")
 
         try:
             await self.client.call.health_check()

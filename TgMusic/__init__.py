@@ -80,7 +80,10 @@ class Bot(Client):
         await self.call.register_decorators()
         await super().start()
         await self.call_manager.start()
-        await self.health_check.start()
+        try:
+            await self.health_check.start()
+        except Exception as e:
+            self.logger.error(f"Failed to start health check: {e}")
 
         self.logger.info("Bot started successfully")
 

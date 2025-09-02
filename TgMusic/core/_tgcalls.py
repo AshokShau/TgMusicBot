@@ -152,7 +152,8 @@ class Calls:
         for name, client in self.pyrogram_clients.items():
             try:
                 await client.get_me()
-                # await client.send_message("me", "Health check")
+                if not client.is_connected:
+                    raise RuntimeError("Client not connected")
                 LOGGER.debug("Client %s is healthy", name)
             except (errors.Flood, errors.FloodWait):
                 LOGGER.warning("Flood error while checking health of client %s", name)
