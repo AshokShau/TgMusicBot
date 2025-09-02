@@ -71,6 +71,9 @@ Source = "https://github.com/AshokShau/tgmusicbot"
 [tool.uv]
 package = true
 
+[tool.uv.sources]
+py-tgcalls = { git = "https://github.com/AshokShau/pytgcalls", rev = "master" }
+
 [tool.setuptools]
 packages = [
     "TgMusic",
