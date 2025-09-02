@@ -241,6 +241,7 @@ async def new_message(client: Client, update: types.UpdateNewMessage) -> None:
 
     if isinstance(content, types.MessageVideoChatStarted):
         LOGGER.info("Video chat started in %s", chat_id)
+        await call.end(chat_id)
         chat_cache.clear_chat(chat_id)
         await client.sendTextMessage(
             chat_id, "Video chat started!\nUse /play song name to play a song"

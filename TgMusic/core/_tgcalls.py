@@ -8,7 +8,8 @@ import re
 from pathlib import Path
 from typing import Optional, Union
 
-from ntgcalls import TelegramServerError, ConnectionNotFound
+import ntgcalls
+from ntgcalls import ConnectionNotFound
 from pyrogram import Client as PyroClient
 from pyrogram import errors
 from pytdbot import Client, types
@@ -181,6 +182,12 @@ class Calls:
                             "Cleaning up chat %s after leaving", update.chat_id
                         )
                         chat_cache.clear_chat(update.chat_id)
+                    elif isinstance(update, ChatUpdate) and update.status.CLOSED_VOICE_CHAT:
+                        LOGGER.debug(
+                            "Cleaning up chat %s after leaving", update.chat_id
+                        )
+                        chat_cache.clear_chat(update.chat_id)
+                        await self.end(update.chat_id)
                 except Exception as e:
                     LOGGER.error("Error in general handler: %s", e, exc_info=True)
 
@@ -248,13 +255,19 @@ class Calls:
                 )
 
             return types.Ok()
-        except (exceptions.NoActiveGroupCall, ConnectionNotFound):
+        except (exceptions.NoActiveGroupCall, ntgcalls.ConnectionNotFound):
             return types.Error(
                 code=404,
                 message="No active voice chat found.\n\n"
                 "Please start a voice chat and try again.",
             )
-        except TelegramServerError:
+        except ntgcalls.ConnectionError as e:
+            LOGGER.error("Connection error during playback: %s", e)
+            return types.Error(
+                code=502,
+                message="Connection error detected. Please try again later.\nDid you just close the voice chat?",
+            )
+        except ntgcalls.TelegramServerError:
             LOGGER.warning("Telegram server error during playback")
             return types.Error(
                 code=502,
