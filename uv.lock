@@ -860,12 +860,15 @@ wheels = [
 
 [[package]]
 name = "py-tgcalls"
-version = "2.2.7"
-source = { git = "https://github.com/AshokShau/pytgcalls?rev=master#da3ed7a74d8e8b1c3fa973a7bab5eb5193376dec" }
+version = "2.2.8"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "deprecation" },
     { name = "ntgcalls" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/fb/7155eb67faab7f6e7b99f6a50faaa2a19a8ca5d1de2d60353a41c1357af5/py_tgcalls-2.2.8-py3-none-any.whl", hash = "sha256:9aef2987c059276a34c1af628192af362d4980627d0206d7500a3799a18aaf89", size = 84448, upload-time = "2025-09-02T09:48:18.826Z" },
 ]
 
 [[package]]
@@ -1288,7 +1291,7 @@ requires-dist = [
     { name = "ntgcalls", specifier = "~=2.0.6" },
     { name = "pillow", specifier = "~=11.3.0" },
     { name = "psutil", specifier = "~=7.0.0" },
-    { name = "py-tgcalls", git = "https://github.com/AshokShau/pytgcalls?rev=master" },
+    { name = "py-tgcalls", specifier = "~=2.2.8" },
     { name = "py-yt-search", specifier = "~=0.3" },
     { name = "pycryptodome", specifier = "~=3.23.0" },
     { name = "pydantic", specifier = "~=2.11.7" },
