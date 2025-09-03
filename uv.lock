@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.10"
 
 [[package]]
@@ -860,7 +860,7 @@ wheels = [
 
 [[package]]
 name = "py-tgcalls"
-version = "2.2.7"
+version = "2.2.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -868,7 +868,7 @@ dependencies = [
     { name = "ntgcalls" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/fa/a4238f5696a126431cce7d5cea11b65fa7e80bc467927eb3b786d295cb1e/py_tgcalls-2.2.7-py3-none-any.whl", hash = "sha256:239b7c475a4ac630ddde7ac4693763486c8a48281782e4fe11df069a94f56749", size = 84293, upload-time = "2025-08-30T13:22:38.55Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/fb/7155eb67faab7f6e7b99f6a50faaa2a19a8ca5d1de2d60353a41c1357af5/py_tgcalls-2.2.8-py3-none-any.whl", hash = "sha256:9aef2987c059276a34c1af628192af362d4980627d0206d7500a3799a18aaf89", size = 84448, upload-time = "2025-09-02T09:48:18.826Z" },
 ]
 
 [[package]]
@@ -1091,13 +1091,13 @@ wheels = [
 
 [[package]]
 name = "pytdbot"
-version = "0.9.6.dev1"
+version = "0.9.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aio-pika" },
     { name = "deepdiff" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/94/3b/502fc701d124e8614e99a2b4f3414b2eb2a9306e6324c496fb63181f1cf3/pytdbot-0.9.6.dev1.tar.gz", hash = "sha256:a13afe64079245101c6357f8236f5b192103863623092ae355f84bbeed3d34bb", size = 466864, upload-time = "2025-07-17T00:33:34.584Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/17/f89a861268c3205470c8f9f6df93d0d803faf034d9cc9e5cb5b29d14068f/pytdbot-0.9.6.tar.gz", hash = "sha256:20390f8e043c66d5cb94a8b5f7258dc209bee02000aa9ca864763fc4b0838550", size = 474510, upload-time = "2025-09-02T07:10:50.385Z" }
 
 [[package]]
 name = "pytgcrypto"
@@ -1291,12 +1291,12 @@ requires-dist = [
     { name = "ntgcalls", specifier = "~=2.0.6" },
     { name = "pillow", specifier = "~=11.3.0" },
     { name = "psutil", specifier = "~=7.0.0" },
-    { name = "py-tgcalls", specifier = "~=2.2.7" },
+    { name = "py-tgcalls", specifier = "~=2.2.8" },
     { name = "py-yt-search", specifier = "~=0.3" },
     { name = "pycryptodome", specifier = "~=3.23.0" },
     { name = "pydantic", specifier = "~=2.11.7" },
     { name = "pymongo", specifier = "~=4.14.1" },
-    { name = "pytdbot", specifier = "~=0.9.6.dev1" },
+    { name = "pytdbot", specifier = "~=0.9.6" },
     { name = "pytgcrypto", specifier = "~=1.2.11" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "setuptools", marker = "extra == 'dev'", specifier = "~=80.9.0" },
