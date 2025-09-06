@@ -33,7 +33,7 @@ classifiers = [
 dependencies = [
     "aiofiles~=24.1.0",
     "cachetools~=6.2.0",
-    "kurigram~=2.2.9",
+    "kurigram~=2.2.10",
     "meval~=2.5",
     "ntgcalls~=2.0.6",
     "pillow~=11.3.0",
@@ -45,9 +45,9 @@ dependencies = [
     "py-tgcalls~=2.2.8",
     "pytgcrypto~=1.2.11",
     "pytdbot~=0.9.6",
-    "tdjson~=1.8.52",
+    "tdjson~=1.8.53",
     "ujson~=5.11.0",
-    "yt-dlp~=2025.8.27",
+    "yt-dlp~=2025.9.5",
 ]
 
 [project.license]
