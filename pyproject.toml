@@ -41,11 +41,11 @@ dependencies = [
     "py-yt-search~=0.3",
     "pycryptodome~=3.23.0",
     "pydantic~=2.11.7",
-    "pymongo~=4.14.1",
+    "pymongo~=4.15.0",
     "py-tgcalls~=2.2.8",
     "pytgcrypto~=1.2.11",
     "pytdbot~=0.9.6",
-    "tdjson~=1.8.52",
+    "tdjson~=1.8.54",
     "ujson~=5.11.0",
     "yt-dlp~=2025.9.5",
 ]
