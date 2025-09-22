@@ -42,7 +42,7 @@ dependencies = [
     "pycryptodome>=3.23.0",
     "pydantic>=2.11.9",
     "pymongo>=4.15.1",
-    "pytdbot[tdjson]>=0.9.6",
+    "pytdbot>=0.9.7",
     "pytgcrypto>=1.2.11",
     "ujson>=5.11.0",
     "yt-dlp>=2025.9.5",
@@ -67,8 +67,8 @@ Source = "https://github.com/AshokShau/tgmusicbot"
 [tool.uv]
 package = true
 
-[tool.uv.sources]
-pytdbot = { git = "https://github.com/pytdbot/client.git" }
+[tool.uv.sources.pytdbot]
+git = "https://github.com/pytdbot/client.git"
 
 [tool.setuptools]
 packages = [
