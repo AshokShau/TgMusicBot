@@ -45,7 +45,7 @@ dependencies = [
     "pytdbot[tdjson]>=0.9.7",
     "pytgcrypto>=1.2.11",
     "ujson>=5.11.0",
-    "yt-dlp>=2025.9.23",
+    "yt-dlp>=2025.9.26",
 ]
 
 [project.license]
