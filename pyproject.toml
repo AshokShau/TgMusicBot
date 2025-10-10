@@ -31,7 +31,7 @@ classifiers = [
     "Framework :: AsyncIO",
 ]
 dependencies = [
-    "aiofiles>=24.1.0",
+    "aiofiles>=25.1.0",
     "cachetools>=6.2.0",
     "kurigram>=2.2.12",
     "ntgcalls>=2.0.6",
