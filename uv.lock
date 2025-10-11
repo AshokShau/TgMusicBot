@@ -510,15 +510,15 @@ wheels = [
 
 [[package]]
 name = "kurigram"
-version = "2.2.12"
+version = "2.2.13"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyaes" },
     { name = "pysocks" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/21/dc/da266f27a96d67725861dbf6d44c856adbd07f7cacb95a36e85df2e9cd22/kurigram-2.2.12.tar.gz", hash = "sha256:0c40b8881bda9f4a5ceed5d8fdf97811eecf0e76ea34e529d8181925450a4335", size = 523275, upload-time = "2025-09-19T20:00:16.921Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/6f/504b12ad084ca75b41de4ea1a1236cdf2bc00dc16df56bc3bfa34cfc71c9/kurigram-2.2.13.tar.gz", hash = "sha256:71c054821937d7238eee966be318d3fd9a2150a6769468e83db31933ccc2c9af", size = 527328, upload-time = "2025-10-10T11:58:07.912Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/9c/e325ab31c48f463b55d683a73e0345fa30dbc3a8dfc58130395655e07225/kurigram-2.2.12-py3-none-any.whl", hash = "sha256:f9dcedff87160cf48a911ee9b92b2e956b700c306e2bc10f008684962aed5eac", size = 5091137, upload-time = "2025-09-19T20:00:15.506Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/89/1a18824612fba7e3e9dc9cf0461446b5721b44d26ceb24bacd19db6993da/kurigram-2.2.13-py3-none-any.whl", hash = "sha256:656ef2377431d6054c23cb852b3b9efed46c0349658fc7d2e2cb05834263f0a9", size = 5103685, upload-time = "2025-10-10T11:58:06.482Z" },
 ]
 
 [[package]]
@@ -1414,7 +1414,7 @@ requires-dist = [
     { name = "aiofiles", specifier = ">=25.1.0" },
     { name = "black", marker = "extra == 'dev'" },
     { name = "cachetools", specifier = ">=6.2.0" },
-    { name = "kurigram", specifier = ">=2.2.12" },
+    { name = "kurigram", specifier = ">=2.2.13" },
     { name = "ntgcalls", specifier = ">=2.0.6" },
     { name = "pillow", specifier = ">=11.3.0" },
     { name = "psutil", specifier = ">=7.1.0" },
