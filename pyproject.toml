@@ -32,7 +32,7 @@ classifiers = [
 ]
 dependencies = [
     "aiofiles>=25.1.0",
-    "cachetools>=6.2.0",
+    "cachetools>=6.2.1",
     "kurigram>=2.2.13",
     "ntgcalls>=2.0.6",
     "pillow>=11.3.0",
