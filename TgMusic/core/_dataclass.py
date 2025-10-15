@@ -23,6 +23,7 @@ class CachedTrack(BaseModel):
         is_video (bool): A flag indicating if the track is a video.
         platform (str): The platform from which the track originated.
     """
+
     url: str
     name: str
     loop: int
@@ -48,6 +49,7 @@ class TrackInfo(BaseModel):
         duration (int): The duration of the track in seconds.
         platform (str): The platform from which the track information was fetched.
     """
+
     url: str
     cdnurl: str
     key: str
@@ -69,6 +71,7 @@ class MusicTrack(BaseModel):
         duration (int): The duration of the track in seconds.
         platform (str): The name of the music platform.
     """
+
     url: str
     name: str
     id: str
@@ -83,4 +86,5 @@ class PlatformTracks(BaseModel):
     Attributes:
         tracks (list[MusicTrack]): A list of `MusicTrack` objects.
     """
+
     tracks: list[MusicTrack]

@@ -32,6 +32,7 @@ def control_buttons(
         types.ReplyMarkupInlineKeyboard: An inline keyboard object with the
             appropriate control buttons.
     """
+
     def btn(text: str, name: str) -> types.InlineKeyboardButton:
         return types.InlineKeyboardButton(
             text=text,

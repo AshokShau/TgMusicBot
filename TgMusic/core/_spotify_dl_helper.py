@@ -82,6 +82,7 @@ class SpotifyDownload:
         decrypted_file (str): The path to the temporary decrypted OGG file.
         output_file (str): The path for the final, playable OGG audio file.
     """
+
     def __init__(self, track: TrackInfo):
         """Initializes the SpotifyDownload helper.
 

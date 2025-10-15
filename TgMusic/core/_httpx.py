@@ -30,6 +30,7 @@ class DownloadResult:
         error (Optional[str]): A description of the error if the download failed.
         status_code (Optional[int]): The HTTP status code of the response.
     """
+
     success: bool
     file_path: Optional[Path] = None
     error: Optional[str] = None
@@ -51,6 +52,7 @@ class HttpxClient:
         MAX_RETRIES (int): The maximum number of retries for failed requests.
         BACKOFF_FACTOR (float): The factor for calculating exponential backoff delays.
     """
+
     DEFAULT_TIMEOUT = 30
     DEFAULT_DOWNLOAD_TIMEOUT = 120
     CHUNK_SIZE = 1024 * 1024

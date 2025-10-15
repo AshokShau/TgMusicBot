@@ -24,6 +24,7 @@ class InactiveCallManager:
     Attributes:
         bot (Client): The main pytdbot client instance.
     """
+
     def __init__(self, bot: Client):
         """Initializes the InactiveCallManager.
 

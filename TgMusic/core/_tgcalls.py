@@ -67,6 +67,7 @@ class Calls:
             and available client sessions.
         bot (Optional[Client]): The main `pytdbot` client instance for the bot.
     """
+
     def __init__(self):
         """Initializes the Calls manager."""
         self.calls: dict[str, PyTgCalls] = {}
