@@ -7,7 +7,7 @@ import time
 
 from pytdbot import Client, types
 
-from TgMusic.core import tg, is_admin
+from TgMusic.core import is_admin, tg
 from TgMusic.logger import LOGGER
 
 download_progress = {}
@@ -135,7 +135,7 @@ def _should_update(progress: dict, now: float, completed: bool) -> bool:
 
 
 def _build_progress_text(
-        filename: str, total: int, downloaded: int, speed: float
+    filename: str, total: int, downloaded: int, speed: float
 ) -> str:
     """
     Build a progress update message for a download task.
@@ -278,12 +278,12 @@ async def update_file(client: Client, update: types.UpdateFile):
 
 
 async def _handle_play_c_data(
-        data: str,
-        message: types.UpdateNewCallbackQuery,
-        chat_id: int,
-        user_id: int,
-        user_name: str,
-        c: Client,
+    data: str,
+    message: types.UpdateNewCallbackQuery,
+    chat_id: int,
+    user_id: int,
+    user_name: str,
+    c: Client,
 ):
     """
     Handle play control callback data for cancelling a file download.

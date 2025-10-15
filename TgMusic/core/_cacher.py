@@ -45,7 +45,9 @@ class ChatCacher:
         queue = self.chat_cache.get(chat_id, {}).get("queue")
         return queue[0] if queue else None
 
-    def remove_current_song(self, chat_id: int, disk_clear: bool = True) -> Optional[CachedTrack]:
+    def remove_current_song(
+        self, chat_id: int, disk_clear: bool = True
+    ) -> Optional[CachedTrack]:
         queue = self.chat_cache.get(chat_id, {}).get("queue")
         if not queue:
             return None
@@ -53,7 +55,11 @@ class ChatCacher:
         removed = queue.popleft()
         if disk_clear and getattr(removed, "file_path", None):
             try:
-                file_path = Path(removed.file_path) if isinstance(removed.file_path, str) else removed.file_path
+                file_path = (
+                    Path(removed.file_path)
+                    if isinstance(removed.file_path, str)
+                    else removed.file_path
+                )
                 file_path.unlink(missing_ok=True)
                 thumb_path = Path(f"database/photos/{removed.track_id}.png")
                 thumb_path.unlink(missing_ok=True)
@@ -76,7 +82,11 @@ class ChatCacher:
             for track in queue:
                 if track.file_path:
                     try:
-                        file_path = Path(track.file_path) if isinstance(track.file_path, str) else track.file_path
+                        file_path = (
+                            Path(track.file_path)
+                            if isinstance(track.file_path, str)
+                            else track.file_path
+                        )
                         file_path.unlink(missing_ok=True)
                     except (OSError, TypeError, AttributeError, KeyError):
                         pass

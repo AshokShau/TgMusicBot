@@ -9,6 +9,7 @@ from pymongo import AsyncMongoClient
 from pymongo.errors import ConnectionFailure
 
 from TgMusic.logger import LOGGER
+
 from ._config import config
 
 

@@ -9,7 +9,7 @@ from pyrogram import errors
 from pyrogram.client import Client as PyroClient
 from pytdbot import Client, types
 
-from TgMusic.core import chat_cache, call, db, config
+from TgMusic.core import call, chat_cache, config, db
 
 
 class InactiveCallManager:
@@ -31,7 +31,9 @@ class InactiveCallManager:
 
         played_time = await call.played_time(chat_id)
         if isinstance(played_time, types.Error):
-            self.bot.logger.warning(f"[Played Time Error] {chat_id}: {played_time.message}")
+            self.bot.logger.warning(
+                f"[Played Time Error] {chat_id}: {played_time.message}"
+            )
             return False
 
         if played_time < 15:
@@ -75,8 +77,12 @@ class InactiveCallManager:
                     target += timedelta(days=1)
 
                 wait = (target - now).total_seconds()
-                self.bot.logger.info(f"[AutoLeave] Waiting {wait:.2f} seconds for 3:00 AM")
-                await asyncio.wait([asyncio.create_task(self._stop.wait())], timeout=wait)
+                self.bot.logger.info(
+                    f"[AutoLeave] Waiting {wait:.2f} seconds for 3:00 AM"
+                )
+                await asyncio.wait(
+                    [asyncio.create_task(self._stop.wait())], timeout=wait
+                )
 
                 if self._stop.is_set():
                     break
@@ -84,7 +90,9 @@ class InactiveCallManager:
                 await self.leave_all()
 
                 # Fallback safety sleep (24h)
-                await asyncio.wait([asyncio.create_task(self._stop.wait())], timeout=86400)  # 24 hours
+                await asyncio.wait(
+                    [asyncio.create_task(self._stop.wait())], timeout=86400
+                )  # 24 hours
             except Exception as e:
                 self.bot.logger.exception(f"[AutoLeave] Error: {e}")
                 await asyncio.sleep(3600)  # Wait 1h before retry
@@ -99,7 +107,9 @@ class InactiveCallManager:
         except errors.FloodWait as e:
             wait_time = e.value
             if wait_time <= 100:
-                self.bot.logger.warning(f"[{ub.name}] FloodWait {wait_time}s for chat {chat_id}")
+                self.bot.logger.warning(
+                    f"[{ub.name}] FloodWait {wait_time}s for chat {chat_id}"
+                )
                 await asyncio.sleep(wait_time)
                 return await self._leave_chat(ub, chat_id)
             return False
@@ -129,10 +139,14 @@ class InactiveCallManager:
                             continue  # skip users/private chats
                         chats_to_leave.append(chat.id)
                 except Exception as e:
-                    self.bot.logger.exception(f"[{client_name}] Failed to get dialogs: {e}")
+                    self.bot.logger.exception(
+                        f"[{client_name}] Failed to get dialogs: {e}"
+                    )
                     continue
 
-                self.bot.logger.info(f"[{client_name}] Found {len(chats_to_leave)} chats to leave")
+                self.bot.logger.info(
+                    f"[{client_name}] Found {len(chats_to_leave)} chats to leave"
+                )
                 for chat_id in chats_to_leave:
                     await self._leave_chat(ub, chat_id)
                     await asyncio.sleep(0.5)

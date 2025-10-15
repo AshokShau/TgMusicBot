@@ -11,7 +11,7 @@ from TgMusic.logger import LOGGER
 
 
 async def get_url(
-        msg: types.Message, reply: Union[types.Message, None]
+    msg: types.Message, reply: Union[types.Message, None]
 ) -> Union[str, None]:
     """
     Extracts a URL from the given message or its reply.
@@ -34,7 +34,7 @@ async def get_url(
         if entity.type and entity.type["@type"] == "textEntityTypeUrl":
             offset = entity.offset
             length = entity.length
-            return text_content[offset: offset + length]
+            return text_content[offset : offset + length]
     return None
 
 
@@ -77,7 +77,7 @@ async def del_msg(msg: types.Message) -> None:
 
 
 async def edit_text(
-        reply_message: types.Message, *args: Any, **kwargs: Any
+    reply_message: types.Message, *args: Any, **kwargs: Any
 ) -> Union["types.Error", "types.Message"]:
     """
     Edits the given message and returns the result.

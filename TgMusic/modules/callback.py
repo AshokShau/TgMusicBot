@@ -4,15 +4,18 @@
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, control_buttons, chat_cache, db, call, admins_only
+from TgMusic.core import Filter, admins_only, call, chat_cache, control_buttons, db
+
+from ..core import DownloaderWrapper
 from .play import _get_platform_url, play_music
 from .progress_handler import _handle_play_c_data
 from .utils.play_helpers import edit_text
-from ..core import DownloaderWrapper
 
 
 @Client.on_updateNewCallbackQuery(filters=Filter.regex(r"vcplay_\w+"))
-async def callback_query_vc_play(c: Client, message: types.UpdateNewCallbackQuery) -> None:
+async def callback_query_vc_play(
+    c: Client, message: types.UpdateNewCallbackQuery
+) -> None:
     data = message.payload.data.decode()
     chat_id = message.chat_id
 
@@ -99,7 +102,7 @@ async def callback_query(c: Client, message: types.UpdateNewCallbackQuery) -> No
         }
 
     async def send_response(
-            msg: str, alert: bool = False, delete: bool = False, reply_markup=None
+        msg: str, alert: bool = False, delete: bool = False, reply_markup=None
     ) -> None:
         """Helper function to send standardized responses."""
         if alert:
