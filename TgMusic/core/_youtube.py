@@ -7,12 +7,13 @@ import os
 import random
 import re
 from pathlib import Path
-from typing import Any, Optional, Dict, Union
+from typing import Any, Dict, Optional, Union
 
 from py_yt import Playlist, VideosSearch
 from pytdbot import types
 
 from TgMusic.logger import LOGGER
+
 from ._config import config
 from ._dataclass import MusicTrack, PlatformTracks, TrackInfo
 from ._downloader import MusicService
@@ -60,8 +61,8 @@ class YouTubeUtils:
     def _extract_video_id(url: str) -> Optional[str]:
         """Extract video ID from various YouTube URL formats."""
         for pattern in (
-                YouTubeUtils.YOUTUBE_VIDEO_PATTERN,
-                YouTubeUtils.YOUTUBE_SHORTS_PATTERN,
+            YouTubeUtils.YOUTUBE_VIDEO_PATTERN,
+            YouTubeUtils.YOUTUBE_SHORTS_PATTERN,
         ):
             if match := pattern.match(url):
                 return match.group(1)
@@ -205,14 +206,16 @@ class YouTubeUtils:
 
     @staticmethod
     async def download_with_api(
-            video_id: str, is_video: bool = False
+        video_id: str, is_video: bool = False
     ) -> Union[None, Path]:
         """
         Download audio using the API.
         """
         video_url = f"https://www.youtube.com/watch?v={video_id}"
         httpx = HttpxClient()
-        get_track = await httpx.make_request(f"{config.API_URL}/track?url={video_url}&video={is_video}")
+        get_track = await httpx.make_request(
+            f"{config.API_URL}/track?url={video_url}&video={is_video}"
+        )
         if not get_track:
             LOGGER.error("Response from API is empty")
             return None
@@ -228,18 +231,15 @@ class YouTubeUtils:
             return dl.file_path if dl.success else None
 
         from TgMusic import client
+
         info = await client.getMessageLinkInfo(cdnurl)
         if isinstance(info, types.Error) or info.message is None:
-            LOGGER.error(
-                f"❌ Could not resolve message from link: {cdnurl}; {info}"
-            )
+            LOGGER.error(f"❌ Could not resolve message from link: {cdnurl}; {info}")
             return None
 
         msg = await client.getMessage(info.chat_id, info.message.id)
         if isinstance(msg, types.Error):
-            LOGGER.error(
-                f"❌ Failed to fetch message with ID {info.message.id}; {msg}"
-            )
+            LOGGER.error(f"❌ Failed to fetch message with ID {info.message.id}; {msg}")
             return None
 
         file = await msg.download()
@@ -252,7 +252,7 @@ class YouTubeUtils:
 
     @staticmethod
     def _build_ytdlp_params(
-            video_id: str, video: bool, cookie_file: Optional[str]
+        video_id: str, video: bool, cookie_file: Optional[str]
     ) -> list[str]:
         """Construct yt-dlp parameters based on video/audio requirements."""
         output_template = str(config.DOWNLOADS_DIR / "%(id)s.%(ext)s")
@@ -464,7 +464,7 @@ class YouTubeData(MusicService):
         return await YouTubeUtils.create_track_info(data["results"][0])
 
     async def download_track(
-            self, track: TrackInfo, video: bool = False
+        self, track: TrackInfo, video: bool = False
     ) -> Union[Path, types.Error]:
         """Download audio/video track from YouTube.
 

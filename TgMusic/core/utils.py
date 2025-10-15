@@ -1,9 +1,9 @@
 from pytdbot import Client, types
 
-from ._config import config
-from ._dataclass import CachedTrack
 from ..logger import LOGGER
 from ..modules.utils import sec_to_min
+from ._config import config
+from ._dataclass import CachedTrack
 
 
 async def send_logger(client: Client, chat_id, song: CachedTrack):

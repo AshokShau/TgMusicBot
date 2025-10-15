@@ -6,7 +6,7 @@ from typing import Union
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, chat_cache, call, db, admins_only
+from TgMusic.core import Filter, admins_only, call, chat_cache, db
 from TgMusic.modules.utils.play_helpers import extract_argument
 
 
@@ -34,7 +34,7 @@ async def set_play_type(_: Client, msg: types.Message) -> None:
 
 
 async def is_admin_or_reply(
-        msg: types.Message,
+    msg: types.Message,
 ) -> Union[int, types.Message, types.Error]:
     """Verify admin status and active playback session."""
     chat_id = msg.chat_id
@@ -46,7 +46,7 @@ async def is_admin_or_reply(
 
 
 async def handle_playback_action(
-        c: Client, msg: types.Message, action, success_msg: str, fail_msg: str
+    c: Client, msg: types.Message, action, success_msg: str, fail_msg: str
 ) -> None:
     """Handle common playback control operations."""
     _chat_id = await is_admin_or_reply(msg)
