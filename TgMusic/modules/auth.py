@@ -6,7 +6,7 @@ from typing import Union
 
 from pytdbot import Client, types
 
-from TgMusic.core import Filter, db, admins_only
+from TgMusic.core import Filter, admins_only, db
 from TgMusic.logger import LOGGER
 
 

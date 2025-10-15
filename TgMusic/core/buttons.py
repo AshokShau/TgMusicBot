@@ -15,7 +15,7 @@ CLOSE_BTN = types.InlineKeyboardButton(
 
 
 def control_buttons(
-        mode: Literal["play", "pause", "resume"],
+    mode: Literal["play", "pause", "resume"],
 ) -> types.ReplyMarkupInlineKeyboard:
     def btn(text: str, name: str) -> types.InlineKeyboardButton:
         return types.InlineKeyboardButton(

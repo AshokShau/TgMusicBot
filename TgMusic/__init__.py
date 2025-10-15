@@ -6,12 +6,12 @@
 import asyncio
 from datetime import datetime
 
-from pytdbot import types, Client
+from pytdbot import Client, types
 
 __version__ = "1.2.4"
 StartTime = datetime.now()
 
-from TgMusic.core import call, tg, db, config
+from TgMusic.core import call, config, db, tg
 
 
 class Bot(Client):
@@ -35,6 +35,7 @@ class Bot(Client):
     def _initialize_services(self) -> None:
         """Initialize all service dependencies."""
         from TgMusic.modules.jobs import InactiveCallManager
+
         self.config = config
         self.db = db
         self.call = call

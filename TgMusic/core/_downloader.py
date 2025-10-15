@@ -26,7 +26,9 @@ class MusicService(ABC):
     async def get_track(self) -> Union[TrackInfo, types.Error]: ...
 
     @abstractmethod
-    async def download_track(self, track_info: TrackInfo, video: bool = False) -> Union[Path, types.Error]: ...
+    async def download_track(
+        self, track_info: TrackInfo, video: bool = False
+    ) -> Union[Path, types.Error]: ...
 
 
 class DownloaderWrapper(MusicService):
@@ -35,24 +37,27 @@ class DownloaderWrapper(MusicService):
         self.service = self._get_service()
 
     def _get_service(self) -> MusicService:
-        from ._youtube import YouTubeData
         from ._api import ApiData
         from ._jiosaavn import JiosaavnData
+        from ._youtube import YouTubeData
 
         services = [YouTubeData, JiosaavnData, ApiData]
         if service := next(
-                (s(self.query) for s in services if s(self.query).is_valid()), None
+            (s(self.query) for s in services if s(self.query).is_valid()), None
         ):
             return service
 
         fallback = {
             "youtube": YouTubeData,
             "spotify": ApiData,
-            "jiosaavn": JiosaavnData
+            "jiosaavn": JiosaavnData,
         }.get(config.DEFAULT_SERVICE, YouTubeData)
 
-        return ApiData(self.query) if fallback == ApiData and config.API_URL and config.API_KEY else fallback(
-            self.query)
+        return (
+            ApiData(self.query)
+            if fallback == ApiData and config.API_URL and config.API_KEY
+            else fallback(self.query)
+        )
 
     def is_valid(self) -> bool:
         return self.service.is_valid()
@@ -66,5 +71,7 @@ class DownloaderWrapper(MusicService):
     async def get_track(self) -> Union[TrackInfo, types.Error]:
         return await self.service.get_track()
 
-    async def download_track(self, track_info: TrackInfo, video: bool = False) -> Union[Path, types.Error]:
+    async def download_track(
+        self, track_info: TrackInfo, video: bool = False
+    ) -> Union[Path, types.Error]:
         return await self.service.download_track(track_info, video)

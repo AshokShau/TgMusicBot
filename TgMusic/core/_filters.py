@@ -15,17 +15,23 @@ class Filter:
             return event.content.text.text
         if isinstance(event, types.UpdateNewMessage) and hasattr(event.message, "text"):
             return event.message.text
-        if isinstance(event, types.UpdateNewCallbackQuery) and getattr(event, "payload", None):
+        if isinstance(event, types.UpdateNewCallbackQuery) and getattr(
+            event, "payload", None
+        ):
             return event.payload.data.decode(errors="ignore")
         return None
 
     @staticmethod
-    def command(commands: Union[str, list[str]], prefixes: str = "/!") -> filters.Filter:
+    def command(
+        commands: Union[str, list[str]], prefixes: str = "/!"
+    ) -> filters.Filter:
         if isinstance(commands, str):
             commands = [commands]
         commands_set = {cmd.lower() for cmd in commands}
 
-        pattern = re.compile(rf"^[{re.escape(prefixes)}](\w+)(?:@(\w+))?", re.IGNORECASE)
+        pattern = re.compile(
+            rf"^[{re.escape(prefixes)}](\w+)(?:@(\w+))?", re.IGNORECASE
+        )
 
         async def filter_func(client, event) -> bool:
             text = Filter._extract_text(event)
@@ -42,7 +48,9 @@ class Filter:
 
             if mentioned_bot:
                 bot_username = getattr(client.me.usernames, "editable_username", None)
-                return bool(bot_username) and mentioned_bot.lower() == bot_username.lower()
+                return (
+                    bool(bot_username) and mentioned_bot.lower() == bot_username.lower()
+                )
 
             return True
 

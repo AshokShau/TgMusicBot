@@ -42,7 +42,9 @@ class BotConfig:
         self.PROXY: Optional[str] = os.getenv("PROXY")
         self.DEFAULT_SERVICE: str = os.getenv("DEFAULT_SERVICE", "youtube").lower()
         self.MIN_MEMBER_COUNT: int = self._get_env_int("MIN_MEMBER_COUNT", 50)
-        self.MAX_FILE_SIZE: int = self._get_env_int("MAX_FILE_SIZE", 500 * 1024 * 1024)  # 500MB default
+        self.MAX_FILE_SIZE: int = self._get_env_int(
+            "MAX_FILE_SIZE", 500 * 1024 * 1024
+        )  # 500MB default
 
         self.DOWNLOADS_DIR: Path = Path(os.getenv("DOWNLOADS_DIR", "database/music"))
 
@@ -54,7 +56,8 @@ class BotConfig:
         )
 
         self.START_IMG: str = os.getenv(
-            "START_IMG", "https://i.pinimg.com/1200x/e8/89/d3/e889d394e0afddfb0eb1df0ab663df95.jpg"
+            "START_IMG",
+            "https://i.pinimg.com/1200x/e8/89/d3/e889d394e0afddfb0eb1df0ab663df95.jpg",
         )
 
         self.IGNORE_BACKGROUND_UPDATES: bool = self._get_env_bool(
@@ -148,13 +151,13 @@ class BotConfig:
         if missing := [
             name
             for name in (
-                    "API_ID",
-                    "API_HASH",
-                    "TOKEN",
-                    "MONGO_URI",
-                    "LOGGER_ID",
-                    "DB_NAME",
-                    "START_IMG",
+                "API_ID",
+                "API_HASH",
+                "TOKEN",
+                "MONGO_URI",
+                "LOGGER_ID",
+                "DB_NAME",
+                "START_IMG",
             )
             if not getattr(self, name)
         ]:
