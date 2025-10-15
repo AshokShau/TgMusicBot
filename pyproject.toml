@@ -40,12 +40,12 @@ dependencies = [
     "py-tgcalls>=2.2.8",
     "py-yt-search>=0.3",
     "pycryptodome>=3.23.0",
-    "pydantic>=2.12.1",
+    "pydantic>=2.12.2",
     "pymongo>=4.15.3",
     "pytdbot[tdjson]>=0.9.7",
     "pytgcrypto>=1.2.11",
     "ujson>=5.11.0",
-    "yt-dlp>=2025.9.26",
+    "yt-dlp>=2025.10.14",
 ]
 
 [project.license]
