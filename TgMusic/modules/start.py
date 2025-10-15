@@ -90,7 +90,15 @@ HELP_CATEGORIES = {
 
 @Client.on_message(filters=Filter.command(["start", "help"]))
 async def start_cmd(c: Client, message: types.Message) -> None:
-    """Handle /start and /help commands."""
+    """Handles the /start and /help commands.
+
+    In a group, it sends a welcome message. In a private chat, it sends
+    the main start message with a menu.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     chat_id = message.chat_id
     bot_name = c.me.first_name
     mention = await message.mention()
@@ -123,7 +131,16 @@ async def start_cmd(c: Client, message: types.Message) -> None:
 
 @Client.on_updateNewCallbackQuery(filters=Filter.regex(r"help_\w+"))
 async def callback_query_help(c: Client, message: types.UpdateNewCallbackQuery) -> None:
-    """Handle help menu callback queries."""
+    """Handles callback queries from the help and start menus.
+
+    This function acts as a router for all buttons pressed on the start
+    and help menus, displaying the appropriate information for each
+    category (user, admin, owner, etc.).
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.UpdateNewCallbackQuery): The callback query update.
+    """
     data = message.payload.data.decode()
 
     if data == "help_all":

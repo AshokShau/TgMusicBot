@@ -29,9 +29,25 @@ PermissionsType = Union[ChatAdminPermissions, List[ChatAdminPermissions], None]
 
 
 class AdminCache:
+    """A class to cache administrator information for a chat.
+
+    Attributes:
+        chat_id (int): The ID of the chat.
+        user_info (list[types.ChatMember]): A list of chat member objects
+            representing the administrators.
+        cached (bool): A flag indicating if the information is from the cache.
+    """
+
     def __init__(
         self, chat_id: int, user_info: list[types.ChatMember], cached: bool = True
     ):
+        """Initializes the AdminCache instance.
+
+        Args:
+            chat_id (int): The ID of the chat.
+            user_info (list[types.ChatMember]): A list of chat member objects.
+            cached (bool): Whether the data is from the cache. Defaults to True.
+        """
         self.chat_id = chat_id
         self.user_info = user_info
         self.cached = cached
@@ -40,9 +56,23 @@ class AdminCache:
 async def load_admin_cache(
     c: Client, chat_id: int, force_reload: bool = False
 ) -> Tuple[bool, AdminCache]:
-    """
-    Load the admin list from Telegram and cache it, unless already cached.
-    Set force_reload to True to bypass the cache and reload the admin list.
+    """Loads the admin list from Telegram and caches it.
+
+    This function fetches the list of administrators for a given chat,
+    stores it in a time-to-live (TTL) cache, and returns it. If the
+    admin list is already in the cache, it returns the cached data
+    unless `force_reload` is set to True.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        chat_id (int): The ID of the chat for which to load admins.
+        force_reload (bool): If True, bypasses the cache and reloads
+            the admin list from Telegram. Defaults to False.
+
+    Returns:
+        Tuple[bool, AdminCache]: A tuple containing a boolean indicating
+            the success of the operation and an `AdminCache` object.
+            The boolean is False if an error occurred.
     """
     if not force_reload and chat_id in admin_cache:
         return True, admin_cache[chat_id]
@@ -63,8 +93,20 @@ async def load_admin_cache(
 async def get_admin_cache_user(
     chat_id: int, user_id: int
 ) -> Tuple[bool, Optional[dict]]:
-    """
-    Check if the user is an admin using cached data.
+    """Retrieves a user's admin information from the cache.
+
+    This function checks the cached admin list for a specific chat to find
+    a particular user.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user to look for.
+
+    Returns:
+        Tuple[bool, Optional[dict]]: A tuple where the first element is a
+            boolean indicating if the user was found in the admin cache,
+            and the second element is the user's information dictionary
+            if found, otherwise None.
     """
     admin_list = admin_cache.get(chat_id)
     if admin_list is None:
@@ -84,7 +126,16 @@ ANON = TTLCache(maxsize=250, ttl=60)
 
 
 def ensure_permissions_list(permissions: PermissionsType) -> List[ChatAdminPermissions]:
-    """Ensures permissions are a list of strings."""
+    """Ensures that the given permissions are in a list format.
+
+    Args:
+        permissions (PermissionsType): The permissions, which can be a single
+            string, a list of strings, or None.
+
+    Returns:
+        List[ChatAdminPermissions]: A list of permission strings. Returns an
+            empty list if the input is None.
+    """
     if permissions is None:
         return []
     return [permissions] if isinstance(permissions, str) else permissions
@@ -93,8 +144,20 @@ def ensure_permissions_list(permissions: PermissionsType) -> List[ChatAdminPermi
 async def check_permissions(
     chat_id: int, user_id: int, permissions: PermissionsType
 ) -> bool:
-    """
-    Check if a user has specific permissions.
+    """Checks if a user has a specific set of permissions in a chat.
+
+    This function first verifies if the user is an admin. If they are, it
+    checks if they hold all the specified permissions. Chat owners are
+    always considered to have all permissions.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user to check.
+        permissions (PermissionsType): The permission or list of permissions
+            to check.
+
+    Returns:
+        bool: True if the user has all the specified permissions, False otherwise.
     """
     if not await is_admin(chat_id, user_id):
         return False
@@ -115,8 +178,17 @@ async def check_permissions(
 
 
 async def is_owner(chat_id: int, user_id: int) -> bool:
-    """
-    Check if the user is the owner of the chat.
+    """Checks if a user is the owner of a chat.
+
+    This function relies on the cached admin data to determine if the user's
+    status is 'chatMemberStatusCreator'.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user.
+
+    Returns:
+        bool: True if the user is the chat owner, False otherwise.
     """
     is_cached, user = await get_admin_cache_user(chat_id, user_id)
     if not user:
@@ -126,8 +198,18 @@ async def is_owner(chat_id: int, user_id: int) -> bool:
 
 
 async def is_admin(chat_id: int, user_id: int) -> bool:
-    """
-    Check if the user is an admin in the chat.
+    """Checks if a user is an administrator in a chat.
+
+    This function uses the cached admin data to determine if the user has
+    admin or owner status. It also handles the case of anonymous admins
+    in the chat.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user.
+
+    Returns:
+        bool: True if the user is an admin, False otherwise.
     """
     is_cached, user = await get_admin_cache_user(chat_id, user_id)
     if not user:
@@ -146,7 +228,19 @@ async def is_admin(chat_id: int, user_id: int) -> bool:
 async def verify_anonymous_admin(
     c: Client, callback: types.UpdateNewCallbackQuery
 ) -> None:
-    """Verify anonymous admin permissions."""
+    """Handles the verification callback for an anonymous admin.
+
+    When an admin using an anonymous identity clicks a verification button,
+    this handler checks their permissions and proceeds with the original
+    function call if successful.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        callback (types.UpdateNewCallbackQuery): The callback query update.
+
+    Returns:
+        None
+    """
     data = callback.payload.data.decode()
     chat_id = callback.chat_id
     callback_id = int(f"{chat_id}{data.split('.')[1]}")
@@ -183,8 +277,34 @@ def admins_only(
     allow_pm: bool = True,
     no_reply: bool = False,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    Decorator to check if the user is an admin before executing the command.
+    """A decorator to restrict command access to administrators.
+
+    This decorator provides a flexible way to protect handlers by checking
+    various admin-related conditions before executing the wrapped function.
+    It can check for user permissions, bot permissions, ownership, and more.
+
+    Args:
+        permissions (PermissionsType): A single permission or a list of
+            permissions required to execute the command. Defaults to None.
+        is_bot (bool): If True, checks if the bot itself has admin rights
+            and the specified permissions. Defaults to False.
+        is_auth (bool): If True, allows both admins and authorized users
+            (from the database) to use the command. Defaults to False.
+        is_user (bool): If True, checks if the user invoking the command
+            has admin rights and permissions. Defaults to False.
+        is_both (bool): If True, checks if both the user and the bot have
+            the required admin rights and permissions. Defaults to False.
+        only_owner (bool): If True, restricts the command to the chat owner.
+            Defaults to False.
+        only_dev (bool): If True, restricts the command to the bot's owner
+            (developer). Defaults to False.
+        allow_pm (bool): If True, allows the command to be used in private
+            messages. Defaults to True.
+        no_reply (bool): If True, suppresses reply messages on permission
+            failure. Defaults to False.
+
+    Returns:
+        Callable: The decorated function.
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:

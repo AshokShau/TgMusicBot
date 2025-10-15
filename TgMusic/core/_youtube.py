@@ -21,7 +21,17 @@ from ._httpx import HttpxClient
 
 
 class YouTubeUtils:
-    """Utility class for YouTube-related operations."""
+    """A utility class for handling various YouTube-related operations.
+
+    This class provides a collection of static methods for parsing and
+    validating YouTube URLs, formatting track data, and managing downloads
+    through different backends like `yt-dlp` and a custom API.
+
+    Attributes:
+        YOUTUBE_VIDEO_PATTERN (re.Pattern): Regex for standard YouTube video URLs.
+        YOUTUBE_PLAYLIST_PATTERN (re.Pattern): Regex for YouTube playlist URLs.
+        YOUTUBE_SHORTS_PATTERN (re.Pattern): Regex for YouTube Shorts URLs.
+    """
 
     # Compile regex patterns once at class level
     YOUTUBE_VIDEO_PATTERN = re.compile(
@@ -41,11 +51,26 @@ class YouTubeUtils:
 
     @staticmethod
     def clean_query(query: str) -> str:
-        """Clean the query by removing unnecessary parameters."""
+        """Cleans a query string by removing unnecessary URL parameters.
+
+        Args:
+            query (str): The input query or URL string.
+
+        Returns:
+            str: The cleaned string.
+        """
         return query.split("&")[0].split("#")[0].strip()
 
     @staticmethod
     def is_valid_url(url: Optional[str]) -> bool:
+        """Checks if a URL is a valid YouTube URL (video, playlist, or short).
+
+        Args:
+            url (Optional[str]): The URL to validate.
+
+        Returns:
+            bool: True if the URL is a valid YouTube URL, False otherwise.
+        """
         if not url:
             return False
         return any(
@@ -59,7 +84,14 @@ class YouTubeUtils:
 
     @staticmethod
     def _extract_video_id(url: str) -> Optional[str]:
-        """Extract video ID from various YouTube URL formats."""
+        """Extracts the video ID from various YouTube URL formats.
+
+        Args:
+            url (str): The YouTube URL.
+
+        Returns:
+            Optional[str]: The extracted video ID, or None if not found.
+        """
         for pattern in (
             YouTubeUtils.YOUTUBE_VIDEO_PATTERN,
             YouTubeUtils.YOUTUBE_SHORTS_PATTERN,
@@ -70,7 +102,17 @@ class YouTubeUtils:
 
     @staticmethod
     async def normalize_youtube_url(url: str) -> Optional[str]:
-        """Normalize different YouTube URL formats to standard watch URL."""
+        """Normalizes different YouTube URL formats to the standard watch URL.
+
+        This handles formats like `youtu.be` and `/shorts/`.
+
+        Args:
+            url (str): The YouTube URL to normalize.
+
+        Returns:
+            Optional[str]: The normalized `youtube.com/watch?v=` URL, or None
+                if the input is invalid.
+        """
         if not url:
             return None
 
@@ -88,7 +130,15 @@ class YouTubeUtils:
 
     @staticmethod
     def create_platform_tracks(data: Dict[str, Any]) -> PlatformTracks:
-        """Create PlatformTracks object from data."""
+        """Creates a `PlatformTracks` object from a dictionary of data.
+
+        Args:
+            data (Dict[str, Any]): A dictionary containing a 'results' key
+                with a list of track data.
+
+        Returns:
+            PlatformTracks: A `PlatformTracks` object.
+        """
         if not data or not data.get("results"):
             return PlatformTracks(tracks=[])
 
@@ -101,7 +151,14 @@ class YouTubeUtils:
 
     @staticmethod
     def format_track(track_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Format track data into a consistent structure."""
+        """Formats raw track data into a standardized dictionary structure.
+
+        Args:
+            track_data (Dict[str, Any]): The raw track data from an API.
+
+        Returns:
+            Dict[str, Any]: A dictionary with standardized keys and values.
+        """
         duration = track_data.get("duration", "0:00")
         if isinstance(duration, dict):
             duration = duration.get("secondsText", "0:00")
@@ -126,7 +183,14 @@ class YouTubeUtils:
 
     @staticmethod
     async def create_track_info(track_data: dict[str, Any]) -> TrackInfo:
-        """Create TrackInfo from formatted track data."""
+        """Creates a `TrackInfo` object from formatted track data.
+
+        Args:
+            track_data (dict[str, Any]): A dictionary of formatted track data.
+
+        Returns:
+            TrackInfo: A `TrackInfo` object.
+        """
         return TrackInfo(
             cdnurl="None",
             key="None",
@@ -140,14 +204,13 @@ class YouTubeUtils:
 
     @staticmethod
     def duration_to_seconds(duration: str) -> int:
-        """
-        Convert duration string (HH:MM:SS or MM:SS) to seconds.
+        """Converts a duration string (HH:MM:SS or MM:SS) to seconds.
 
         Args:
-            duration: Time string to convert
+            duration (str): The time string to convert.
 
         Returns:
-            int: Duration in seconds
+            int: The duration in seconds.
         """
         if not duration:
             return 0
@@ -162,7 +225,14 @@ class YouTubeUtils:
 
     @staticmethod
     async def get_cookie_file() -> Optional[str]:
-        """Get a random cookie file from the 'cookies' directory."""
+        """Gets the path of a random cookie file from the cookies directory.
+
+        This is used to bypass YouTube's throttling for `yt-dlp`.
+
+        Returns:
+            Optional[str]: The full path to a randomly selected cookie file,
+                or None if the directory or files don't exist.
+        """
         cookie_dir = "TgMusic/cookies"
         try:
             if not os.path.exists(cookie_dir):
@@ -184,6 +254,18 @@ class YouTubeUtils:
 
     @staticmethod
     async def fetch_oembed_data(url: str) -> Optional[dict[str, Any]]:
+        """Fetches video metadata using YouTube's oEmbed endpoint.
+
+        This is a lightweight way to get basic video information like title
+        and thumbnail.
+
+        Args:
+            url (str): The URL of the YouTube video.
+
+        Returns:
+            Optional[dict[str, Any]]: A dictionary containing the formatted
+                track data, or None on failure.
+        """
         oembed_url = f"https://www.youtube.com/oembed?url={url}&format=json"
         data = await HttpxClient().make_request(oembed_url, max_retries=1)
         if data:
@@ -208,8 +290,17 @@ class YouTubeUtils:
     async def download_with_api(
         video_id: str, is_video: bool = False
     ) -> Union[None, Path]:
-        """
-        Download audio using the API.
+        """Downloads a track using the configured external API.
+
+        This method can handle direct downloads or resolve Telegram file links.
+
+        Args:
+            video_id (str): The YouTube video ID.
+            is_video (bool): Whether to download the video version.
+                Defaults to False.
+
+        Returns:
+            Union[None, Path]: The path to the downloaded file, or None on failure.
         """
         video_url = f"https://www.youtube.com/watch?v={video_id}"
         httpx = HttpxClient()
@@ -254,7 +345,16 @@ class YouTubeUtils:
     def _build_ytdlp_params(
         video_id: str, video: bool, cookie_file: Optional[str]
     ) -> list[str]:
-        """Construct yt-dlp parameters based on video/audio requirements."""
+        """Constructs the list of command-line arguments for `yt-dlp`.
+
+        Args:
+            video_id (str): The YouTube video ID.
+            video (bool): True to select video formats, False for audio-only.
+            cookie_file (Optional[str]): The path to a cookie file to use.
+
+        Returns:
+            list[str]: A list of arguments for the `yt-dlp` command.
+        """
         output_template = str(config.DOWNLOADS_DIR / "%(id)s.%(ext)s")
 
         format_selector = (
@@ -306,14 +406,17 @@ class YouTubeUtils:
 
     @staticmethod
     async def download_with_yt_dlp(video_id: str, video: bool) -> Optional[Path]:
-        """Download YouTube media using yt-dlp.
+        """Downloads YouTube media using the `yt-dlp` command-line tool.
+
+        This method constructs and executes a `yt-dlp` command to download
+        the specified video or audio.
 
         Args:
-            video_id (str): YouTube video ID.
-            video (bool): True to download video; False for audio only.
+            video_id (str): The YouTube video ID to download.
+            video (bool): True to download video, False for audio only.
 
         Returns:
-            Optional[str]: File path of the downloaded media, or None on failure.
+            Optional[Path]: The path to the downloaded file, or None on failure.
         """
         cookie_file = await YouTubeUtils.get_cookie_file()
         ytdlp_params = YouTubeUtils._build_ytdlp_params(video_id, video, cookie_file)
@@ -366,37 +469,36 @@ class YouTubeUtils:
 
 
 class YouTubeData(MusicService):
-    """Handles YouTube music data operations including:
-    - URL validation
-    - Track information retrieval
-    - Search functionality
-    - Audio/video downloads
+    """Implements the `MusicService` interface for YouTube.
 
-    Uses both direct API calls and YouTube Data API for comprehensive coverage.
+    This class provides methods for searching, retrieving information about,
+    and downloading tracks and playlists from YouTube.
     """
 
     def __init__(self, query: Optional[str] = None) -> None:
-        """Initialize with optional query (URL or search term).
+        """Initializes the YouTubeData handler.
 
         Args:
-            query: YouTube URL or search term to process
+            query (Optional[str]): The YouTube URL or search term to process.
+                Defaults to None.
         """
         self.query = YouTubeUtils.clean_query(query) if query else None
 
     def is_valid(self) -> bool:
-        """Validate YouTube URL format.
+        """Validates if the query is a recognizable YouTube URL.
 
         Returns:
-            bool: True if URL matches YouTube patterns
+            bool: True if the query is a valid YouTube URL, False otherwise.
         """
         return YouTubeUtils.is_valid_url(self.query)
 
     async def get_info(self) -> Union[PlatformTracks, types.Error]:
-        """Retrieve track information from YouTube URL.
+        """Retrieves track or playlist information from a YouTube URL.
 
         Returns:
-            PlatformTracks: Contains track metadata
-            types.Error: If URL is invalid or request fails
+            Union[PlatformTracks, types.Error]: A `PlatformTracks` object
+                containing the track metadata, or an `Error` object if the
+                URL is invalid or the request fails.
         """
         if not self.query or not self.is_valid():
             return types.Error(code=400, message="Invalid YouTube URL provided")
@@ -408,11 +510,14 @@ class YouTubeData(MusicService):
         return YouTubeUtils.create_platform_tracks(data)
 
     async def search(self) -> Union[PlatformTracks, types.Error]:
-        """Search YouTube for tracks matching the query.
+        """Searches YouTube for videos matching the query.
+
+        If the query is a valid URL, it retrieves the info directly.
+        Otherwise, it performs a search using the `py_yt` library.
 
         Returns:
-            PlatformTracks: Contains search results
-            types.Error: If query is invalid or search fails
+            Union[PlatformTracks, types.Error]: A `PlatformTracks` object with
+                the search results, or an `Error` object if the search fails.
         """
         if not self.query:
             return types.Error(code=400, message="No search query provided")
@@ -441,11 +546,11 @@ class YouTubeData(MusicService):
             return types.Error(code=500, message=f"Search failed: {str(error)}")
 
     async def get_track(self) -> Union[TrackInfo, types.Error]:
-        """Get detailed track information.
+        """Gets detailed information for a single YouTube video.
 
         Returns:
-            TrackInfo: Detailed track metadata
-            types.Error: If track cannot be found
+            Union[TrackInfo, types.Error]: A `TrackInfo` object with detailed
+                track metadata, or an `Error` object if the track cannot be found.
         """
         if not self.query:
             return types.Error(code=400, message="No track identifier provided")
@@ -466,15 +571,18 @@ class YouTubeData(MusicService):
     async def download_track(
         self, track: TrackInfo, video: bool = False
     ) -> Union[Path, types.Error]:
-        """Download audio/video track from YouTube.
+        """Downloads a track from YouTube.
+
+        It first attempts to download using the configured API, and falls back
+        to `yt-dlp` if the API method fails or is not configured.
 
         Args:
-            track: TrackInfo containing download details
-            video: Whether to download video (default: False)
+            track (TrackInfo): An object containing the track's metadata.
+            video (bool): Whether to download the video version. Defaults to False.
 
         Returns:
-            Path: Location of downloaded file
-            types.Error: If download fails
+            Union[Path, types.Error]: The path to the downloaded file, or an
+                `Error` object if the download fails.
         """
         if not track:
             return types.Error(code=400, message="Invalid track information provided")
@@ -494,9 +602,16 @@ class YouTubeData(MusicService):
         return dl_path
 
     async def _fetch_data(self, url: str) -> Optional[Dict[str, Any]]:
-        """Internal method to fetch YouTube data.
+        """Internal helper method to fetch data for a YouTube URL.
 
-        Handles both videos and playlists.
+        It determines if the URL is a video or playlist and calls the
+        appropriate data retrieval method.
+
+        Args:
+            url (str): The YouTube URL.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary of track data, or None.
         """
         try:
             if YouTubeUtils.YOUTUBE_PLAYLIST_PATTERN.match(url):
@@ -511,7 +626,17 @@ class YouTubeData(MusicService):
 
     @staticmethod
     async def _get_video_data(url: str) -> Optional[Dict[str, Any]]:
-        """Retrieve metadata for a single YouTube video."""
+        """Retrieves metadata for a single YouTube video.
+
+        It first tries the lightweight oEmbed endpoint and falls back to the
+        more comprehensive search API if needed.
+
+        Args:
+            url (str): The URL of the video.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary of track data, or None.
+        """
         normalized_url = await YouTubeUtils.normalize_youtube_url(url)
         if not normalized_url:
             return None
@@ -535,7 +660,15 @@ class YouTubeData(MusicService):
 
     @staticmethod
     async def _get_playlist_data(url: str) -> Optional[Dict[str, Any]]:
-        """Retrieve metadata for a YouTube playlist."""
+        """Retrieves metadata for all videos in a YouTube playlist.
+
+        Args:
+            url (str): The URL of the playlist.
+
+        Returns:
+            Optional[Dict[str, Any]]: A dictionary containing a list of all
+                tracks in the playlist, or None on failure.
+        """
         try:
             playlist = await Playlist.getVideos(url)
             if not playlist or not playlist.get("videos"):

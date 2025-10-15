@@ -22,10 +22,17 @@ FONTS = {
 
 
 def resize_youtube_thumbnail(img: Image.Image) -> Image.Image:
-    """
-    Resize a YouTube thumbnail to 640x640 while keeping important content.
+    """Resizes a YouTube thumbnail to a 640x640 square.
 
-    It crops the center of the image after resizing.
+    This function first resizes the image to fit within a 640-pixel boundary
+    while maintaining its aspect ratio, then performs a center crop to
+    achieve the final square dimensions.
+
+    Args:
+        img (Image.Image): The original PIL Image object of the thumbnail.
+
+    Returns:
+        Image.Image: The resized and cropped 640x640 image.
     """
     target_size = 640
     aspect_ratio = img.width / img.height
@@ -49,10 +56,15 @@ def resize_youtube_thumbnail(img: Image.Image) -> Image.Image:
 
 
 def resize_jiosaavn_thumbnail(img: Image.Image) -> Image.Image:
-    """
-    Resize a JioSaavn thumbnail from 500x500 to 600x600.
+    """Resizes a JioSaavn thumbnail from 500x500 to 600x600.
 
-    It upscales the image while preserving quality.
+    This is a simple upscale operation using a high-quality resampling filter.
+
+    Args:
+        img (Image.Image): The original 500x500 PIL Image object.
+
+    Returns:
+        Image.Image: The upscaled 600x600 image.
     """
     target_size = 600
     img = img.resize((target_size, target_size), Image.Resampling.LANCZOS)
@@ -60,16 +72,16 @@ def resize_jiosaavn_thumbnail(img: Image.Image) -> Image.Image:
 
 
 async def fetch_image(url: str) -> Image.Image | None:
-    """
-    Fetches an image from the given URL, resizes it if necessary for JioSaavn and
-    YouTube thumbnails, and returns the loaded image as a PIL Image object, or None on
-    failure.
+    """Fetches an image from a URL and processes it.
+
+    This function retrieves an image, handles platform-specific resizing
+    for YouTube and JioSaavn thumbnails, and returns the final PIL Image object.
 
     Args:
-        url (str): URL of the image to fetch.
+        url (str): The URL of the image to fetch.
 
     Returns:
-        Image.Image | None: The fetched and possibly resized image, or None if the fetch fails.
+        Image.Image | None: The processed PIL Image object, or None on failure.
     """
     if not url:
         return None
@@ -94,16 +106,31 @@ async def fetch_image(url: str) -> Image.Image | None:
 
 
 def clean_text(text: str, limit: int = 17) -> str:
-    """
-    Sanitizes and truncates text to fit within the limit.
+    """Sanitizes and truncates a string to a specified limit.
+
+    Args:
+        text (str): The input string.
+        limit (int): The maximum length of the output string. Defaults to 17.
+
+    Returns:
+        str: The cleaned and possibly truncated string.
     """
     text = text.strip()
     return f"{text[:limit - 3]}..." if len(text) > limit else text
 
 
 def add_controls(img: Image.Image) -> Image.Image:
-    """
-    Adds blurred background effect and overlay controls.
+    """Adds a blurred background and control interface overlay to an image.
+
+    This creates the main background for the thumbnail by blurring the
+    original image and overlaying a semi-transparent, rounded rectangle
+    with control button graphics.
+
+    Args:
+        img (Image.Image): The base image for the thumbnail.
+
+    Returns:
+        Image.Image: The image with the background effects and controls applied.
     """
     img = img.filter(ImageFilter.GaussianBlur(25))
     box = (120, 120, 520, 480)
@@ -124,8 +151,17 @@ def add_controls(img: Image.Image) -> Image.Image:
 
 
 def make_sq(image: Image.Image, size: int = 125) -> Image.Image:
-    """
-    Crops an image into a rounded square.
+    """Crops an image into a rounded square.
+
+    This is used to create the main album art display on the thumbnail.
+
+    Args:
+        image (Image.Image): The source image.
+        size (int): The desired width and height of the final square image.
+            Defaults to 125.
+
+    Returns:
+        Image.Image: The cropped and rounded square image.
     """
     width, height = image.size
     side_length = min(width, height)
@@ -148,8 +184,19 @@ def make_sq(image: Image.Image, size: int = 125) -> Image.Image:
 
 
 def get_duration(duration: int, time: str = "0:24") -> str:
-    """
-    Calculates remaining duration.
+    """Calculates the remaining duration of a track.
+
+    Note: The `time` parameter seems to have a fixed default value and may
+    not represent the current playback time, making this function's output
+    potentially inaccurate for "remaining" time. It effectively subtracts
+    24 seconds from the total duration.
+
+    Args:
+        duration (int): The total duration of the track in seconds.
+        time (str): The elapsed time in "M:SS" format. Defaults to "0:24".
+
+    Returns:
+        str: The calculated remaining time in "M:SS" format.
     """
     try:
         m1, s1 = divmod(duration, 60)
@@ -163,8 +210,21 @@ def get_duration(duration: int, time: str = "0:24") -> str:
 
 
 async def gen_thumb(song: CachedTrack) -> str:
-    """
-    Generates and saves a thumbnail for the song.
+    """Generates and saves a custom thumbnail for a given song.
+
+    This function orchestrates the entire thumbnail creation process:
+    1. Fetches the song's cover art.
+    2. Creates a blurred background with control overlays.
+    3. Adds a rounded square version of the cover art.
+    4. Draws the song title, artist, and duration on the image.
+    5. Saves the final thumbnail to a file.
+
+    Args:
+        song (CachedTrack): The cached track object containing metadata.
+
+    Returns:
+        str: The path to the generated thumbnail file, or an empty string
+             if generation fails.
     """
     save_dir = f"database/photos/{song.track_id}.png"
     if await aiopath.exists(save_dir):

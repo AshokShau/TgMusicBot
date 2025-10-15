@@ -14,7 +14,18 @@ from .utils.play_helpers import extract_argument
 @Client.on_message(filters=Filter.command("seek"))
 @admins_only(is_bot=True, is_auth=True)
 async def seek_song(_: Client, msg: types.Message) -> None:
-    """Seek to a specific position in the currently playing track."""
+    """Handles the /seek command to jump forward in the current track.
+
+    This command allows an authorized user to seek a specified number of
+    seconds forward from the current playback position.
+
+    Usage:
+        /seek [seconds]
+
+    Args:
+        _ (Client): The pytdbot client instance (unused).
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if chat_id > 0:
         return

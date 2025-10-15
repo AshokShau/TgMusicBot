@@ -11,7 +11,21 @@ from TgMusic.logger import LOGGER
 
 
 async def _validate_auth_command(msg: types.Message) -> Union[types.Message, None]:
-    """Validate authorization command requirements."""
+    """Validates the context for an authorization command.
+
+    This helper function checks if the command was used correctly, for example:
+    - It must be in a group chat.
+    - It must be a reply to another user's message.
+    - It cannot be a reply to oneself or a channel.
+
+    Args:
+        msg (types.Message): The message object that triggered the command.
+
+    Returns:
+        Union[types.Message, None]: The replied-to message object if validation
+            passes, otherwise None. It sends appropriate error messages to the
+            chat upon validation failure.
+    """
     chat_id = msg.chat_id
     if chat_id > 0:
         return None
@@ -49,7 +63,16 @@ async def _validate_auth_command(msg: types.Message) -> Union[types.Message, Non
 @Client.on_message(filters=Filter.command(["auth"]))
 @admins_only(permissions="can_manage_chat", is_both=True)
 async def auth(c: Client, msg: types.Message) -> None:
-    """Grant authorization permissions to a user."""
+    """Handles the /auth command to grant authorization to a user.
+
+    This command allows an admin to add a user to the list of authorized
+    users for the chat. An authorized user can use certain bot commands
+    without being a chat admin.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        msg (types.Message): The message object containing the command.
+    """
     reply = await _validate_auth_command(msg)
     if not reply:
         return
@@ -73,7 +96,15 @@ async def auth(c: Client, msg: types.Message) -> None:
 @Client.on_message(filters=Filter.command(["unauth"]))
 @admins_only(permissions="can_manage_chat", is_both=True)
 async def un_auth(c: Client, msg: types.Message) -> None:
-    """Revoke authorization permissions from a user."""
+    """Handles the /unauth command to revoke a user's authorization.
+
+    This command allows an admin to remove a user from the chat's list of
+    authorized users.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        msg (types.Message): The message object containing the command.
+    """
     reply = await _validate_auth_command(msg)
     if not reply:
         return
@@ -97,7 +128,12 @@ async def un_auth(c: Client, msg: types.Message) -> None:
 @Client.on_message(filters=Filter.command(["authlist"]))
 @admins_only(permissions="can_manage_chat", is_both=True)
 async def auth_list(c: Client, msg: types.Message) -> None:
-    """List all authorized users."""
+    """Handles the /authlist command to list all authorized users in the chat.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if chat_id > 0:
         reply = await msg.reply_text("❌ This command is only available in groups.")

@@ -19,13 +19,20 @@ from ._httpx import HttpxClient
 
 
 class JiosaavnData(MusicService):
-    """Handler for JioSaavn music service operations including:
-    - URL validation and parsing
-    - Track information retrieval
-    - Playlist processing
-    - Audio downloads
+    """Handles interactions with the JioSaavn music service.
 
-    Uses both direct API calls and yt-dlp for comprehensive coverage.
+    This class implements the `MusicService` interface to provide functionality
+    for validating JioSaavn URLs, searching for tracks, retrieving track and
+    playlist information, and downloading audio. It uses a combination of
+    direct API calls to JioSaavn's internal API and `yt-dlp` for robust
+    data extraction.
+
+    Attributes:
+        JIOSAAVN_SONG_PATTERN (re.Pattern): Regex to validate JioSaavn song URLs.
+        JIOSAAVN_PLAYLIST_PATTERN (re.Pattern): Regex to validate JioSaavn
+            playlist URLs.
+        API_SEARCH_ENDPOINT (str): The URL for JioSaavn's autocomplete API.
+        DEFAULT_DURATION (int): A default duration to use if metadata is missing.
     """
 
     # URL patterns for validation
@@ -51,10 +58,11 @@ class JiosaavnData(MusicService):
     DEFAULT_DURATION = 0  # seconds
 
     def __init__(self, query: Optional[str] = None) -> None:
-        """Initialize with optional query (URL or search term).
+        """Initializes the JiosaavnData handler.
 
         Args:
-            query: JioSaavn URL or search term to process
+            query (Optional[str]): The JioSaavn URL or search term to process.
+                Defaults to None.
         """
         self.query = query
         self._ydl_opts = {
@@ -65,10 +73,11 @@ class JiosaavnData(MusicService):
         }
 
     def is_valid(self) -> bool:
-        """Validate if URL matches JioSaavn patterns.
+        """Validates if the query is a recognizable JioSaavn URL.
 
         Returns:
-            bool: True if URL matches song or playlist pattern
+            bool: True if the query matches a JioSaavn song or playlist URL
+                pattern, False otherwise.
         """
         if not self.query:
             return False
@@ -78,11 +87,15 @@ class JiosaavnData(MusicService):
         )
 
     async def search(self) -> Union[PlatformTracks, types.Error]:
-        """Search JioSaavn for tracks matching the query.
+        """Searches JioSaavn for tracks.
+
+        If the query is a valid JioSaavn URL, it retrieves the info directly.
+        Otherwise, it uses the JioSaavn API to search for tracks matching
+        the query string.
 
         Returns:
-            PlatformTracks: Contains search results
-            types.Error: If query is invalid or search fails
+            Union[PlatformTracks, types.Error]: A `PlatformTracks` object with
+                the search results, or an `Error` object if the search fails.
         """
         if not self.query:
             return types.Error(code=400, message="Search query cannot be empty")
@@ -117,11 +130,15 @@ class JiosaavnData(MusicService):
             return types.Error(code=500, message=f"Search failed: {str(error)}")
 
     async def get_info(self) -> Union[PlatformTracks, types.Error]:
-        """Retrieve track/playlist information from JioSaavn URL.
+        """Retrieves track or playlist information from a JioSaavn URL.
+
+        This method determines whether the URL is for a single song or a
+        playlist and fetches the corresponding data.
 
         Returns:
-            PlatformTracks: Contains track metadata
-            types.Error: If URL is invalid or request fails
+            Union[PlatformTracks, types.Error]: A `PlatformTracks` object
+                containing the track metadata, or an `Error` object if the
+                URL is invalid or the request fails.
         """
         if not self.query or not self.is_valid():
             return types.Error(code=400, message="Invalid JioSaavn URL provided")
@@ -143,11 +160,13 @@ class JiosaavnData(MusicService):
             return types.Error(code=500, message="Failed to retrieve track information")
 
     async def get_track(self) -> Union[TrackInfo, types.Error]:
-        """Get detailed track information including download URL.
+        """Gets detailed information for a single JioSaavn track.
+
+        This includes metadata required for playback, such as the download URL.
 
         Returns:
-            TrackInfo: Detailed track metadata
-            types.Error: If track cannot be found
+            Union[TrackInfo, types.Error]: A `TrackInfo` object with detailed
+                track metadata, or an `Error` object if the track cannot be found.
         """
         if not self.query:
             return types.Error(code=400, message="No track identifier provided")
@@ -172,13 +191,14 @@ class JiosaavnData(MusicService):
         )
 
     async def get_track_data(self, url: str) -> Optional[dict[str, Any]]:
-        """Retrieve metadata for a single JioSaavn track.
+        """Retrieves metadata for a single JioSaavn track using yt-dlp.
 
         Args:
-            url: JioSaavn track URL
+            url (str): The URL of the JioSaavn track.
 
         Returns:
-            dict: Parsed track metadata or None if failed
+            Optional[dict[str, Any]]: A dictionary containing the parsed
+                track metadata, or None if the operation fails.
         """
         try:
             with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
@@ -191,13 +211,14 @@ class JiosaavnData(MusicService):
         return None
 
     async def get_playlist_data(self, url: str) -> Optional[dict[str, Any]]:
-        """Retrieve metadata for a JioSaavn playlist.
+        """Retrieves metadata for a JioSaavn playlist using yt-dlp.
 
         Args:
-            url: JioSaavn playlist URL
+            url (str): The URL of the JioSaavn playlist.
 
         Returns:
-            dict: Parsed playlist tracks or None if failed
+            Optional[dict[str, Any]]: A dictionary containing a list of
+                parsed tracks from the playlist, or None if the operation fails.
         """
         try:
             with yt_dlp.YoutubeDL(self._ydl_opts) as ydl:
@@ -221,15 +242,18 @@ class JiosaavnData(MusicService):
     async def download_track(
         self, track: TrackInfo, video: bool = False
     ) -> Union[Path, types.Error]:
-        """Download audio track from JioSaavn.
+        """Downloads an audio track from JioSaavn.
+
+        Note: The `video` parameter is ignored as JioSaavn is an audio-only service.
 
         Args:
-            track: TrackInfo containing download details
-            video: Whether to download video (not supported for JioSaavn)
+            track (TrackInfo): An object containing the track's metadata and
+                download URL.
+            video (bool): This parameter is not used. Defaults to False.
 
         Returns:
-            Path: Location of downloaded file
-            types.Error: If download fails
+            Union[Path, types.Error]: The path to the downloaded file, or an
+                `Error` object if the download fails.
         """
         if not track or not track.cdnurl:
             return types.Error(
@@ -250,13 +274,17 @@ class JiosaavnData(MusicService):
 
     @staticmethod
     def format_jiosaavn_url(name_and_id: str) -> str:
-        """Format a JioSaavn URL from track name and ID.
+        """Formats a JioSaavn URL from a combined name and ID string.
+
+        This is used to construct a full URL when only partial information
+        is available.
 
         Args:
-            name_and_id: String in format "title/track_id"
+            name_and_id (str): A string in the format "title/track_id".
 
         Returns:
-            str: Formatted JioSaavn URL or empty string if invalid
+            str: A full, well-formed JioSaavn song URL, or an empty string
+                if the input format is invalid.
         """
         if not name_and_id:
             return ""
@@ -273,13 +301,17 @@ class JiosaavnData(MusicService):
 
     @classmethod
     def _format_track(cls, track_data: dict[str, Any]) -> dict[str, Any]:
-        """Format raw track data into standardized structure.
+        """Formats raw track data into a standardized dictionary structure.
+
+        This method extracts and standardizes key information from the raw
+        metadata provided by the JioSaavn API or yt-dlp.
 
         Args:
-            track_data: Raw track metadata from API
+            track_data (dict[str, Any]): The raw track metadata.
 
         Returns:
-            dict: Formatted track metadata
+            dict[str, Any]: A dictionary with standardized keys and values
+                representing the track.
         """
         if not track_data:
             return {}
@@ -307,14 +339,18 @@ class JiosaavnData(MusicService):
     def _create_platform_tracks(
         data: dict[str, Any],
     ) -> Union[PlatformTracks, types.Error]:
-        """Create PlatformTracks object from raw API data.
+        """Creates a PlatformTracks object from raw API data.
+
+        This helper method validates and converts the results from a data
+        fetching operation into a `PlatformTracks` object.
 
         Args:
-            data: Raw API response data
+            data (dict[str, Any]): The raw API response data containing a
+                'results' key with a list of tracks.
 
         Returns:
-            PlatformTracks: Contains formatted tracks
-            types.Error: If no valid tracks found
+            Union[PlatformTracks, types.Error]: A `PlatformTracks` object, or
+                an `Error` if the data is invalid or contains no tracks.
         """
         if not data or not data.get("results"):
             return types.Error(code=404, message="No valid tracks found in response")

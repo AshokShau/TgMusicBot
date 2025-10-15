@@ -10,7 +10,15 @@ from TgMusic.core import Filter, admins_only, chat_cache
 @Client.on_message(filters=Filter.command("clear"))
 @admins_only(is_bot=True, is_auth=True)
 async def clear_queue(c: Client, msg: types.Message) -> None:
-    """Clear the current playback queue."""
+    """Handles the /clear command to empty the song queue.
+
+    This command removes all tracks from the current chat's playback queue.
+    It requires the user to be an admin or an authorized user.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if chat_id > 0:
         return None

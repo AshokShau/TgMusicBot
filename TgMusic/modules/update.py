@@ -16,7 +16,14 @@ from TgMusic.logger import LOGGER
 
 
 def is_docker():
-    """Check if running inside a Docker container."""
+    """Checks if the bot is running inside a Docker container.
+
+    This is done by checking for the existence of the `/.dockerenv` file or
+    by inspecting the cgroup information of the init process.
+
+    Returns:
+        bool: True if running in a Docker container, False otherwise.
+    """
     if os.path.exists("/.dockerenv"):
         return True
     if os.path.isfile("/proc/1/cgroup"):
@@ -32,7 +39,19 @@ def is_docker():
 @Client.on_message(filters=Filter.command(["update", "restart"]))
 @admins_only(only_dev=True)
 async def update(c: Client, message: types.Message) -> None:
-    """Handle /update and /restart commands."""
+    """Handles bot updates and restarts.
+
+    This is a developer-only command.
+    - `/update`: Pulls the latest code from the git repository and then restarts.
+    - `/restart`: Simply restarts the bot.
+
+    The function gracefully stops any active voice calls before restarting
+    and handles different restart mechanisms for Docker and non-Docker environments.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     command = message.text.strip().split()[0].lstrip("/")
     msg = await message.reply_text(
         f"{'Updating and ' if command == 'update' else ''}Restarting the bot..."

@@ -21,8 +21,15 @@ from ._httpx import HttpxClient
 
 
 async def rebuild_ogg(filename: str) -> None:
-    """
-    Fixes broken OGG headers.
+    """Manually rebuilds and corrects the headers of a broken OGG file.
+
+    This function is specifically designed to fix OGG files that have been
+    decrypted from a raw encrypted stream, which often results in missing or
+    incorrect headers. It writes the correct OggS magic number and other
+    essential Vorbis header information to the file.
+
+    Args:
+        filename (str): The path to the OGG file that needs to be fixed.
     """
     if not os.path.exists(filename):
         LOGGER.error("❌ Error: %s not found.", filename)
@@ -61,7 +68,27 @@ async def rebuild_ogg(filename: str) -> None:
 
 
 class SpotifyDownload:
+    """Handles the download, decryption, and processing of Spotify tracks.
+
+    This class encapsulates the entire workflow for obtaining a playable
+    audio file from Spotify's encrypted streams. It manages temporary files
+    for the encrypted download, the decrypted raw audio, and the final
+    fixed output file.
+
+    Attributes:
+        track (TrackInfo): An object containing the track's metadata, including
+            the CDN URL and decryption key.
+        encrypted_file (str): The path to the temporary encrypted OGG file.
+        decrypted_file (str): The path to the temporary decrypted OGG file.
+        output_file (str): The path for the final, playable OGG audio file.
+    """
     def __init__(self, track: TrackInfo):
+        """Initializes the SpotifyDownload helper.
+
+        Args:
+            track (TrackInfo): The track information object containing metadata
+                like CDN URL, track code (tc), and decryption key.
+        """
         self.track = track
         self.encrypted_file = os.path.join(
             config.DOWNLOADS_DIR, f"{track.tc}.encrypted.ogg"
@@ -72,8 +99,15 @@ class SpotifyDownload:
         self.output_file = os.path.join(config.DOWNLOADS_DIR, f"{track.tc}.ogg")
 
     async def decrypt_audio(self) -> None:
-        """
-        Decrypt the downloaded audio file using a stream-based approach.
+        """Decrypts the downloaded audio file using AES in CTR mode.
+
+        This method reads the encrypted audio file in chunks, decrypts each
+        chunk using the key and IV from the track's metadata, and writes the
+        decrypted content to a new file. This stream-based approach is
+        memory-efficient.
+
+        Raises:
+            Exception: If any error occurs during the decryption process.
         """
         try:
             key = bytes.fromhex(self.track.key)
@@ -96,8 +130,15 @@ class SpotifyDownload:
             raise
 
     async def fix_audio(self) -> None:
-        """
-        Fix the decrypted audio file using ffmpeg.
+        """Fixes the container and headers of the decrypted audio file using ffmpeg.
+
+        After decryption, the audio file is often a raw stream without a
+        proper container. This method uses ffmpeg to copy the audio codec
+        stream into a new, valid OGG container, making it playable.
+
+        Raises:
+            subprocess.CalledProcessError: If the ffmpeg command fails.
+            Exception: For other errors during the process.
         """
         try:
             process = await asyncio.create_subprocess_exec(
@@ -119,9 +160,7 @@ class SpotifyDownload:
             raise
 
     async def _cleanup(self) -> None:
-        """
-        Cleanup temporary files asynchronously.
-        """
+        """Cleans up temporary encrypted and decrypted files asynchronously."""
         for file in [self.encrypted_file, self.decrypted_file]:
             try:
                 if os.path.exists(file):
@@ -130,8 +169,21 @@ class SpotifyDownload:
                 LOGGER.warning("Error removing %s: %s", file, e)
 
     async def process(self) -> Union[Path, types.Error]:
-        """
-        Main function to download, decrypt, and fix audio.
+        """The main processing pipeline for a Spotify track.
+
+        This function orchestrates the entire process:
+        1. Downloads the encrypted audio file.
+        2. Decrypts the audio.
+        3. Rebuilds the OGG headers of the decrypted file.
+        4. Uses ffmpeg to fix the container.
+        5. Cleans up temporary files.
+
+        If the final output file already exists, it skips the process and
+        returns the path immediately.
+
+        Returns:
+            Union[Path, types.Error]: The path to the final, playable audio
+                file, or an `Error` object if any step in the process fails.
         """
         if os.path.exists(self.output_file):
             LOGGER.info("✅ Found existing file: %s", self.output_file)

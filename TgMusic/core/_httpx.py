@@ -22,6 +22,14 @@ from ._config import config
 
 @dataclass
 class DownloadResult:
+    """Represents the result of a file download operation.
+
+    Attributes:
+        success (bool): True if the download was successful, False otherwise.
+        file_path (Optional[Path]): The path to the downloaded file if successful.
+        error (Optional[str]): A description of the error if the download failed.
+        status_code (Optional[int]): The HTTP status code of the response.
+    """
     success: bool
     file_path: Optional[Path] = None
     error: Optional[str] = None
@@ -29,6 +37,20 @@ class DownloadResult:
 
 
 class HttpxClient:
+    """An asynchronous HTTP client for making requests and downloading files.
+
+    This class is a wrapper around `httpx.AsyncClient` that provides
+    higher-level functionality, such as automatic retries with exponential
+    backoff, specialized download handling, and API key management for
+    specific requests.
+
+    Attributes:
+        DEFAULT_TIMEOUT (int): Default timeout for standard requests.
+        DEFAULT_DOWNLOAD_TIMEOUT (int): Default timeout for file downloads.
+        CHUNK_SIZE (int): The size of chunks to use when streaming downloads.
+        MAX_RETRIES (int): The maximum number of retries for failed requests.
+        BACKOFF_FACTOR (float): The factor for calculating exponential backoff delays.
+    """
     DEFAULT_TIMEOUT = 30
     DEFAULT_DOWNLOAD_TIMEOUT = 120
     CHUNK_SIZE = 1024 * 1024
@@ -41,6 +63,16 @@ class HttpxClient:
         download_timeout: int = DEFAULT_DOWNLOAD_TIMEOUT,
         max_redirects: int = 0,
     ) -> None:
+        """Initializes the HttpxClient.
+
+        Args:
+            timeout (int): The general timeout for requests in seconds.
+                Defaults to `DEFAULT_TIMEOUT`.
+            download_timeout (int): The timeout for download operations in seconds.
+                Defaults to `DEFAULT_DOWNLOAD_TIMEOUT`.
+            max_redirects (int): The maximum number of redirects to follow.
+                Defaults to 0 (no redirects).
+        """
         self._timeout = timeout
         self._download_timeout = download_timeout
         self._max_redirects = max_redirects
@@ -56,6 +88,7 @@ class HttpxClient:
         )
 
     async def close(self) -> None:
+        """Closes the underlying httpx session gracefully."""
         try:
             await self._session.aclose()
         except Exception as e:
@@ -63,6 +96,18 @@ class HttpxClient:
 
     @staticmethod
     def _set_headers(url: str, base_headers: Dict[str, str]) -> Dict[str, str]:
+        """Sets appropriate headers for a request.
+
+        It adds an API key header if the request is being made to the bot's
+        configured API URL.
+
+        Args:
+            url (str): The URL of the request.
+            base_headers (Dict[str, str]): A dictionary of base headers.
+
+        Returns:
+            Dict[str, str]: The final dictionary of headers for the request.
+        """
         headers = base_headers.copy()
         if config.API_URL and url.startswith(config.API_URL):
             headers["X-API-Key"] = config.API_KEY
@@ -70,6 +115,17 @@ class HttpxClient:
 
     @staticmethod
     async def _parse_error_response(response: httpx.Response) -> str:
+        """Parses an error message from an HTTP response.
+
+        It attempts to extract a JSON error message, falling back to the
+        raw response text if JSON parsing fails.
+
+        Args:
+            response (httpx.Response): The failed HTTP response.
+
+        Returns:
+            str: The parsed error message.
+        """
         try:
             error_data = response.json()
             if isinstance(error_data, dict):
@@ -88,6 +144,23 @@ class HttpxClient:
         overwrite: bool = False,
         **kwargs: Any,
     ) -> DownloadResult:
+        """Downloads a file from a URL and saves it to disk.
+
+        This method streams the download to a temporary file and then renames
+        it upon completion to ensure integrity. It can automatically determine
+        the filename from headers or generate a unique one if not provided.
+
+        Args:
+            url (str): The URL of the file to download.
+            file_path (Optional[Union[str, Path]]): The path to save the file.
+                If None, a path is generated automatically. Defaults to None.
+            overwrite (bool): If True, an existing file at the same path will
+                be overwritten. Defaults to False.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            DownloadResult: An object containing the result of the download.
+        """
         if not url:
             error_msg = "Empty URL provided"
             LOGGER.error(error_msg)
@@ -174,7 +247,14 @@ class HttpxClient:
 
     @staticmethod
     def _sanitize_filename(name: str) -> str:
-        """Sanitize filename to remove unsafe characters."""
+        """Sanitizes a filename by removing unsafe characters.
+
+        Args:
+            name (str): The original filename.
+
+        Returns:
+            str: The sanitized filename.
+        """
         return re.sub(r'[<>:"/\\|?*]', "", name).strip()
 
     async def make_request(
@@ -184,6 +264,23 @@ class HttpxClient:
         backoff_factor: float = BACKOFF_FACTOR,
         **kwargs: Any,
     ) -> Optional[Dict[str, Any]]:
+        """Makes a GET request with retries and exponential backoff.
+
+        This method handles transient network errors by retrying the request
+        multiple times. It's designed for fetching JSON data.
+
+        Args:
+            url (str): The URL to make the request to.
+            max_retries (int): The maximum number of retries.
+                Defaults to `MAX_RETRIES`.
+            backoff_factor (float): The factor for exponential backoff.
+                Defaults to `BACKOFF_FACTOR`.
+            **kwargs: Additional keyword arguments to pass to the request.
+
+        Returns:
+            Optional[Dict[str, Any]]: The JSON response as a dictionary, or
+                None if the request ultimately fails.
+        """
         if not url:
             LOGGER.error("Empty URL provided")
             return None

@@ -9,11 +9,21 @@ from TgMusic import client
 
 
 def handle_shutdown():
+    """Initiates the graceful shutdown process.
+
+    This function is designed to be used as a signal handler. It schedules
+    the main `shutdown` coroutine to be run on the event loop.
+    """
     client.logger.info("Shutting down...")
     asyncio.ensure_future(shutdown())
 
 
 async def shutdown():
+    """Performs a graceful shutdown of the bot and its components.
+
+    This coroutine stops the main bot client, cancels all other running
+    asyncio tasks, and then stops the event loop itself.
+    """
     if client.is_running:
         await client.stop_task()
     tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
@@ -24,6 +34,12 @@ async def shutdown():
 
 
 def main() -> None:
+    """The main entry point for starting the bot.
+
+    This function sets up signal handlers for graceful termination (SIGINT, SIGTERM),
+    then starts the bot's main event loop and initialization process. It includes
+    exception handling to log fatal errors and ensures a clean shutdown.
+    """
     client.logger.info("Starting TgMusicBot...")
 
     # Set up signal handlers

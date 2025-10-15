@@ -14,8 +14,14 @@ from ...logger import LOGGER
 
 
 def sec_to_min(seconds):
-    """
-    Convert seconds to minutes:second format.
+    """Converts a duration in seconds to a 'minutes:seconds' string format.
+
+    Args:
+        seconds (int or float): The total number of seconds.
+
+    Returns:
+        str or None: The formatted string (e.g., "3:45"), or None if an
+            error occurs during conversion.
     """
     try:
         minutes = int(seconds // 60)
@@ -27,6 +33,18 @@ def sec_to_min(seconds):
 
 
 async def get_audio_duration(file_path):
+    """Gets the duration of an audio or video file using ffprobe.
+
+    This function executes the `ffprobe` command-line tool to read the
+    metadata of a media file and extracts its duration.
+
+    Args:
+        file_path (str or Path): The local path to the media file.
+
+    Returns:
+        int: The duration of the file in seconds as an integer. Returns 0
+             if ffprobe is not found or if an error occurs.
+    """
     try:
         proc = await asyncio.create_subprocess_exec(
             "ffprobe",

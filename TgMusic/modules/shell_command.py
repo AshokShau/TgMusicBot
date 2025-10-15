@@ -13,7 +13,19 @@ from TgMusic.logger import LOGGER
 
 
 async def run_shell_command(cmd: str, timeout: int = 60) -> tuple[str, str, int]:
-    """Execute shell command and return stdout, stderr, returncode."""
+    """Executes a shell command with a specified timeout.
+
+    Args:
+        cmd (str): The command to execute.
+        timeout (int): The maximum time in seconds to wait for the command
+            to complete. Defaults to 60.
+
+    Returns:
+        tuple[str, str, int]: A tuple containing the standard output,
+            standard error, and the return code of the command. If the
+            command times out, stderr will contain a timeout message and the
+            return code will be -1.
+    """
     process = await asyncio.create_subprocess_shell(
         cmd,
         stdout=asyncio.subprocess.PIPE,
@@ -31,6 +43,20 @@ async def run_shell_command(cmd: str, timeout: int = 60) -> tuple[str, str, int]
 
 
 async def shellrunner(message: types.Message) -> types.Ok | types.Error | types.Message:
+    """The core logic for running a shell command from a message.
+
+    This function parses the command from the message, executes it using
+    `run_shell_command`, and formats the output to be sent back to the chat.
+    It handles both single and multi-line commands. If the output is too
+    large for a single message, it sends it as a text file.
+
+    Args:
+        message (types.Message): The message object containing the /sh command.
+
+    Returns:
+        types.Ok | types.Error | types.Message: The result of the reply
+            operation, or an Ok object.
+    """
     text = message.text.split(None, 1)
     if len(text) <= 1:
         reply = await message.reply_text("Usage: /sh &lt cmd &gt")
@@ -107,6 +133,15 @@ async def shellrunner(message: types.Message) -> types.Ok | types.Error | types.
 @Client.on_message(filters=Filter.command("sh"))
 @admins_only(only_dev=True)
 async def shell_command(_: Client, m: types.Message) -> None:
+    """Handles the /sh command to execute shell commands.
+
+    This is a developer-only command that provides direct access to the shell
+    of the machine the bot is running on.
+
+    Args:
+        _ (Client): The pytdbot client instance (unused).
+        m (types.Message): The message object containing the command.
+    """
     done = await shellrunner(m)
     if isinstance(done, types.Error):
         LOGGER.warning(done.message)

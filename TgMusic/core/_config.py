@@ -18,11 +18,42 @@ load_dotenv()
 
 
 class BotConfig:
-    """
-    A class to manage and validate all bot configuration settings from environment variables.
+    """Manages and validates all bot configuration from environment variables.
+
+    This class reads essential and optional settings from the environment,
+    validates their presence and format, and provides a centralized point of
+    access to configuration values. It raises errors for missing critical
+    configurations to prevent the bot from running in an improper state.
+
+    Attributes:
+        API_ID (Optional[int]): The Telegram API ID.
+        API_HASH (Optional[str]): The Telegram API hash.
+        TOKEN (Optional[str]): The bot's Telegram token.
+        SESSION_STRINGS (list[str]): A list of pyrogram session strings.
+        MONGO_URI (Optional[str]): The MongoDB connection URI.
+        DB_NAME (str): The name of the database to use.
+        API_URL (str): The URL for the external music API.
+        API_KEY (Optional[str]): The API key for the music API.
+        OWNER_ID (int): The user ID of the bot's owner.
+        LOGGER_ID (int): The chat ID for the bot's log channel.
+        PROXY (Optional[str]): An optional proxy URL.
+        DEFAULT_SERVICE (str): The default music service to use for searches.
+        MIN_MEMBER_COUNT (int): The minimum number of members a group must
+            have for the bot to stay.
+        MAX_FILE_SIZE (int): The maximum file size for downloads in bytes.
+        DOWNLOADS_DIR (Path): The directory to store downloaded music.
+        SUPPORT_GROUP (str): The URL for the support group.
+        SUPPORT_CHANNEL (str): The URL for the support channel.
+        START_IMG (str): The URL for the start command's image.
+        IGNORE_BACKGROUND_UPDATES (bool): Flag to ignore background updates.
+        AUTO_LEAVE (bool): Flag to enable automatic leaving of chats.
+        NO_UPDATES (bool): Flag to disable update checks.
+        COOKIES_URL (list[str]): A list of URLs for browser cookies.
+        DEVS (list[int]): A list of developer user IDs.
     """
 
     def __init__(self):
+        """Initializes the BotConfig class by loading and validating settings."""
         # Core Bot Configuration
         self.API_ID: Optional[int] = self._get_env_int("API_ID")
         self.API_HASH: Optional[str] = os.getenv("API_HASH")
@@ -82,15 +113,18 @@ class BotConfig:
 
     @staticmethod
     def _get_env_int(name: str, default: Optional[int] = None) -> Optional[int]:
-        """
-        Retrieve an environment variable and convert it to an integer.
+        """Retrieves and converts an environment variable to an integer.
+
+        If the environment variable is not set or cannot be converted to an
+        integer, a warning is logged and the default value is returned.
 
         Args:
-            name (str): Environment variable name.
-            default (Optional[int]): Fallback value if parsing fails.
+            name (str): The name of the environment variable.
+            default (Optional[int]): The fallback value if the variable is
+                not found or invalid. Defaults to None.
 
         Returns:
-            Optional[int]: Parsed integer or the default value.
+            Optional[int]: The parsed integer, or the default value.
         """
         value = os.getenv(name)
         try:
@@ -103,29 +137,35 @@ class BotConfig:
 
     @staticmethod
     def _get_env_bool(name: str, default: bool = False) -> bool:
-        """
-        Retrieve an environment variable and interpret it as a boolean.
+        """Retrieves and interprets an environment variable as a boolean.
+
+        The value is considered True if it is the string "true" (case-insensitive).
+        Otherwise, it is False.
 
         Args:
-            name (str): Environment variable name.
-            default (bool): Default boolean value.
+            name (str): The name of the environment variable.
+            default (bool): The default value if the variable is not set.
+                Defaults to False.
 
         Returns:
-            bool: Parsed boolean value.
+            bool: The parsed boolean value.
         """
         return os.getenv(name, str(default)).lower() == "true"
 
     @staticmethod
     def _get_session_strings(prefix: str = "STRING", count: int = 10) -> list[str]:
-        """
-        Retrieve multiple session strings from the environment.
+        """Retrieves multiple session strings from environment variables.
+
+        This function looks for environment variables with a given prefix
+        followed by a number (e.g., STRING1, STRING2) and collects their values.
 
         Args:
-            prefix (str): Prefix of the environment variable.
-            count (int): Number of session keys to check.
+            prefix (str): The prefix for the session string environment variables.
+                Defaults to "STRING".
+            count (int): The number of session keys to check for. Defaults to 10.
 
         Returns:
-            list[str]: A list of valid session strings.
+            list[str]: A list of the session strings found.
         """
         return [
             s.strip() for i in range(1, count + 1) if (s := os.getenv(f"{prefix}{i}"))
@@ -133,21 +173,28 @@ class BotConfig:
 
     @staticmethod
     def _process_cookie_urls(value: Optional[str]) -> list[str]:
-        """
-        Parse space- or comma-separated URLs into a list.
+        """Parses a string of URLs into a list.
+
+        The input string can contain URLs separated by spaces or commas.
 
         Args:
-            value (Optional[str]): Raw COOKIES_URL env value.
+            value (Optional[str]): The raw string of URLs from the environment
+                variable.
 
         Returns:
-            List[str]: List of cleaned URL strings.
+            list[str]: A list of cleaned URL strings.
         """
         if not value:
             return []
         return [url.strip() for url in value.replace(",", " ").split() if url.strip()]
 
     def _validate_config(self) -> None:
-        """Validate all required environment configuration values."""
+        """Validates that all required configuration values are present and valid.
+
+        This method checks for the existence of critical environment variables
+        and ensures that necessary directories are created. It will raise a
+        `ValueError` or `RuntimeError` if validation fails.
+        """
         if missing := [
             name
             for name in (

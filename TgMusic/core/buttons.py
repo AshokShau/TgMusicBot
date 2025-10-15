@@ -17,6 +17,21 @@ CLOSE_BTN = types.InlineKeyboardButton(
 def control_buttons(
     mode: Literal["play", "pause", "resume"],
 ) -> types.ReplyMarkupInlineKeyboard:
+    """Generates an inline keyboard for player controls based on the current state.
+
+    This function creates a dynamic set of control buttons (skip, stop, pause,
+    resume) tailored to the current playback mode.
+
+    Args:
+        mode (Literal["play", "pause", "resume"]): The current playback state.
+            - "play": Shows all controls including pause.
+            - "pause": Shows controls with a resume button instead of pause.
+            - "resume": Shows controls with a pause button instead of resume.
+
+    Returns:
+        types.ReplyMarkupInlineKeyboard: An inline keyboard object with the
+            appropriate control buttons.
+    """
     def btn(text: str, name: str) -> types.InlineKeyboardButton:
         return types.InlineKeyboardButton(
             text=text,
@@ -88,9 +103,18 @@ BackHelpMenu = types.ReplyMarkupInlineKeyboard([[HELP_BTN, HOME_BTN], [CLOSE_BTN
 
 
 def add_me_markup(username: str) -> types.ReplyMarkupInlineKeyboard:
-    """
-    Returns an inline keyboard with a button to add the bot to a group
-    and support buttons.
+    """Creates the inline keyboard for the bot's start message.
+
+    This keyboard includes a button to add the bot to a group, along with
+    buttons for help, support, and updates.
+
+    Args:
+        username (str): The username of the bot, used to create the
+            "add to group" link.
+
+    Returns:
+        types.ReplyMarkupInlineKeyboard: An inline keyboard object for the
+            start message.
     """
     return types.ReplyMarkupInlineKeyboard(
         [

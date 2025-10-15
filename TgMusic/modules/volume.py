@@ -12,7 +12,18 @@ from .utils.play_helpers import extract_argument
 @Client.on_message(filters=Filter.command("volume"))
 @admins_only(is_bot=True, is_auth=True)
 async def volume(c: Client, msg: types.Message) -> None:
-    """Adjust the playback volume (1-200%)."""
+    """Handles the /volume command to adjust the playback volume.
+
+    This command allows an authorized user to set the volume of the bot in
+    the voice chat to a value between 1 and 200.
+
+    Usage:
+        /volume [1-200]
+
+    Args:
+        c (Client): The pytdbot client instance.
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if not chat_cache.is_active(chat_id):
         await msg.reply_text("⏸ No active playback session")

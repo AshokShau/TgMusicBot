@@ -12,6 +12,15 @@ from .utils.play_helpers import del_msg
 @Client.on_message(filters=Filter.command("skip"))
 @admins_only(is_bot=True, is_auth=True)
 async def skip_song(_: Client, msg: types.Message) -> None:
+    """Handles the /skip command to skip the current song.
+
+    This command tells the player to stop the current track and immediately
+    start playing the next one in the queue.
+
+    Args:
+        _ (Client): The pytdbot client instance (unused).
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if not chat_cache.is_active(chat_id):
         await msg.reply_text("⏸ No active playback session")

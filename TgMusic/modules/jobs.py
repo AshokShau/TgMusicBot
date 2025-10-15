@@ -13,7 +13,23 @@ from TgMusic.core import call, chat_cache, config, db
 
 
 class InactiveCallManager:
+    """Manages background jobs for the bot.
+
+    This class handles two main background tasks:
+    1.  **VC Auto-End**: Periodically checks active voice chats and ends the call
+        if no one is listening, to conserve resources.
+    2.  **Auto-Leave**: A daily task for assistant clients to leave all chats
+        they are in, helping to keep the accounts clean.
+
+    Attributes:
+        bot (Client): The main pytdbot client instance.
+    """
     def __init__(self, bot: Client):
+        """Initializes the InactiveCallManager.
+
+        Args:
+            bot (Client): The main pytdbot client instance.
+        """
         self.bot = bot
         self._stop = asyncio.Event()
         self._vc_task: asyncio.Task | None = None
@@ -21,6 +37,17 @@ class InactiveCallManager:
         self._sleep_time = 40
 
     async def _end_call_if_inactive(self, chat_id: int) -> bool:
+        """Checks a voice chat for inactivity and ends the call if needed.
+
+        A call is considered inactive if there are no listeners (other than
+        the assistant) for more than 15 seconds.
+
+        Args:
+            chat_id (int): The ID of the chat to check.
+
+        Returns:
+            bool: True if the call was ended, False otherwise.
+        """
         vc_users = await call.vc_users(chat_id)
         if isinstance(vc_users, types.Error):
             self.bot.logger.warning(f"[VC Users Error] {chat_id}: {vc_users.message}")
@@ -44,6 +71,11 @@ class InactiveCallManager:
         return True
 
     async def _vc_loop(self):
+        """The main loop for the voice chat auto-end feature.
+
+        This loop runs continuously, checking all active voice chats at regular
+        intervals and calling `_end_call_if_inactive` for each one.
+        """
         while not self._stop.is_set():
             try:
                 if self.bot.me is None:
@@ -69,6 +101,11 @@ class InactiveCallManager:
             await asyncio.sleep(self._sleep_time)
 
     async def _leave_loop(self):
+        """The main loop for the auto-leave feature.
+
+        This loop is designed to run the `leave_all` method once every day
+        at 3:00 AM.
+        """
         while not self._stop.is_set():
             try:
                 now = datetime.now()
@@ -98,6 +135,18 @@ class InactiveCallManager:
                 await asyncio.sleep(3600)  # Wait 1h before retry
 
     async def _leave_chat(self, ub: PyroClient, chat_id: int):
+        """Makes a specific userbot (assistant) leave a chat.
+
+        It includes handling for flood waits and other common RPC errors. It
+        will not leave a chat if there is an active music session.
+
+        Args:
+            ub (PyroClient): The Pyrogram client instance of the assistant.
+            chat_id (int): The ID of the chat to leave.
+
+        Returns:
+            bool: True if the chat was left successfully, False otherwise.
+        """
         try:
             if chat_cache.is_active(chat_id):
                 return False
@@ -121,6 +170,11 @@ class InactiveCallManager:
             return False
 
     async def leave_all(self):
+        """Orchestrates the process of all assistants leaving all chats.
+
+        This function iterates through each assistant client, gets its list of
+        dialogs, and then calls `_leave_chat` for each group/channel.
+        """
         if not config.AUTO_LEAVE:
             return
 
@@ -158,7 +212,11 @@ class InactiveCallManager:
             self.bot.logger.info(f"[leave_all] Completed in {duration:.2f}s")
 
     async def start(self):
-        """Start the background tasks."""
+        """Starts the background job loops.
+
+        This creates asyncio tasks for the VC auto-end loop and the auto-leave
+        loop, respecting the bot's configuration settings.
+        """
         self._stop.clear()
         if not config.NO_UPDATES:
             self._vc_task = asyncio.create_task(self._vc_loop())
@@ -169,6 +227,7 @@ class InactiveCallManager:
             self.bot.logger.info("Started auto-leave task")
 
     async def stop(self):
+        """Stops all running background tasks gracefully."""
         self._stop.set()
 
         if self._vc_task:

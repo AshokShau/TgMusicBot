@@ -22,8 +22,13 @@ from TgMusic.logger import LOGGER
 
 
 async def handle_non_supergroup(client: Client, chat_id: int) -> None:
-    """
-    Notify user that the chat is not a supergroup and leave.
+    """Handles the case where the bot is added to a non-supergroup chat.
+
+    It sends an explanatory message and then leaves the chat.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        chat_id (int): The ID of the non-supergroup chat.
     """
     text = (
         f"This chat ({chat_id}) is not a supergroup yet.\n"
@@ -44,15 +49,29 @@ async def handle_non_supergroup(client: Client, chat_id: int) -> None:
 
 
 def is_valid_supergroup(chat_id: int) -> bool:
-    """
-    Check if a chat ID is for a supergroup.
+    """Checks if a chat ID corresponds to a supergroup.
+
+    Supergroup IDs in tdlib are represented as large negative numbers
+    that typically start with "-100".
+
+    Args:
+        chat_id (int): The chat ID to check.
+
+    Returns:
+        bool: True if the chat is likely a supergroup, False otherwise.
     """
     return str(chat_id).startswith("-100")
 
 
 async def handle_bot_join(client: Client, chat_id: int) -> None:
-    """
-    Handle logic when bot is added to a new chat.
+    """Handles the logic for when the bot joins a new chat.
+
+    This includes checking the member count against the configured minimum
+    and caching the chat's invite link if available.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        chat_id (int): The ID of the chat the bot joined.
     """
     _chat_id = int(str(chat_id)[4:]) if str(chat_id).startswith("-100") else chat_id
     chat_info = await client.getSupergroupFullInfo(_chat_id)
@@ -88,7 +107,16 @@ async def handle_bot_join(client: Client, chat_id: int) -> None:
 
 @Client.on_updateChatMember()
 async def chat_member(client: Client, update: types.UpdateChatMember) -> None:
-    """Handles member updates in the chat (joins, leaves, promotions, etc.)."""
+    """The main handler for chat member status updates.
+
+    This function is triggered whenever a user joins, leaves, is promoted,
+    or their status otherwise changes in a chat. It routes the update to
+    more specific handler functions.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        update (types.UpdateChatMember): The chat member update object.
+    """
     chat_id = update.chat_id
 
     # Early return for non-group chats
@@ -111,7 +139,15 @@ async def chat_member(client: Client, update: types.UpdateChatMember) -> None:
 
 
 async def _validate_chat(client: Client, chat_id: int) -> bool:
-    """Validate if chat is a supergroup and handle non-supergroups."""
+    """Validates if a chat is a supergroup and handles non-supergroups.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        chat_id (int): The ID of the chat to validate.
+
+    Returns:
+        bool: True if the chat is a valid supergroup, False otherwise.
+    """
     if not is_valid_supergroup(chat_id):
         await handle_non_supergroup(client, chat_id)
         return False
@@ -121,7 +157,18 @@ async def _validate_chat(client: Client, chat_id: int) -> bool:
 async def _handle_status_changes(
     client: Client, chat_id: int, user_id: int, old_status: str, new_status: str
 ) -> None:
-    """Route different status change scenarios to appropriate handlers."""
+    """Routes a chat member update to the appropriate specific handler.
+
+    This function acts as a router based on the change in the user's status
+    (e.g., from "left" to "member", or to "banned").
+
+    Args:
+        client (Client): The pytdbot client instance.
+        chat_id (int): The ID of the chat where the update occurred.
+        user_id (int): The ID of the user whose status changed.
+        old_status (str): The user's previous status type name.
+        new_status (str): The user's new status type name.
+    """
     if old_status == "chatMemberStatusLeft" and new_status in {
         "chatMemberStatusMember",
         "chatMemberStatusAdministrator",
@@ -147,26 +194,47 @@ async def _handle_status_changes(
 
 
 async def _handle_join(client: Client, chat_id: int, user_id: int) -> None:
-    """Handle user/bot joining the chat."""
+    """Handles the logic for a user or the bot joining a chat.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user who joined.
+    """
     if user_id == client.options["my_id"]:
         await handle_bot_join(client, chat_id)
     LOGGER.debug("User %s joined the chat %s.", user_id, chat_id)
 
 
 async def _handle_leave_or_kick(chat_id: int, user_id: int) -> None:
-    """Handle user leaving or being kicked from chat."""
+    """Handles a user leaving or being kicked from a chat.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user who left or was kicked.
+    """
     LOGGER.debug("User %s left or was kicked from %s.", user_id, chat_id)
     await _update_user_status_cache(chat_id, user_id, types.ChatMemberStatusLeft())
 
 
 async def _handle_ban(chat_id: int, user_id: int) -> None:
-    """Handle user being banned from chat."""
+    """Handles a user being banned from a chat.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user who was banned.
+    """
     LOGGER.debug("User %s was banned in %s.", user_id, chat_id)
     await _update_user_status_cache(chat_id, user_id, types.ChatMemberStatusBanned())
 
 
 async def _handle_unban(chat_id: int, user_id: int) -> None:
-    """Handle user being unbanned from chat."""
+    """Handles a user being unbanned from a chat.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user who was unbanned.
+    """
     LOGGER.debug("User %s was unbanned in %s.", user_id, chat_id)
     await _update_user_status_cache(chat_id, user_id, types.ChatMemberStatusLeft())
 
@@ -174,7 +242,17 @@ async def _handle_unban(chat_id: int, user_id: int) -> None:
 async def _handle_promotion_demotion(
     client: Client, chat_id: int, user_id: int, old_status: str, new_status: str
 ) -> None:
-    """Handle user promotion/demotion in chat."""
+    """Handles a user being promoted to or demoted from admin status.
+
+    This triggers a reload of the admin cache for the chat.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user who was promoted or demoted.
+        old_status (str): The user's previous status type name.
+        new_status (str): The user's new status type name.
+    """
     is_promoted = (
         old_status != "chatMemberStatusAdministrator"
         and new_status == "chatMemberStatusAdministrator"
@@ -202,7 +280,16 @@ async def _handle_promotion_demotion(
 async def _update_user_status_cache(
     chat_id: int, user_id: int, status: ChatMemberStatus
 ) -> None:
-    """Update the user status cache if the user is the bot."""
+    """Updates the user status cache, specifically for the assistant client.
+
+    This is important for keeping track of the assistant's membership status
+    to avoid unnecessary join attempts.
+
+    Args:
+        chat_id (int): The ID of the chat.
+        user_id (int): The ID of the user whose status changed.
+        status (ChatMemberStatus): The new status object for the user.
+    """
     ub = await call.get_client(chat_id)
     if isinstance(ub, types.Error):
         LOGGER.warning("Error getting client for chat %s: %s", chat_id, ub)
@@ -215,8 +302,15 @@ async def _update_user_status_cache(
 
 @Client.on_updateNewMessage(position=1)
 async def new_message(client: Client, update: types.UpdateNewMessage) -> None:
-    """
-    Handle new messages for video chat events.
+    """Handles `updateNewMessage` events, primarily for service messages.
+
+    This function watches for messages indicating that a video chat has
+    started or ended, and takes appropriate action like clearing the queue
+    and notifying the chat. It also adds new chats and users to the database.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        update (types.UpdateNewMessage): The new message update object.
     """
     message = update.message
     if not message:

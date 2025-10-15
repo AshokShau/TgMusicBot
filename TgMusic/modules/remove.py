@@ -12,7 +12,18 @@ from .utils.play_helpers import extract_argument
 @Client.on_message(filters=Filter.command("remove"))
 @admins_only(is_bot=True, is_auth=True)
 async def remove_song(c: Client, msg: types.Message) -> None:
-    """Remove a specific track from the playback queue."""
+    """Handles the /remove command to take a specific track out of the queue.
+
+    This command allows an authorized user to remove a song from the playback
+    queue by specifying its number.
+
+    Usage:
+        /remove [track_number]
+
+    Args:
+        c (Client): The pytdbot client instance.
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if chat_id > 0:
         return None

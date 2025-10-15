@@ -1,6 +1,8 @@
 # 🎵 TgMusicBot – Telegram Music Bot [![Stars](https://img.shields.io/github/stars/AshokShau/TgMusicBot?style=social)](https://github.com/AshokShau/TgMusicBot/stargazers)
 
-**A high-performance Telegram Voice Chat Bot** for streaming music from YouTube, Spotify, JioSaavn, and more. Built with Python, Py-Tgcalls, and PyTdBot.
+**TgMusicBot** is a high-performance Telegram music bot designed for seamless music streaming in voice chats. It leverages a powerful combination of libraries, using `pytdbot` for efficient interaction with the Telegram Bot API and a multi-assistant architecture powered by `pyrogram` and `py-tgcalls` for robust, low-latency audio and video playback.
+
+It supports a wide range of music sources, including YouTube, Spotify, JioSaavn, Apple Music, and SoundCloud, making it a versatile solution for any Telegram community.
 
 <p align="center">
   <!-- GitHub Stars -->
@@ -68,6 +70,30 @@
 | **⚡ Low Latency**             | Optimized with PyTgCalls                            |
 | **🐳 Docker Ready**           | One-click deployment                                |
 | **🔒 Anti-Ban**               | Cookie & API-based authentication                   |
+
+---
+
+## 🏛️ Project Structure
+
+A brief overview of the key directories in this project:
+
+```
+TgMusicBot/
+├── TgMusic/
+│   ├── core/         # Core logic: call handling, database, API clients, config
+│   ├── modules/      # Bot commands and feature modules
+│   │   ├── utils/    # Utility functions for modules
+│   │   └── ...
+│   ├── __init__.py   # Main bot class and initialization
+│   ├── __main__.py   # Entry point for running the bot
+│   └── logger.py     # Logging configuration
+├── .env            # Environment variables (create from sample.env)
+├── Dockerfile        # For building the Docker image
+├── README.md         # This file
+└── ...
+```
+- **`TgMusic/core`**: Contains the essential backend components. This is where the main logic for handling calls, database interactions, and communication with external music services resides.
+- **`TgMusic/modules`**: Holds the individual command handlers. Each `.py` file typically corresponds to a specific bot command (e.g., `play.py`, `skip.py`) or a feature set (e.g., `auth.py`).
 
 ---
 
@@ -257,7 +283,11 @@ start
 | `OWNER_ID`   | User ID of the bot owner            | [@GuardxRobot](https://t.me/GuardxRobot) and type `/id`                  |
 | `LOGGER_ID`  | Group ID of the bot logger          | Add [@GuardxRobot](https://t.me/GuardxRobot) to the group and type `/id` |
 
-#### Optional Variables
+</details>
+
+<details>
+<summary><b>🔧 Optional Variables (Click to expand)</b></summary>
+
 | Variable           | Description                                                       | How to Get                                                                                                                                                              |
 |--------------------|-------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `API_URL`          | API URL                                                           | Start [@FallenApiBot](https://t.me/FallenApiBot)                                                                                                                        |
@@ -271,36 +301,54 @@ start
 | `AUTO_LEAVE`       | Leave all chats for all userbot clients                           | Default: False                                                                                                                                                          |
 | `NO_UPDATES`       | Disable updates                                                   | Default: False                                                                                                                                                          |
 | `START_IMG`        | Start Image URL                                                   | Default: [IMG](https://i.pinimg.com/1200x/e8/89/d3/e889d394e0afddfb0eb1df0ab663df95.jpg)                                                                                |
-| `DEVS`             | User ID of the bot owner                                          | [@GuardxRobot](https://t.me/GuardxRobot) and type `/id`: e.g. `5938660179, 5956803759`                                                                                  |
+| `DEVS`             | List of Developer User IDs (space-separated)                      | [@GuardxRobot](https://t.me/GuardxRobot) and type `/id`. Example: `5938660179 5956803759`                                                                                |
 
 </details>
 
 ---
 
-## 🍪 Avoiding Bans
-
-### Option 1: Premium API
-```env
-API_URL=https://tgmusic.fallenapi.fun
-API_KEY=your-secret-key
-```
-📌 Get keys: [Contact @AshokShau](https://t.me/AshokShau) or [@FallenApiBot](https://t.me/FallenApiBot)
-
-### Option 2: Cookies
-[![Cookie Guide](https://img.shields.io/badge/Guide-Read%20Here-blue?style=flat-square)](https://github.com/AshokShau/TgMusicBot/blob/master/TgMusic/cookies/README.md)
-
----
-
 ## 🤖 Bot Commands
 
-| Command              | Description                         |
-|----------------------|-------------------------------------|
-| `/play [query]`      | Play music from supported platforms |
-| `/skip`              | Skip current track                  |
-| `/pause` / `/resume` | Control playback                    |
-| `/volume [1-200]`    | Adjust volume                       |
-| `/queue`             | Show upcoming tracks                |
-| `/loop`              | Enable/disable loop                 |
+### ▶️ Playback Commands
+| Command | Description |
+|---|---|
+| `/play [song/url]` | Plays a song from YouTube, Spotify, etc., or by search term. |
+| `/vplay [video/url]`| Plays a video in the voice chat. |
+| `/skip` | Skips the current track and plays the next in queue. |
+| `/pause` | Pauses the current playback. |
+| `/resume` | Resumes the paused playback. |
+| `/stop` or `/end` | Stops playback, clears the queue, and leaves the voice chat. |
+
+### 📋 Queue Management
+| Command | Description |
+|---|---|
+| `/queue` | Shows the current list of tracks in the queue. |
+| `/loop [1-10]` | Sets the current song to repeat a number of times. Use `/loop 0` to disable. |
+| `/clear` | Empties the entire playback queue. |
+| `/remove [number]` | Removes a specific track from the queue by its number. |
+
+### ⚙️ Playback Settings
+| Command | Description |
+|---|---|
+| `/volume [1-200]` | Adjusts the playback volume. |
+| `/speed [0.5-4.0]`| Changes the playback speed. |
+| `/seek [seconds]` | Seeks forward in the track by a number of seconds. |
+| `/mute` | Mutes the bot in the voice chat. |
+| `/unmute` | Unmutes the bot in the voice chat. |
+
+### 🔐 Permissions (Admin)
+| Command | Description |
+|---|---|
+| `/auth [reply]` | Authorizes a user to use admin commands. |
+| `/unauth [reply]`| Revokes a user's authorization. |
+| `/authlist` | Lists all authorized users in the chat. |
+
+### 👑 Chat Owner Tools
+| Command | Description |
+|---|---|
+| `/buttons [on/off]` | Toggles the visibility of player control buttons. |
+| `/thumb [on/off]` | Toggles the generation of "Now Playing" thumbnails. |
+| `/playtype [0/1]` | Sets the play mode (0 for direct play, 1 for selection menu). |
 
 ---
 

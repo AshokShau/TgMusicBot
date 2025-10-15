@@ -18,8 +18,11 @@ from TgMusic.modules.utils import sec_to_min
 
 @Client.on_message(filters=Filter.command("privacy"))
 async def privacy_handler(c: Client, message: types.Message):
-    """
-    Handle the /privacy command to display privacy policy.
+    """Handles the /privacy command to display the bot's privacy policy.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
     """
     bot_name = c.me.first_name
     text = f"""
@@ -76,7 +79,16 @@ rate_limit_cache = TTLCache(maxsize=100, ttl=180)
 
 @Client.on_message(filters=Filter.command(["reload"]))
 async def reload_cmd(c: Client, message: types.Message) -> None:
-    """Handle the /reload command to reload the bot."""
+    """Handles the /reload command to refresh the bot's state for a chat.
+
+    This command reloads the admin cache, clears the userbot's status cache,
+    and checks the assistant's membership status in the group. It is
+    rate-limited to prevent abuse.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     user_id = message.from_id
     chat_id = message.chat_id
     if chat_id > 0:
@@ -135,8 +147,14 @@ async def reload_cmd(c: Client, message: types.Message) -> None:
 
 @Client.on_message(filters=Filter.command("ping"))
 async def ping_cmd(client: Client, message: types.Message) -> None:
-    """
-    Handle the /ping command to check bot performance metrics.
+    """Handles the /ping command to check bot and system performance metrics.
+
+    This command measures and displays the bot's latency, uptime, CPU usage,
+    and the ping of the underlying `ntgcalls` library.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
     """
 
     response = await call.stats_call(message.chat_id if message.chat_id < 0 else 1)

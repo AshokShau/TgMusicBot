@@ -16,6 +16,16 @@ from .utils.play_helpers import edit_text
 async def callback_query_vc_play(
     c: Client, message: types.UpdateNewCallbackQuery
 ) -> None:
+    """Handles callback queries related to starting playback from search results.
+
+    This function is triggered when a user clicks a button from the inline
+    search results. It parses the callback data to identify the song and
+    platform, then initiates the playback process.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.UpdateNewCallbackQuery): The callback query update.
+    """
     data = message.payload.data.decode()
     chat_id = message.chat_id
 
@@ -75,7 +85,16 @@ async def callback_query_vc_play(
 @Client.on_updateNewCallbackQuery(filters=Filter.regex(r"play_\w+"))
 @admins_only(is_bot=True, is_auth=True)
 async def callback_query(c: Client, message: types.UpdateNewCallbackQuery) -> None:
-    """Handle all playback control callback queries (skip, stop, pause, resume)."""
+    """Handles all playback control callback queries.
+
+    This function acts as a central dispatcher for callbacks from the player
+    control buttons (e.g., skip, stop, pause, resume). It ensures the user
+    is authorized and the bot is in an active call before processing the action.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.UpdateNewCallbackQuery): The callback query update.
+    """
     data = message.payload.data.decode()
     user_id = message.sender_user_id
 

@@ -11,7 +11,15 @@ from TgMusic.core import Filter, admins_only, call, chat_cache
 
 
 def extract_number(text: str) -> float | None:
-    """Extract a numerical value from text."""
+    """Extracts the first numerical value (integer or float) from a string.
+
+    Args:
+        text (str): The input string to search for a number.
+
+    Returns:
+        float | None: The extracted number as a float, or None if no number
+            is found.
+    """
     match = re.search(r"[-+]?\d*\.?\d+", text)
     return float(match.group()) if match else None
 
@@ -19,7 +27,18 @@ def extract_number(text: str) -> float | None:
 @Client.on_message(filters=Filter.command("speed"))
 @admins_only(is_bot=True, is_auth=True)
 async def change_speed(_: Client, msg: types.Message) -> None:
-    """Adjust the playback speed of the current track."""
+    """Handles the /speed command to adjust the playback speed.
+
+    This command allows an authorized user to change the speed of the current
+    audio stream to a value between 0.5x and 4.0x.
+
+    Usage:
+        /speed [value]
+
+    Args:
+        _ (Client): The pytdbot client instance (unused).
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if chat_id > 0:
         return

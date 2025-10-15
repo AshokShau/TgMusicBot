@@ -9,8 +9,27 @@ from pytdbot import filters, types
 
 
 class Filter:
+    """A collection of custom filters for pytdbot events.
+
+    This class provides static methods to create filters for commands and
+    regular expressions, simplifying the process of routing updates like
+
+    messages and callback queries to their appropriate handlers.
+    """
+
     @staticmethod
     def _extract_text(event) -> str | None:
+        """Extracts text content from various pytdbot event types.
+
+        This is a helper method to safely retrieve text from `Message`,
+        `UpdateNewMessage`, or `UpdateNewCallbackQuery` objects.
+
+        Args:
+            event: The pytdbot event object.
+
+        Returns:
+            str | None: The extracted text or None if no text is found.
+        """
         if isinstance(event, types.Message) and hasattr(event.content, "text"):
             return event.content.text.text
         if isinstance(event, types.UpdateNewMessage) and hasattr(event.message, "text"):
@@ -25,6 +44,20 @@ class Filter:
     def command(
         commands: Union[str, list[str]], prefixes: str = "/!"
     ) -> filters.Filter:
+        """Creates a filter for bot commands.
+
+        This filter matches messages that start with a specified prefix
+        (e.g., '/', '!') followed by one of the given command strings.
+        It also handles commands directed at a specific bot (e.g., /command@botname).
+
+        Args:
+            commands (Union[str, list[str]]): A command or list of commands to match.
+            prefixes (str): A string of characters to be treated as command
+                prefixes. Defaults to "/!".
+
+        Returns:
+            filters.Filter: A pytdbot filter instance.
+        """
         if isinstance(commands, str):
             commands = [commands]
         commands_set = {cmd.lower() for cmd in commands}
@@ -58,8 +91,16 @@ class Filter:
 
     @staticmethod
     def regex(pattern: str) -> filters.Filter:
-        """
-        Filter for messages or callback queries matching a regex pattern.
+        """Creates a filter for messages or callbacks matching a regex pattern.
+
+        This filter checks if the text content of an event contains a match
+        for the given regular expression.
+
+        Args:
+            pattern (str): The regular expression pattern to search for.
+
+        Returns:
+            filters.Filter: A pytdbot filter instance.
         """
         compiled = re.compile(pattern)
 

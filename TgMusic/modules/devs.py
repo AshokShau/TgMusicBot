@@ -30,8 +30,23 @@ from TgMusic.core import Filter, admins_only, call, chat_cache, config, db
 from TgMusic.modules.utils.play_helpers import extract_argument
 
 
-# We dont modify locals VVVV ; this lets us keep the message available to the user-provided function
 async def meval(code, globs, **kwargs):
+    """Asynchronously evaluates Python code in a controlled environment.
+
+    This function is a sophisticated alternative to `eval`, designed to
+    safely execute user-provided code by isolating its global and local
+    scopes. It automatically captures the output of the last expression
+    and handles async operations within the evaluated code.
+
+    Args:
+        code (str): The Python code string to evaluate.
+        globs (dict): The global variables to be available in the execution scope.
+        **kwargs: Keyword arguments that will be available as local variables
+            within the executed code.
+
+    Returns:
+        The result of the evaluated code. Can be of any type.
+    """
     # This function is released in the public domain. Feel free to kang it (although I like credit)
     # Note to self: please don't set globals here as they will be lost.
     # Don't clutter locals
@@ -166,8 +181,19 @@ async def meval(code, globs, **kwargs):
 def format_exception(
     exp: BaseException, tb: Optional[list[traceback.FrameSummary]] = None
 ) -> str:
-    """
-    Formats an exception traceback as a string, similar to the Python interpreter.
+    """Formats an exception and its traceback into a readable string.
+
+    This function mimics the standard Python interpreter's exception output,
+    but it also cleans up file paths by making them relative to the current
+    working directory for better readability.
+
+    Args:
+        exp (BaseException): The exception object.
+        tb (Optional[list[traceback.FrameSummary]]): An optional traceback
+            object. If None, it's extracted from the exception. Defaults to None.
+
+    Returns:
+        str: The formatted traceback and exception message as a single string.
     """
 
     if tb is None:
@@ -190,8 +216,17 @@ def format_exception(
 @Client.on_message(filters=Filter.command("eval"))
 @admins_only(only_dev=True)
 async def exec_eval(c: Client, m: types.Message) -> None:
-    """
-    Run python code.
+    """Handles the /eval command to execute Python code.
+
+    This is a developer-only command that allows for the dynamic execution
+    of Python code within the bot's running environment. It provides a safe
+    way to inspect the bot's state, call functions, and debug issues live.
+    The output, including any printed text or the return value of the last
+    expression, is sent back to the chat.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        m (types.Message): The message object containing the command and code.
     """
     text = m.text.split(None, 1)
     if len(text) <= 1:
@@ -301,7 +336,16 @@ async def exec_eval(c: Client, m: types.Message) -> None:
 @Client.on_message(filters=Filter.command("stats"))
 @admins_only(only_dev=True)
 async def sys_stats(client: Client, message: types.Message) -> None:
-    """Get comprehensive bot and system statistics including hardware, software, and performance metrics."""
+    """Handles the /stats command to display detailed system and bot statistics.
+
+    This developer-only command provides a comprehensive overview of the host
+    system's hardware, software, and performance metrics, as well as bot-specific
+    data like database usage and library versions.
+
+    Args:
+        client (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     sys_msg = await message.reply_text(
         f"📊 Gathering <b>{client.me.first_name}</b> system statistics..."
     )
@@ -416,8 +460,15 @@ async def sys_stats(client: Client, message: types.Message) -> None:
 @Client.on_message(filters=Filter.command(["activevc", "av"]))
 @admins_only(only_dev=True)
 async def active_vc(c: Client, message: types.Message) -> None:
-    """
-    Get active voice chats.
+    """Handles the /activevc command to list all active voice chats.
+
+    This developer-only command shows which chats currently have an active
+    music session, along with the queue size and the currently playing song
+    for each.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
     """
     active_chats = chat_cache.get_active_chats()
     if not active_chats:
@@ -455,8 +506,14 @@ async def active_vc(c: Client, message: types.Message) -> None:
 @Client.on_message(filters=Filter.command("logger"))
 @admins_only(only_dev=True)
 async def logger(c: Client, message: types.Message) -> None:
-    """
-    Enable or disable logging.
+    """Handles the /logger command to enable or disable play logging.
+
+    This developer-only command toggles the sending of "Now Playing" messages
+    to the designated log channel.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
     """
     if not config.LOGGER_ID or config.LOGGER_ID == 0:
         reply = await message.reply_text("Please set LOGGER_ID in .env first.")
@@ -500,6 +557,15 @@ async def logger(c: Client, message: types.Message) -> None:
 @Client.on_message(filters=Filter.command(["autoend", "auto_end"]))
 @admins_only(only_dev=True)
 async def auto_end(c: Client, message: types.Message) -> None:
+    """Handles the /autoend command to toggle the auto-end stream feature.
+
+    When enabled, the bot will automatically leave a voice chat if it's empty,
+    conserving resources. This is a developer-only command.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     args = extract_argument(message.text)
     if not args:
         status = await db.get_auto_end(c.me.id)
@@ -533,6 +599,16 @@ async def auto_end(c: Client, message: types.Message) -> None:
 @Client.on_message(filters=Filter.command(["clearass", "clearallassistants"]))
 @admins_only(only_dev=True)
 async def clear_all_assistants(c: Client, message: types.Message) -> None:
+    """Handles the /clearass command to remove all assistant assignments.
+
+    This developer-only command iterates through the database and removes the
+    assigned assistant from every chat, forcing the bot to re-assign them
+    randomly on the next play command in each chat.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     count = await db.clear_all_assistants()
     c.logger.info(
         "Cleared assistants from %s chats by command from %s", count, message.from_id
@@ -546,6 +622,14 @@ async def clear_all_assistants(c: Client, message: types.Message) -> None:
 @Client.on_message(filters=Filter.command("logs"))
 @admins_only(only_dev=True)
 async def logs(c: Client, message: types.Message) -> None:
+    """Handles the /logs command to retrieve the bot's log file.
+
+    This developer-only command sends the `bot.log` file to the chat.
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     reply = await message.reply_document(
         document=types.InputFileLocal("bot.log"),
         disable_notification=True,

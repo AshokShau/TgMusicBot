@@ -11,7 +11,18 @@ from TgMusic.modules.utils.play_helpers import extract_argument
 @Client.on_message(filters=Filter.command("loop"))
 @admins_only(is_bot=True, is_auth=True)
 async def modify_loop(c: Client, msg: types.Message) -> None:
-    """Set loop count for current track (0 to disable)."""
+    """Handles the /loop command to set the loop count for the current track.
+
+    This allows an authorized user to make the currently playing song repeat
+    a specified number of times.
+
+    Usage:
+        /loop [count]  (where count is a number from 0 to 10)
+
+    Args:
+        c (Client): The pytdbot client instance.
+        msg (types.Message): The message object containing the command.
+    """
     chat_id = msg.chat_id
     if chat_id > 0:
         return

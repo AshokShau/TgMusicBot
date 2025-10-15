@@ -11,7 +11,16 @@ from TgMusic.modules.utils import sec_to_min
 @Client.on_message(filters=Filter.command("queue"))
 @admins_only(is_bot=True)
 async def queue_info(_: Client, msg: types.Message) -> None:
-    """Display the current playback queue with detailed information."""
+    """Handles the /queue command to display the current song queue.
+
+    This command provides a detailed view of the songs in the queue,
+    including the currently playing track with its progress, and a list
+    of the next songs up to a certain limit.
+
+    Args:
+        _ (Client): The pytdbot client instance (unused).
+        msg (types.Message): The message object containing the command.
+    """
     if msg.chat_id > 0:
         return
 

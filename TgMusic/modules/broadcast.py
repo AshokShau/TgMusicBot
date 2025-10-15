@@ -22,6 +22,16 @@ VALID_TARGETS = {"all", "users", "chats"}
 
 
 async def get_broadcast_targets(target: str) -> tuple[list[int], list[int]]:
+    """Retrieves lists of user and chat IDs based on the broadcast target.
+
+    Args:
+        target (str): The target audience for the broadcast. Can be "all",
+            "users", or "chats".
+
+    Returns:
+        tuple[list[int], list[int]]: A tuple containing a list of user IDs
+            and a list of chat IDs.
+    """
     users = await db.get_all_users() if target in {"all", "users"} else []
     chats = await db.get_all_chats() if target in {"all", "chats"} else []
     return users, chats
@@ -30,11 +40,22 @@ async def get_broadcast_targets(target: str) -> tuple[list[int], list[int]]:
 async def send_message_with_retry(
     target_id: int, message: types.Message, is_copy: bool
 ) -> tuple[int, int]:
-    """
-    Try to send a message to one target with retries.
-    Returns (sent, global_wait) where:
-      - sent = 1 if success, 0 if failed
-      - global_wait = >0 if we need to pause the whole broadcast
+    """Sends a message to a single target with retry logic for flood waits.
+
+    This function attempts to send a message and handles common errors like
+    flood waits and blocked users. It distinguishes between per-user and
+    global flood waits to pause the broadcast if necessary.
+
+    Args:
+        target_id (int): The ID of the user or chat to send the message to.
+        message (types.Message): The message object to send (copy or forward).
+        is_copy (bool): If True, the message is copied. Otherwise, it's forwarded.
+
+    Returns:
+        tuple[int, int]: A tuple `(sent, global_wait)`.
+            - `sent` is 1 on success, 0 on failure.
+            - `global_wait` is the number of seconds to pause the entire
+              broadcast due to a global flood wait, or 0 otherwise.
     """
     for attempt in range(1, MAX_RETRIES + 1):
         async with semaphore:
@@ -99,6 +120,20 @@ async def send_message_with_retry(
 async def broadcast_to_targets(
     targets: list[int], message: types.Message, is_copy: bool
 ) -> tuple[int, int]:
+    """Broadcasts a message to a list of targets in batches.
+
+    This function splits the target list into smaller batches and processes
+    them sequentially with a delay to avoid hitting API limits.
+
+    Args:
+        targets (list[int]): A list of user or chat IDs.
+        message (types.Message): The message to broadcast.
+        is_copy (bool): Whether to copy or forward the message.
+
+    Returns:
+        tuple[int, int]: A tuple containing the total number of sent and
+            failed messages.
+    """
     sent = failed = 0
 
     async def process_batch(_batch: list[int], index: int):
@@ -138,6 +173,16 @@ async def broadcast_to_targets(
 @Client.on_message(filters=Filter.command("broadcast"))
 @admins_only(only_dev=True)
 async def broadcast(c: Client, message: types.Message) -> None:
+    """Handles the /broadcast command to send a message to multiple users/chats.
+
+    This is a developer-only command. It requires a reply to the message that
+    should be broadcasted and accepts arguments to specify the target audience
+    ("all", "users", "chats") and the sending mode ("copy").
+
+    Args:
+        c (Client): The pytdbot client instance.
+        message (types.Message): The message object containing the command.
+    """
     args = extract_argument(message.text)
     if not args:
         reply = await message.reply_text(

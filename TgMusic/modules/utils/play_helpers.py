@@ -13,15 +13,18 @@ from TgMusic.logger import LOGGER
 async def get_url(
     msg: types.Message, reply: Union[types.Message, None]
 ) -> Union[str, None]:
-    """
-    Extracts a URL from the given message or its reply.
+    """Extracts a URL from a message's text or entities.
+
+    This function checks the message entities first. If a URL entity is
+    found, it's returned. It checks the replied-to message first if one
+    is provided.
 
     Args:
-    msg: The message object to extract the URL from.
-    reply: The reply message objects to extract the URL from, if any.
+        msg (types.Message): The original message object.
+        reply (Union[types.Message, None]): The replied-to message object, if any.
 
     Returns:
-    The extracted URL string, or `None` if no URL was found.
+        Union[str, None]: The extracted URL string, or None if no URL is found.
     """
     if reply:
         text_content = reply.text or ""
@@ -39,15 +42,19 @@ async def get_url(
 
 
 def extract_argument(text: str, enforce_digit: bool = False) -> Union[str, None]:
-    """
-    Extracts the argument from the command text.
+    """Extracts the argument part of a command string.
+
+    For example, in "/command arg1 arg2", it would return "arg1 arg2".
 
     Args:
-        text (str): The full command text.
-        enforce_digit (bool): Whether to enforce that the argument is a digit.
+        text (str): The full text of the message.
+        enforce_digit (bool): If True, returns None unless the extracted
+            argument consists only of digits. Defaults to False.
 
     Returns:
-        str | None: The extracted argument or None if invalid.
+        Union[str, None]: The extracted argument string, or None if no
+            argument is found or if `enforce_digit` is True and the
+            argument is not a digit.
     """
     args = text.strip().split(maxsplit=1)
 
@@ -59,14 +66,10 @@ def extract_argument(text: str, enforce_digit: bool = False) -> Union[str, None]
 
 
 async def del_msg(msg: types.Message) -> None:
-    """
-    Deletes the given message.
+    """Safely deletes a message, ignoring common errors.
 
     Args:
-        msg (types.Message): The message to delete.
-
-    Returns:
-        None
+        msg (types.Message): The message object to delete.
     """
     delete = await msg.delete()
     if isinstance(delete, types.Error):
@@ -79,21 +82,21 @@ async def del_msg(msg: types.Message) -> None:
 async def edit_text(
     reply_message: types.Message, *args: Any, **kwargs: Any
 ) -> Union["types.Error", "types.Message"]:
-    """
-    Edits the given message and returns the result.
+    """A robust wrapper for editing a message's text.
 
-    If the given message is an Error, logs the error and returns it.
-    If an exception occurs while editing the message, logs the exception and
-    returns the original message.
+    This function handles potential errors during the edit operation, such as
+    the message not existing or being an error object itself. It also includes
+    retry logic for flood wait errors.
 
     Args:
-        reply_message (types.Message): The message to edit.
-        *args: Passed to `Message.edit_text`.
-        **kwargs: Passed to `Message.edit_text`.
+        reply_message (types.Message): The message object to be edited.
+        *args: Positional arguments to be passed to `Message.edit_text`.
+        **kwargs: Keyword arguments to be passed to `Message.edit_text`.
 
     Returns:
-        Union["types.Error", "types.Message"]: The edited message, or the
-        original message if an exception occurred.
+        Union["types.Error", "types.Message"]: The result of the edit
+            operation, which could be the successfully edited message or an
+            error object.
     """
     if isinstance(reply_message, types.Error):
         LOGGER.warning("Error getting message: %s", reply_message)
