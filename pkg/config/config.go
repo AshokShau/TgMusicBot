@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"tgmusic/pkg/pool"
 
 	"github.com/Laky-64/gologging"
 	"github.com/joho/godotenv"
@@ -86,7 +87,9 @@ func LoadConfig() error {
 		}
 
 		gologging.InfoF("Saving cookies...")
-		go saveAllCookies(Conf.cookiesUrl)
+		pool.Submit(func() {
+			saveAllCookies(Conf.cookiesUrl)
+		})
 	}
 	return nil
 }

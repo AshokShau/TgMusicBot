@@ -15,6 +15,7 @@ import "C"
 
 import (
 	"fmt"
+	"tgmusic/pkg/pool"
 	"unsafe"
 
 	"github.com/Laky-64/gologging"
@@ -78,7 +79,10 @@ func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_ty
 		goStreamType = VideoStream
 	}
 	for _, x0 := range self.streamEndCallbacks {
-		go x0(goChatID, goStreamType, parseStreamDevice(streamDevice))
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID, goStreamType, parseStreamDevice(streamDevice))
+		})
 	}
 }
 
@@ -93,7 +97,10 @@ func handleUpgrade(_ C.uintptr_t, chatID C.int64_t, state C.ntg_media_state_stru
 		PresentationPaused: bool(state.presentationPaused),
 	}
 	for _, x0 := range self.upgradeCallbacks {
-		go x0(goChatID, goState)
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID, goState)
+		})
 	}
 }
 
@@ -102,7 +109,10 @@ func handleSignal(_ C.uintptr_t, chatID C.int64_t, data *C.uint8_t, size C.int, 
 	self := (*Client)(ptr)
 	goChatID := int64(chatID)
 	for _, x0 := range self.signalCallbacks {
-		go x0(goChatID, C.GoBytes(unsafe.Pointer(data), size))
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID, C.GoBytes(unsafe.Pointer(data), size))
+		})
 	}
 }
 
@@ -119,7 +129,10 @@ func handleConnectionChange(_ C.uintptr_t, chatID C.int64_t, networkInfo C.ntg_n
 	}
 	goCallState.State = parseConnectionState(networkInfo.state)
 	for _, x0 := range self.connectionChangeCallbacks {
-		go x0(goChatID, goCallState)
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID, goCallState)
+		})
 	}
 }
 
@@ -149,7 +162,10 @@ func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_
 		}
 	}
 	for _, x0 := range self.frameCallbacks {
-		go x0(goChatID, goStreamMode, parseStreamDevice(streamDevice), rawFrames)
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID, goStreamMode, parseStreamDevice(streamDevice), rawFrames)
+		})
 	}
 }
 
@@ -163,7 +179,10 @@ func handleRemoteSourceChange(_ C.uintptr_t, chatID C.int64_t, remoteSource C.nt
 		Device: parseStreamDevice(remoteSource.device),
 	}
 	for _, x0 := range self.remoteSourceCallbacks {
-		go x0(goChatID, goRemoteSource)
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID, goRemoteSource)
+		})
 	}
 }
 
@@ -172,7 +191,10 @@ func handleRequestBroadcastTimestamp(_ C.uintptr_t, chatID C.int64_t, ptr unsafe
 	self := (*Client)(ptr)
 	goChatID := int64(chatID)
 	for _, x0 := range self.broadcastTimestampCallbacks {
-		go x0(goChatID)
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID)
+		})
 	}
 }
 
@@ -201,7 +223,10 @@ func handleRequestBroadcastPart(_ C.uintptr_t, chatID C.int64_t, segmentPartRequ
 		Quality:       goSegmentQuality,
 	}
 	for _, x0 := range self.broadcastPartCallbacks {
-		go x0(goChatID, goSegmentPartRequest)
+		callback := x0
+		pool.Submit(func() {
+			callback(goChatID, goSegmentPartRequest)
+		})
 	}
 }
 

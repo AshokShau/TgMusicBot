@@ -4,6 +4,7 @@ import (
 	"tgmusic/pkg"
 	"tgmusic/pkg/config"
 	"tgmusic/pkg/core/db"
+	"tgmusic/pkg/pool"
 	"tgmusic/pkg/vc"
 	"time"
 
@@ -77,5 +78,6 @@ func main() {
 	client.Idle()
 	gologging.InfoF("The bot is shutting down...")
 	vc.Calls.StopAllClients()
+	pool.Wait()
 	_ = client.Stop()
 }

@@ -26,6 +26,7 @@ import (
 	"tgmusic/pkg/core/cache"
 	"tgmusic/pkg/core/db"
 	"tgmusic/pkg/core/dl"
+	"tgmusic/pkg/pool"
 	"tgmusic/pkg/vc/ntgcalls"
 	"tgmusic/pkg/vc/ubot"
 	"time"
@@ -182,7 +183,9 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 	}
 
 	if db.Instance.GetLoggerStatus(ctx, c.bot.Me().ID) {
-		go sendLogger(c.bot, chatID, cache.ChatCache.GetPlayingTrack(chatID))
+		pool.Submit(func() {
+			sendLogger(c.bot, chatID, cache.ChatCache.GetPlayingTrack(chatID))
+		})
 	}
 
 	return nil

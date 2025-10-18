@@ -3,6 +3,7 @@ package ubot
 import (
 	"fmt"
 	"slices"
+	"tgmusic/pkg/pool"
 	"tgmusic/pkg/vc/ntgcalls"
 	"tgmusic/pkg/vc/ubot/types"
 	"time"
@@ -88,8 +89,11 @@ func (ctx *Context) handleUpdates() {
 					return err
 				}
 				ctx.p2pConfigs[userId] = p2pConfigs
-				for _, callback := range ctx.incomingCallCallbacks {
-					go callback(ctx, userId)
+				for _, c := range ctx.incomingCallCallbacks {
+					callback := c
+					pool.Submit(func() {
+						callback(ctx, userId)
+					})
 				}
 			}
 		}
@@ -298,14 +302,20 @@ func (ctx *Context) handleUpdates() {
 	})
 
 	ctx.binding.OnStreamEnd(func(chatId int64, streamType ntgcalls.StreamType, streamDevice ntgcalls.StreamDevice) {
-		for _, callback := range ctx.streamEndCallbacks {
-			go callback(chatId, streamType, streamDevice)
+		for _, c := range ctx.streamEndCallbacks {
+			callback := c
+			pool.Submit(func() {
+				callback(chatId, streamType, streamDevice)
+			})
 		}
 	})
 
 	ctx.binding.OnFrame(func(chatId int64, mode ntgcalls.StreamMode, device ntgcalls.StreamDevice, frames []ntgcalls.Frame) {
-		for _, callback := range ctx.frameCallbacks {
-			go callback(chatId, mode, device, frames)
+		for _, c := range ctx.frameCallbacks {
+			callback := c
+			pool.Submit(func() {
+				callback(chatId, mode, device, frames)
+			})
 		}
 	})
 }

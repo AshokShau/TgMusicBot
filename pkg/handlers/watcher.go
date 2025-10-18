@@ -6,6 +6,7 @@ import (
 	"tgmusic/pkg/core"
 	"tgmusic/pkg/core/cache"
 	"tgmusic/pkg/core/db"
+	"tgmusic/pkg/pool"
 	"tgmusic/pkg/vc"
 	"time"
 
@@ -72,11 +73,11 @@ func handleParticipant(pu *telegram.ParticipantUpdate) error {
 		return nil
 	}
 
-	go func(chatID int64) {
+	pool.Submit(func() {
 		ctx, cancel := db.Ctx()
 		defer cancel()
 		_ = db.Instance.AddChat(ctx, chatID)
-	}(chatID)
+	})
 
 	if chat.Username != "" {
 		vc.Calls.UpdateInviteLink(chatID, fmt.Sprintf("https://t.me/%s", chat.Username))

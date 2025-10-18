@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"tgmusic/pkg/core"
 	"tgmusic/pkg/core/db"
+	"tgmusic/pkg/pool"
 	"time"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -34,17 +35,17 @@ func startHandler(m *telegram.NewMessage) error {
 	chatID, _ := getPeerId(m.Client, m.ChatID())
 
 	if m.IsPrivate() {
-		go func(chatID int64) {
+		pool.Submit(func() {
 			ctx, cancel := db.Ctx()
 			defer cancel()
 			_ = db.Instance.AddUser(ctx, chatID)
-		}(chatID)
+		})
 	} else {
-		go func(chatID int64) {
+		pool.Submit(func() {
 			ctx, cancel := db.Ctx()
 			defer cancel()
 			_ = db.Instance.AddChat(ctx, chatID)
-		}(chatID)
+		})
 	}
 
 	response := fmt.Sprintf(startText, m.Sender.FirstName, bot.FirstName)
