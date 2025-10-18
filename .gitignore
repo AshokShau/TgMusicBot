@@ -1,1 +1,9 @@
 /.idea
+*.db
+*.dat
+.env
+/downloads
+ntgcalls.h
+libntgcalls.a
+tgmusic
+gosec_report.json

@@ -1,0 +1,4 @@
+.dockerignore
+!go.*
+!*.go
+!pkg
