@@ -1,7 +1,1 @@
-__pycache__/
 /.idea
-/database
-.env
-/TgMusic/cookies
-/tgmusicbot.egg-info
-*.log
