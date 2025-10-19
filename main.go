@@ -39,7 +39,10 @@ func main() {
 		gologging.Fatal(err.Error())
 	}
 
-	lang.LoadTranslations()
+	err := lang.LoadTranslations()
+	if err != nil {
+		panic(err)
+	}
 
 	// ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	ctx, cancel := db.Ctx()

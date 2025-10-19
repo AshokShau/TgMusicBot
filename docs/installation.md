@@ -77,12 +77,12 @@ Deploying with Docker is the easiest and recommended method.
 
 2.  **Build the Docker image:**
     ```sh
-    docker build -t TgMusicBot .
+    docker build -t tgmusicbot .
     ```
 
 3.  **Run the Docker container:**
     ```sh
-    docker run -d --name TgMusicBot --env-file .env --restart unless-stopped TgMusicBot
+    docker run -d --name tgmusicbot --env-file .env --restart unless-stopped tgmusicbot
     ```
 
 ### 🔧 Manual Installation

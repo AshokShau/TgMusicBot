@@ -12,7 +12,7 @@ import (
 
 var translations = make(map[string]map[string]string)
 
-func LoadTranslations() {
+func LoadTranslations() error {
 	err := filepath.Walk("pkg/lang/locale", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -33,8 +33,10 @@ func LoadTranslations() {
 		return nil
 	})
 	if err != nil {
-		gologging.Fatal(err.Error())
+		return err
 	}
+
+	return nil
 }
 
 func GetString(langCode, key string) string {
