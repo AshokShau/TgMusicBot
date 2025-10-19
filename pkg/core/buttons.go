@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -132,6 +133,23 @@ func ControlButtons(mode string) *telegram.ReplyInlineMarkup {
 		keyboard = telegram.NewKeyboard().AddRow(CloseBtn)
 	}
 
+	return keyboard.Build()
+}
+
+func LanguageKeyboard() *telegram.ReplyInlineMarkup {
+	keyboard := telegram.NewKeyboard()
+	langs := lang.GetAvailableLangs()
+	for i := 0; i < len(langs); i += 2 {
+		if i+1 < len(langs) {
+			keyboard.AddRow(
+				telegram.Button.Data(langs[i], fmt.Sprintf("setlang_%s", langs[i])),
+				telegram.Button.Data(langs[i+1], fmt.Sprintf("setlang_%s", langs[i+1])),
+			)
+		} else {
+			keyboard.AddRow(telegram.Button.Data(langs[i], fmt.Sprintf("setlang_%s", langs[i])))
+		}
+	}
+	keyboard.AddRow(CloseBtn)
 	return keyboard.Build()
 }
 

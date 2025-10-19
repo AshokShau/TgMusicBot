@@ -7,9 +7,6 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// Start message text
-var startText = "ʜᴇʏ %s;\n\n◎ ᴛʜɪꜱ ɪꜱ %s!\n➻ ᴀ ꜰᴀꜱᴛ & ᴘᴏᴡᴇʀꜰᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜꜱɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ.\n\nꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ, ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.\n\n---\n◎ ᴄʟɪᴄᴋ ᴏɴ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ꜰᴏʀ ɪɴꜰᴏ."
-
 // getPeerId gets the peer ID from a chat ID.
 // It takes a telegram client and a chat ID as input.
 // It returns the peer ID and an error if any.

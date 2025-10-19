@@ -6,6 +6,7 @@ import (
 
 	"github.com/AshokShau/TgMusicBot/pkg/core"
 	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -19,12 +20,13 @@ func pingHandler(m *telegram.NewMessage) error {
 	}
 	latency := time.Since(start).Milliseconds()
 	uptime := time.Since(startTime).Truncate(time.Second)
-	response := fmt.Sprintf(
-		"<b>📊 System Performance Metrics</b>\n\n"+
-			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
-			"🕒 <b>Uptime:</b> <code>%s</code>",
-		latency, uptime,
-	)
+
+	ctx, cancel := db.Ctx()
+	defer cancel()
+
+	chatID, _ := getPeerId(m.Client, m.ChatID())
+	langCode := db.Instance.GetLang(ctx, chatID)
+	response := fmt.Sprintf(lang.GetString(langCode, "ping_text"), latency, uptime)
 	_, err = msg.Edit(response)
 	return err
 }
@@ -48,7 +50,11 @@ func startHandler(m *telegram.NewMessage) error {
 		}(chatID)
 	}
 
-	response := fmt.Sprintf(startText, m.Sender.FirstName, bot.FirstName)
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
+
+	response := fmt.Sprintf(lang.GetString(langCode, "start_text"), m.Sender.FirstName, bot.FirstName)
 	_, err := m.Reply(response, telegram.SendOptions{
 		ReplyMarkup: core.AddMeMarkup(m.Client.Me().Username),
 	})

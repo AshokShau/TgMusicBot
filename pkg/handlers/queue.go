@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
 
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -13,44 +16,39 @@ import (
 
 // queueHandler displays the current playback queue with detailed information.
 func queueHandler(m *tg.NewMessage) error {
-	chatId, _ := getPeerId(m.Client, m.ChatID())
-
+	chatID, _ := getPeerId(m.Client, m.ChatID())
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
 	chat := m.Channel
-	queue := cache.ChatCache.GetQueue(chatId)
+	queue := cache.ChatCache.GetQueue(chatID)
 	if len(queue) == 0 {
-		_, _ = m.Reply("📭 The queue is currently empty.")
+		_, _ = m.Reply(lang.GetString(langCode, "queue_empty"))
 		return nil
 	}
 
-	if !cache.ChatCache.IsActive(chatId) {
-		_, _ = m.Reply("⏸ There is no active playback session.")
+	if !cache.ChatCache.IsActive(chatID) {
+		_, _ = m.Reply(lang.GetString(langCode, "queue_no_session"))
 		return nil
 	}
 
 	current := queue[0]
-	playedTime, _ := vc.Calls.PlayedTime(chatId)
+	playedTime, _ := vc.Calls.PlayedTime(chatID)
 
 	var b strings.Builder
-	b.WriteString("<b>🎧 Queue for ")
-	b.WriteString(chat.Title)
-	b.WriteString("</b>\n\n")
+	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_header"), chat.Title))
 
-	b.WriteString("<b>▶️ Now Playing:</b>\n")
-	b.WriteString("├ <b>Title:</b> <code>")
-	b.WriteString(truncate(current.Name, 45))
-	b.WriteString("</code>\n")
-	b.WriteString("├ <b>Requested by:</b> ")
-	b.WriteString(current.User)
-	b.WriteString("\n├ <b>Duration:</b> ")
-	b.WriteString(cache.SecToMin(current.Duration))
-	b.WriteString(" min\n")
-	b.WriteString("├ <b>Loop:</b> ")
+	b.WriteString(lang.GetString(langCode, "queue_now_playing"))
+	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_track_title"), truncate(current.Name, 45)))
+	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_requested_by"), current.User))
+	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_duration"), cache.SecToMin(current.Duration)))
+	b.WriteString(lang.GetString(langCode, "queue_loop"))
 	if current.Loop > 0 {
-		b.WriteString("🔁 On\n")
+		b.WriteString(lang.GetString(langCode, "queue_loop_on"))
 	} else {
-		b.WriteString("➡️ Off\n")
+		b.WriteString(lang.GetString(langCode, "queue_loop_off"))
 	}
-	b.WriteString("└ <b>Progress:</b> ")
+	b.WriteString(lang.GetString(langCode, "queue_progress"))
 	if playedTime > 0 && playedTime < math.MaxInt {
 		b.WriteString(cache.SecToMin(int(playedTime)))
 	} else {
@@ -59,9 +57,7 @@ func queueHandler(m *tg.NewMessage) error {
 	b.WriteString(" min\n")
 
 	if len(queue) > 1 {
-		b.WriteString("\n<b>⏭ Next Up (")
-		b.WriteString(strconv.Itoa(len(queue) - 1))
-		b.WriteString("):</b>\n")
+		b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_next_up"), len(queue)-1))
 
 		for i, song := range queue[1:] {
 			if i >= 14 {
@@ -76,34 +72,20 @@ func queueHandler(m *tg.NewMessage) error {
 		}
 
 		if len(queue) > 15 {
-			b.WriteString("...and ")
-			b.WriteString(strconv.Itoa(len(queue) - 15))
-			b.WriteString(" more track(s)\n")
+			b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_more_tracks"), len(queue)-15))
 		}
 	}
 
-	b.WriteString("\n<b>📊 Total:</b> ")
-	b.WriteString(strconv.Itoa(len(queue)))
-	b.WriteString(" track(s) in the queue")
+	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_total"), len(queue)))
 
 	text := b.String()
 	if len(text) > 4096 {
 		var sb strings.Builder
-		sb.WriteString("<b>🎧 Queue for ")
-		sb.WriteString(chat.Title)
-		sb.WriteString("</b>\n\n<b>▶️ Now Playing:</b>\n├ <code>")
-		sb.WriteString(truncate(current.Name, 45))
-		sb.WriteString("</code>\n└ ")
+		progress := "0:00"
 		if playedTime > 0 && playedTime < math.MaxInt {
-			sb.WriteString(cache.SecToMin(int(playedTime)))
-		} else {
-			sb.WriteString("0:00")
+			progress = cache.SecToMin(int(playedTime))
 		}
-		sb.WriteString("/")
-		sb.WriteString(cache.SecToMin(current.Duration))
-		sb.WriteString(" min\n\n<b>📊 Total:</b> ")
-		sb.WriteString(strconv.Itoa(len(queue)))
-		sb.WriteString(" track(s) in the queue")
+		sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_short_summary"), chat.Title, truncate(current.Name, 45), progress, cache.SecToMin(current.Duration), len(queue)))
 		text = sb.String()
 	}
 

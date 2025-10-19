@@ -28,6 +28,7 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
 	"github.com/AshokShau/TgMusicBot/pkg/core/db"
 	"github.com/AshokShau/TgMusicBot/pkg/core/dl"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc/ntgcalls"
 	"github.com/AshokShau/TgMusicBot/pkg/vc/ubot"
 
@@ -199,9 +200,14 @@ func (c *TelegramCalls) downloadAndPrepareSong(song *cache.CachedTrack, reply *t
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
+	chatID := config.Conf.LoggerId
+	dbCtx, dbCancel := db.Ctx()
+	defer dbCancel()
+	langCode := db.Instance.GetLang(dbCtx, chatID)
+
 	dlPath, trackInfo, err := DownloadSong(ctx, song, c.bot)
 	if err != nil {
-		_, _ = reply.Edit(fmt.Sprintf("⚠️ Failed to download the song: (%v)\nSkipping to the next track...", err))
+		_, _ = reply.Edit(fmt.Sprintf(lang.GetString(langCode, "download_failed_skip"), err))
 		return err
 	}
 
@@ -211,7 +217,7 @@ func (c *TelegramCalls) downloadAndPrepareSong(song *cache.CachedTrack, reply *t
 	}
 
 	if song.FilePath == "" {
-		_, _ = reply.Edit("⚠️ Failed to download the song.\nSkipping to the next track...")
+		_, _ = reply.Edit(lang.GetString(langCode, "download_failed_empty"))
 		return errors.New("download failed due to an empty file path")
 	}
 
@@ -239,16 +245,22 @@ func (c *TelegramCalls) PlayNext(chatID int64) error {
 
 // handleNoSong manages the situation where there are no more songs in the queue by stopping the playback
 // and sending a notification to the chat.
-func (c *TelegramCalls) handleNoSong(chatId int64) error {
-	_ = c.Stop(chatId)
-	_, _ = c.bot.SendMessage(chatId, "🎵 The queue has finished. Use /play to add more songs!")
+func (c *TelegramCalls) handleNoSong(chatID int64) error {
+	_ = c.Stop(chatID)
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
+	_, _ = c.bot.SendMessage(chatID, lang.GetString(langCode, "queue_finished"))
 	return nil
 }
 
 // playSong downloads and plays a single song. It sends a message to the chat to indicate the download status
 // and updates it with the song's information once playback begins.
 func (c *TelegramCalls) playSong(chatID int64, song *cache.CachedTrack) error {
-	reply, err := c.bot.SendMessage(chatID, fmt.Sprintf("Downloading %s...", song.Name))
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
+	reply, err := c.bot.SendMessage(chatID, fmt.Sprintf(lang.GetString(langCode, "downloading"), song.Name))
 	if err != nil {
 		gologging.InfoF("[playSong] Failed to send message: %v", err)
 		return err
@@ -267,7 +279,7 @@ func (c *TelegramCalls) playSong(chatID int64, song *cache.CachedTrack) error {
 		song.Duration = cache.GetFileDuration(song.FilePath)
 	}
 	text := fmt.Sprintf(
-		"<b>Now Playing:</b>\n\n‣ <b>Title:</b> <a href='%s'>%s</a>\n‣ <b>Duration:</b> %s\n‣ <b>Requested by:</b> %s",
+		lang.GetString(langCode, "now_playing_details"),
 		song.URL,
 		song.Name,
 		cache.SecToMin(song.Duration),
@@ -355,9 +367,12 @@ func (c *TelegramCalls) PlayedTime(chatId int64) (uint64, error) {
 var urlRegex = regexp.MustCompile(`^https?://`)
 
 // SeekStream jumps to a specific time in the current media stream.
-func (c *TelegramCalls) SeekStream(chatId int64, filePath string, toSeek, duration int, isVideo bool) error {
+func (c *TelegramCalls) SeekStream(chatID int64, filePath string, toSeek, duration int, isVideo bool) error {
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
 	if toSeek < 0 || duration <= 0 {
-		return errors.New("invalid seek position or duration. The position must be positive and the duration must be greater than 0")
+		return errors.New(lang.GetString(langCode, "invalid_seek"))
 	}
 
 	isURL := urlRegex.MatchString(filePath)
@@ -371,18 +386,21 @@ func (c *TelegramCalls) SeekStream(chatId int64, filePath string, toSeek, durati
 		ffmpegParams = fmt.Sprintf("-ss %d -to %d", toSeek, duration)
 	}
 
-	return c.PlayMedia(chatId, filePath, isVideo, ffmpegParams)
+	return c.PlayMedia(chatID, filePath, isVideo, ffmpegParams)
 }
 
 // ChangeSpeed modifies the playback speed of the current stream.
-func (c *TelegramCalls) ChangeSpeed(chatId int64, speed float64) error {
+func (c *TelegramCalls) ChangeSpeed(chatID int64, speed float64) error {
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
 	if speed < 0.5 || speed > 4.0 {
-		return errors.New("invalid speed: the value must be between 0.5 and 4.0")
+		return errors.New(lang.GetString(langCode, "invalid_speed"))
 	}
 
-	playingSong := cache.ChatCache.GetPlayingTrack(chatId)
+	playingSong := cache.ChatCache.GetPlayingTrack(chatID)
 	if playingSong == nil {
-		return errors.New("no song is currently playing")
+		return errors.New(lang.GetString(langCode, "no_song_playing"))
 	}
 
 	videoPTS := 1 / speed
@@ -402,7 +420,7 @@ func (c *TelegramCalls) ChangeSpeed(chatId int64, speed float64) error {
 
 	ffmpegFilters := fmt.Sprintf("-filter:v setpts=%f*PTS -filter:a %s", videoPTS, audioFilter)
 
-	return c.PlayMedia(chatId, playingSong.FilePath, playingSong.IsVideo, ffmpegFilters)
+	return c.PlayMedia(chatID, playingSong.FilePath, playingSong.IsVideo, ffmpegFilters)
 }
 
 // RegisterHandlers sets up the event handlers for the voice call client.
@@ -424,8 +442,11 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 			}
 		})
 
-		call.OnIncomingCall(func(ub *ubot.Context, chatId int64) {
-			_, _ = ub.App.SendMessage(chatId, "Are you calling me? Let me play a song for you...")
+		call.OnIncomingCall(func(ub *ubot.Context, chatID int64) {
+			ctx, cancel := db.Ctx()
+			defer cancel()
+			langCode := db.Instance.GetLang(ctx, chatID)
+			_, _ = ub.App.SendMessage(chatID, lang.GetString(langCode, "incoming_call"))
 			msg, err := dl.GetMessage(c.bot, "https://t.me/FallenSongs/1295")
 			if err != nil {
 				gologging.InfoF("[OnIncomingCall] Failed to get the message: %v", err)
@@ -438,7 +459,7 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 				return
 			}
 
-			err = c.PlayMedia(chatId, filePath, false, "")
+			err = c.PlayMedia(chatID, filePath, false, "")
 			if err != nil {
 
 				gologging.InfoF("[OnIncomingCall] Failed to play the media: %v", err)

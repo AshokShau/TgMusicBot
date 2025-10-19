@@ -115,6 +115,21 @@ func (db *Database) updateChatField(ctx context.Context, chatID int64, key strin
 	return nil
 }
 
+// updateUserField updates a specific field in a user's document.
+func (db *Database) updateUserField(ctx context.Context, userID int64, key string, value interface{}) error {
+	_, err := db.UserDB.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": bson.M{key: value}}, options.Update().SetUpsert(true))
+	if err != nil {
+		return err
+	}
+	cached, _ := db.UserCache.Get(toKey(userID))
+	if cached == nil {
+		cached = make(map[string]interface{})
+	}
+	cached[key] = value
+	db.UserCache.Set(toKey(userID), cached)
+	return nil
+}
+
 // GetPlayType retrieves the play type setting for a chat.
 // It returns 0 if no play type is set.
 func (db *Database) GetPlayType(ctx context.Context, chatID int64) int {
@@ -189,6 +204,57 @@ func (db *Database) SetAssistant(ctx context.Context, chatID int64, assistant st
 // RemoveAssistant removes the assistant from a chat's settings.
 func (db *Database) RemoveAssistant(ctx context.Context, chatID int64) error {
 	return db.updateChatField(ctx, chatID, "assistant", nil)
+}
+
+// SetUserLang sets the language for a given user.
+func (db *Database) SetUserLang(ctx context.Context, userID int64, lang string) error {
+	return db.updateUserField(ctx, userID, "language", lang)
+}
+
+// getUserLang retrieves the language for a user.
+func (db *Database) getUserLang(ctx context.Context, userID int64) string {
+	key := toKey(userID)
+	if cached, ok := db.UserCache.Get(key); ok {
+		if val, ok := cached["language"].(string); ok {
+			return val
+		}
+	}
+
+	var user map[string]interface{}
+	err := db.UserDB.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	if err != nil {
+		return "en"
+	}
+
+	if val, ok := user["language"].(string); ok {
+		return val
+	}
+	return "en"
+}
+
+// SetChatLang sets the language for a given chat.
+func (db *Database) SetChatLang(ctx context.Context, chatID int64, lang string) error {
+	return db.updateChatField(ctx, chatID, "language", lang)
+}
+
+// getChatLang retrieves the language for a chat.
+func (db *Database) getChatLang(ctx context.Context, chatID int64) string {
+	chat, _ := db.GetChat(ctx, chatID)
+	if chat == nil {
+		return "en"
+	}
+	if val, ok := chat["language"].(string); ok {
+		return val
+	}
+	return "en"
+}
+
+// GetLang retrieves the language for a chat or user.
+func (db *Database) GetLang(ctx context.Context, chatID int64) string {
+	if chatID > 0 {
+		return db.getUserLang(ctx, chatID)
+	}
+	return db.getChatLang(ctx, chatID)
 }
 
 // ----------------- AUTH USERS -----------------

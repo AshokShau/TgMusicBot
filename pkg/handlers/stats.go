@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 	"github.com/shirou/gopsutil/cpu"
@@ -122,15 +123,15 @@ func gatherAppStats() (*AppStats, error) {
 func sysStatsHandler(msg *telegram.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
-
-	sysMsg, err := msg.Reply("Gathering system statistics...")
+	langCode := db.Instance.GetLang(ctx, msg.ChatID())
+	sysMsg, err := msg.Reply(lang.GetString(langCode, "stats_gathering"))
 	if err != nil {
 		return err
 	}
 
 	info, err := gatherAppStats()
 	if err != nil {
-		_, _ = sysMsg.Edit(fmt.Sprintf("Error gathering stats: %v", err))
+		_, _ = sysMsg.Edit(fmt.Sprintf(lang.GetString(langCode, "stats_error"), err))
 		return nil
 	}
 
@@ -138,27 +139,27 @@ func sysStatsHandler(msg *telegram.NewMessage) error {
 	users, _ := db.Instance.GetAllUsers(ctx)
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s Bot Statistics\n", msg.Client.Me().FirstName))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_header"), msg.Client.Me().FirstName))
 	sb.WriteString(strings.Repeat("-", 40) + "\n\n")
 
-	sb.WriteString("Application Stats:\n")
-	sb.WriteString(fmt.Sprintf("  Uptime: %s\n", info.Uptime))
-	sb.WriteString(fmt.Sprintf("  CPU Usage: %.2f%%\n", info.CPUPercent))
+	sb.WriteString(lang.GetString(langCode, "stats_app_header"))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_uptime"), info.Uptime))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_cpu"), info.CPUPercent))
 	if info.MemLimit != "" {
-		sb.WriteString(fmt.Sprintf("  Memory Usage: %s / %s (%.2f%%)\n",
+		sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_mem_limited"),
 			info.MemUsed, info.MemLimit, info.MemPerc))
 	} else {
-		sb.WriteString(fmt.Sprintf("  Memory Usage: %s (%.2f%%)\n", info.MemUsed, info.MemPerc))
+		sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_mem"), info.MemUsed, info.MemPerc))
 	}
-	sb.WriteString(fmt.Sprintf("  Goroutines: %d\n", info.NumGoroutines))
-	sb.WriteString(fmt.Sprintf("  Database: %d Chats | %d Users\n", len(chats), len(users)))
-	sb.WriteString(fmt.Sprintf("  Go Version: %s\n", info.GoVersion))
-	sb.WriteString(fmt.Sprintf("  Platform: %s %s\n\n", info.OS, info.Arch))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_goroutines"), info.NumGoroutines))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_db"), len(chats), len(users)))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_go_version"), info.GoVersion))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_platform"), info.OS, info.Arch))
 
-	sb.WriteString("Server Stats:\n")
-	sb.WriteString(fmt.Sprintf("  CPU Usage: %.2f%%\n", info.SystemCPUUsage))
-	sb.WriteString(fmt.Sprintf("  RAM Usage: %s | %s\n", info.SystemMemUsed, info.SystemMemTotal))
-	sb.WriteString(fmt.Sprintf("  Storage: %s | %s\n", info.SystemDiskUsed, info.SystemDiskTotal))
+	sb.WriteString(lang.GetString(langCode, "stats_server_header"))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_cpu"), info.SystemCPUUsage))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_ram"), info.SystemMemUsed, info.SystemMemTotal))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_disk"), info.SystemDiskUsed, info.SystemDiskTotal))
 	sb.WriteString(strings.Repeat("-", 40))
 
 	_, _ = sysMsg.Edit(sb.String())

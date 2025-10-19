@@ -8,6 +8,7 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg/core"
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
 	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc"
 
 	"github.com/Laky-64/gologging"
@@ -21,15 +22,18 @@ func handleVoiceChat(upd telegram.Update, c *telegram.Client) error {
 	switch update := upd.(type) {
 	case *telegram.UpdateNewChannelMessage:
 		if msg, ok := update.Message.(*telegram.MessageService); ok {
-			chatId, _ := getPeerId(c, msg.PeerID)
+			chatID, _ := getPeerId(c, msg.PeerID)
+			ctx, cancel := db.Ctx()
+			defer cancel()
+			langCode := db.Instance.GetLang(ctx, chatID)
 			if action, ok := msg.Action.(*telegram.MessageActionGroupCall); ok {
 				if action.Duration == 0 {
-					cache.ChatCache.ClearChat(chatId, true)
-					_, _ = c.SendMessage(chatId, "🎙️ Video chat started!\nUse /play <song name> to play music.")
+					cache.ChatCache.ClearChat(chatID, true)
+					_, _ = c.SendMessage(chatID, lang.GetString(langCode, "watcher_vc_started"))
 				} else {
 					log.Printf("Voice chat ended. Duration: %d seconds", action.Duration)
-					cache.ChatCache.ClearChat(chatId, true)
-					_, _ = c.SendMessage(chatId, "🎧 Video chat ended!\nAll queues cleared.")
+					cache.ChatCache.ClearChat(chatID, true)
+					_, _ = c.SendMessage(chatID, lang.GetString(langCode, "watcher_vc_ended"))
 				}
 			} else {
 				log.Printf("Unhandled action type: %T", msg.Action)
@@ -52,14 +56,11 @@ func handleParticipant(pu *telegram.ParticipantUpdate) error {
 	chatID, _ := getPeerId(client, pu.Channel.ID)
 	userID := pu.UserID()
 	chat := pu.Channel
-
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
 	if chatID > 0 {
-		text := fmt.Sprintf(
-			"This chat (%d) is not a supergroup yet.\n"+
-				"<b>⚠️ Please convert this chat to a supergroup and add me as admin.</b>\n\n"+
-				"If you don't know how to convert, use this guide:\n"+
-				"🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\n"+
-				"If you have any questions, join our support group:",
+		text := fmt.Sprintf(lang.GetString(langCode, "watcher_not_supergroup"),
 			chatID,
 		)
 
@@ -163,14 +164,14 @@ func handleLeaveOrKick(client *telegram.Client, chatID, userID, ubId int64) erro
 // It returns an error if any.
 func handleBan(client *telegram.Client, chatID, userID, ubId int64) error {
 	gologging.DebugF("User %d was banned in chat %d", userID, chatID)
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
 	if userID == ubId {
 		gologging.InfoF("The bot (assistant) was banned in chat %d. Stopping any active calls and clearing cache...", chatID)
 		cache.ChatCache.ClearChat(chatID, true)
 
-		_, err := client.SendMessage(chatID, fmt.Sprintf(
-			"🚫 My assistant has been banned from this chat.\n\n"+
-				"All ongoing music playback and related data have been stopped and cleared.\n\n"+
-				"If this was a mistake, please unban <code>%d</code> to continue using the music features. 🎶",
+		_, err := client.SendMessage(chatID, fmt.Sprintf(lang.GetString(langCode, "watcher_assistant_banned"),
 			ubId,
 		))
 		if err != nil {

@@ -1,0 +1,60 @@
+package lang
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/Laky-64/gologging"
+)
+
+var translations = make(map[string]map[string]string)
+
+func LoadTranslations() {
+	err := filepath.Walk("pkg/lang/locale", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".json") {
+			langCode := strings.TrimSuffix(info.Name(), ".json")
+			file, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			var langMap map[string]string
+			if err := json.Unmarshal(file, &langMap); err != nil {
+				return err
+			}
+			translations[langCode] = langMap
+			gologging.InfoF("Loaded language: %s", langCode)
+		}
+		return nil
+	})
+	if err != nil {
+		gologging.Fatal(err.Error())
+	}
+}
+
+func GetString(langCode, key string) string {
+	if lang, ok := translations[langCode]; ok {
+		if val, ok := lang[key]; ok {
+			return val
+		}
+	}
+	// Fallback to English
+	if lang, ok := translations["en"]; ok {
+		if val, ok := lang[key]; ok {
+			return val
+		}
+	}
+	return key
+}
+
+func GetAvailableLangs() []string {
+	langs := make([]string, 0, len(translations))
+	for k := range translations {
+		langs = append(langs, k)
+	}
+	return langs
+}

@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 
 	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
@@ -20,30 +22,33 @@ func reloadAdminCacheHandler(m *telegram.NewMessage) error {
 		return nil
 	}
 
-	chatId, _ := getPeerId(m.Client, m.ChatID())
+	chatID, _ := getPeerId(m.Client, m.ChatID())
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
 
-	reloadKey := fmt.Sprintf("reload:%d", chatId)
+	reloadKey := fmt.Sprintf("reload:%d", chatID)
 	if lastUsed, ok := reloadRateLimit.Get(reloadKey); ok {
 		timePassed := time.Since(lastUsed)
 		if timePassed < reloadCooldown {
 			remaining := int((reloadCooldown - timePassed).Seconds())
-			_, _ = m.Reply(fmt.Sprintf("⏳ Please wait %s before using this command again.", cache.SecToMin(remaining)))
+			_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "reload_cooldown"), cache.SecToMin(remaining)))
 			return nil
 		}
 	}
 
 	reloadRateLimit.Set(reloadKey, time.Now())
-	reply, _ := m.Reply("🔄 Reloading the admin cache...")
+	reply, _ := m.Reply(lang.GetString(langCode, "reloading_admins"))
 
-	cache.ClearAdminCache(chatId)
-	admins, err := cache.GetAdmins(m.Client, chatId, true)
+	cache.ClearAdminCache(chatID)
+	admins, err := cache.GetAdmins(m.Client, chatID, true)
 	if err != nil {
-		gologging.WarnF("Failed to reload the admin cache for chat %d: %v", chatId, err)
-		_, _ = reply.Edit("⚠️ An error occurred while reloading the admin cache.")
+		gologging.WarnF("Failed to reload the admin cache for chat %d: %v", chatID, err)
+		_, _ = reply.Edit(lang.GetString(langCode, "reload_error"))
 		return nil
 	}
 
-	gologging.InfoF("Reloaded %d admins for chat %d", len(admins), chatId)
-	_, err = reply.Edit("✅ The admin cache has been successfully reloaded.")
+	gologging.InfoF("Reloaded %d admins for chat %d", len(admins), chatID)
+	_, err = reply.Edit(lang.GetString(langCode, "reload_success"))
 	return err
 }

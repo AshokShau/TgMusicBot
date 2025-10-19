@@ -5,6 +5,8 @@ import (
 
 	"github.com/AshokShau/TgMusicBot/pkg/core"
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -12,40 +14,45 @@ import (
 
 // pauseHandler handles the /pause command.
 func pauseHandler(m *telegram.NewMessage) error {
-	chatId, _ := getPeerId(m.Client, m.ChatID())
-
-	if !cache.ChatCache.IsActive(chatId) {
-		_, _ = m.Reply("⏸ There is no track currently playing.")
+	chatID, _ := getPeerId(m.Client, m.ChatID())
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
+	if !cache.ChatCache.IsActive(chatID) {
+		_, _ = m.Reply(lang.GetString(langCode, "no_track_playing"))
 		return nil
 	}
 
-	if _, err := vc.Calls.Pause(chatId); err != nil {
-		_, _ = m.Reply("❌ An error occurred while pausing the playback: " + err.Error())
+	if _, err := vc.Calls.Pause(chatID); err != nil {
+		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "pause_error"), err.Error()))
 		return nil
 	}
 
-	_, err := m.Reply(fmt.Sprintf("⏸️ Playback has been paused by %s.", m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
+	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "pause_success"), m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
 	return err
 }
 
 // resumeHandler handles the /resume command.
 func resumeHandler(m *telegram.NewMessage) error {
-	chatId, _ := getPeerId(m.Client, m.ChatID())
-	if chatId > 0 {
-		_, _ = m.Reply("This command can only be used in a supergroup.")
+	chatID, _ := getPeerId(m.Client, m.ChatID())
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
+	if chatID > 0 {
+		_, _ = m.Reply(lang.GetString(langCode, "supergroup_command_only"))
 		return nil
 	}
 
-	if !cache.ChatCache.IsActive(chatId) {
-		_, _ = m.Reply("⏸ There is no track currently playing.")
+	if !cache.ChatCache.IsActive(chatID) {
+		_, _ = m.Reply(lang.GetString(langCode, "no_track_playing"))
 		return nil
 	}
 
-	if _, err := vc.Calls.Resume(chatId); err != nil {
-		_, _ = m.Reply("❌ An error occurred while resuming the playback: " + err.Error())
+	if _, err := vc.Calls.Resume(chatID); err != nil {
+		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "resume_error"), err.Error()))
 		return nil
 	}
 
-	_, err := m.Reply(fmt.Sprintf("▶️ Playback has been resumed by %s.", m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("resume")})
+	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "resume_success"), m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("resume")})
 	return err
 }

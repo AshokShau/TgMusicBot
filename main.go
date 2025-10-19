@@ -6,6 +6,7 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg"
 	"github.com/AshokShau/TgMusicBot/pkg/config"
 	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc"
 
 	_ "net/http"
@@ -37,6 +38,8 @@ func main() {
 	if err := config.LoadConfig(); err != nil {
 		gologging.Fatal(err.Error())
 	}
+
+	lang.LoadTranslations()
 
 	// ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	ctx, cancel := db.Ctx()

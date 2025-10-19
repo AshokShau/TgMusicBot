@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -11,17 +13,20 @@ import (
 
 // stopHandler handles the /stop command.
 func stopHandler(m *telegram.NewMessage) error {
-	chatId, _ := getPeerId(m.Client, m.ChatID())
-	if !cache.ChatCache.IsActive(chatId) {
-		_, _ = m.Reply("⏸ There is no track currently playing.")
+	chatID, _ := getPeerId(m.Client, m.ChatID())
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
+	if !cache.ChatCache.IsActive(chatID) {
+		_, _ = m.Reply(lang.GetString(langCode, "no_track_playing"))
 		return nil
 	}
 
-	if err := vc.Calls.Stop(chatId); err != nil {
-		_, _ = m.Reply("❌ An error occurred while stopping the playback: " + err.Error())
+	if err := vc.Calls.Stop(chatID); err != nil {
+		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "stop_error"), err.Error()))
 		return err
 	}
 
-	_, _ = m.Reply(fmt.Sprintf("⏹️ Playback has been stopped by %s, and the queue has been cleared.", m.Sender.FirstName))
+	_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "stop_success"), m.Sender.FirstName))
 	return nil
 }

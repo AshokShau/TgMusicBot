@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/core/db"
+	"github.com/AshokShau/TgMusicBot/pkg/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -13,14 +15,18 @@ import (
 // It takes a telegram.NewMessage object as input.
 // It returns an error if any.
 func activeVcHandler(m *telegram.NewMessage) error {
+	chatID, _ := getPeerId(m.Client, m.ChatID())
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
 	activeChats := cache.ChatCache.GetActiveChats()
 	if len(activeChats) == 0 {
-		_, err := m.Reply("No active chats found.")
+		_, err := m.Reply(lang.GetString(langCode, "no_active_chats"))
 		return err
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("🎵 <b>Active Voice Chats</b> (%d):\n\n", len(activeChats)))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "active_chats_header"), len(activeChats)))
 
 	for _, chatID := range activeChats {
 		queueLength := cache.ChatCache.GetQueueLength(chatID)
@@ -29,17 +35,17 @@ func activeVcHandler(m *telegram.NewMessage) error {
 		var songInfo string
 		if currentSong != nil {
 			songInfo = fmt.Sprintf(
-				"🎶 <b>Now Playing:</b> <a href='%s'>%s</a> (%ds)",
+				lang.GetString(langCode, "now_playing_devs"),
 				currentSong.URL,
 				currentSong.Name,
 				currentSong.Duration,
 			)
 		} else {
-			songInfo = "🔇 No song playing."
+			songInfo = lang.GetString(langCode, "no_song_playing")
 		}
 
 		sb.WriteString(fmt.Sprintf(
-			"➤ <b>Chat ID:</b> <code>%d</code>\n📌 <b>Queue Size:</b> %d\n%s\n\n",
+			lang.GetString(langCode, "chat_info"),
 			chatID,
 			queueLength,
 			songInfo,
@@ -48,7 +54,7 @@ func activeVcHandler(m *telegram.NewMessage) error {
 
 	text := sb.String()
 	if len(text) > 4096 {
-		text = fmt.Sprintf("🎵 <b>Active Voice Chats</b> (%d)", len(activeChats))
+		text = fmt.Sprintf(lang.GetString(langCode, "active_chats_header_short"), len(activeChats))
 	}
 
 	_, err := m.Reply(text, telegram.SendOptions{LinkPreview: false})
