@@ -268,7 +268,7 @@ func handleSingleTrack(m *telegram.NewMessage, updater *statusUpdater, song cach
 	}
 
 	if saveCache.FilePath == "" {
-		_, err := updater.Edit(lang.GetString(langCode, "downloading"))
+		_, err := updater.Edit(fmt.Sprintf(lang.GetString(langCode, "downloading"), song.Name))
 		if err != nil {
 			gologging.WarnF("[play.go - handleSingleTrack] Edit message failed: %v", err)
 		}
