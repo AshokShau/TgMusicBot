@@ -13,7 +13,22 @@ import (
 var translations = make(map[string]map[string]string)
 
 func LoadTranslations() error {
-	err := filepath.Walk("pkg/lang/locale", func(path string, info os.FileInfo, err error) error {
+	execPath, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	execDir := filepath.Dir(execPath)
+
+	localePath := filepath.Join(execDir, "pkg/lang/locale")
+	if _, err := os.Stat(localePath); os.IsNotExist(err) {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		localePath = filepath.Join(cwd, "pkg/lang/locale")
+	}
+
+	err = filepath.Walk(localePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
