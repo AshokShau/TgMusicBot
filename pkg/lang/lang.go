@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"sort"
 	"strings"
 
 	"github.com/Laky-64/gologging"
@@ -56,5 +58,16 @@ func GetAvailableLangs() []string {
 	for k := range translations {
 		langs = append(langs, k)
 	}
+	sort.Strings(langs)
 	return langs
+}
+
+func GetLangDisplayName(langCode string) string {
+	if lang, ok := translations[langCode]; ok {
+		if val, ok := lang["lang_name"]; ok {
+			return val
+		}
+	}
+
+	return "Unknown"
 }

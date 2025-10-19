@@ -23,7 +23,27 @@ func langHandler(m *telegram.NewMessage) error {
 }
 
 func setLangCallbackHandler(c *telegram.CallbackQuery) error {
-	langCode := strings.Split(c.DataString(), "_")[1]
+	parts := strings.SplitN(c.DataString(), "_", 2)
+	if len(parts) < 2 {
+		return nil
+	}
+	langCode := parts[1]
+
+	// Validate that the language code is supported
+	supportedLangs := lang.GetAvailableLangs()
+	isValidLang := false
+	for _, supportedLang := range supportedLangs {
+		if supportedLang == langCode {
+			isValidLang = true
+			break
+		}
+	}
+
+	if !isValidLang {
+		_, err := c.Answer("❌ Unsupported language code", &telegram.CallbackOptions{Alert: true})
+		return err
+	}
+
 	chatID, _ := getPeerId(c.Client, c.ChatID)
 	ctx, cancel := db.Ctx()
 	defer cancel()

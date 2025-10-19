@@ -142,11 +142,11 @@ func LanguageKeyboard() *telegram.ReplyInlineMarkup {
 	for i := 0; i < len(langs); i += 2 {
 		if i+1 < len(langs) {
 			keyboard.AddRow(
-				telegram.Button.Data(langs[i], fmt.Sprintf("setlang_%s", langs[i])),
-				telegram.Button.Data(langs[i+1], fmt.Sprintf("setlang_%s", langs[i+1])),
+				telegram.Button.Data(lang.GetLangDisplayName(langs[i]), fmt.Sprintf("setlang_%s", langs[i])),
+				telegram.Button.Data(lang.GetLangDisplayName(langs[i+1]), fmt.Sprintf("setlang_%s", langs[i+1])),
 			)
 		} else {
-			keyboard.AddRow(telegram.Button.Data(langs[i], fmt.Sprintf("setlang_%s", langs[i])))
+			keyboard.AddRow(telegram.Button.Data(lang.GetLangDisplayName(langs[i]), fmt.Sprintf("setlang_%s", langs[i])))
 		}
 	}
 	keyboard.AddRow(CloseBtn)
