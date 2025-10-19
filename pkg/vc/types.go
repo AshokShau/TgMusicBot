@@ -1,10 +1,11 @@
 package vc
 
 import (
-	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
-	"github.com/AshokShau/TgMusicBot/pkg/vc/ubot"
 	"sync"
 	"time"
+
+	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/vc/ubot"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )

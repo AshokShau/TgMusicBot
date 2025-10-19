@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/AshokShau/TgMusicBot/pkg/config"
 	"io"
 	"log"
 	"math/big"
@@ -17,6 +16,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/AshokShau/TgMusicBot/pkg/config"
 
 	"github.com/Laky-64/gologging"
 )

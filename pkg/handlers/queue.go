@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
-	"github.com/AshokShau/TgMusicBot/pkg/vc"
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/AshokShau/TgMusicBot/pkg/vc"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
