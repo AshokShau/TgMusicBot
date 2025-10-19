@@ -1,6 +1,12 @@
 package main
 
 import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/AshokShau/TgMusicBot/pkg"
@@ -10,6 +16,7 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg/vc"
 
 	_ "net/http"
+	_ "net/http/pprof"
 
 	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -39,13 +46,18 @@ func main() {
 		gologging.Fatal(err.Error())
 	}
 
+	go func() {
+		gologging.InfoF("[pprof] running on :%s", config.Conf.Port)
+		log.Println(http.ListenAndServe("0.0.0.0:"+config.Conf.Port, nil))
+	}()
+
 	err := lang.LoadTranslations()
 	if err != nil {
 		panic(err)
 	}
 
-	// ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	ctx, cancel := db.Ctx()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	//ctx, cancel := db.Ctx()
 	defer cancel()
 
 	cfg := tg.NewClientConfigBuilder(config.Conf.ApiId, config.Conf.ApiHash).
@@ -80,8 +92,8 @@ func main() {
 	gologging.InfoF("The bot is running as @%s.", client.Me().Username)
 	_, _ = client.SendMessage(config.Conf.LoggerId, "The bot has started!")
 
-	// <-ctx.Done()
-	client.Idle()
+	<-ctx.Done()
+	//client.Idle()
 	gologging.InfoF("The bot is shutting down...")
 	vc.Calls.StopAllClients()
 	_ = client.Stop()

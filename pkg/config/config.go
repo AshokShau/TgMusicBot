@@ -32,6 +32,7 @@ type BotConfig struct {
 	DEVS           []int64  // DEVS is a list of developer user IDs.
 	CookiesPath    []string // CookiesPath is a list of paths to cookies files.
 	cookiesUrl     []string // cookiesUrl is a list of URLs to cookies files.
+	Port           string
 }
 
 // Conf is the global configuration for the bot.
@@ -61,6 +62,7 @@ func LoadConfig() error {
 		SupportGroup:   getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
 		SupportChannel: getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
 		cookiesUrl:     processCookieURLs(os.Getenv("COOKIES_URL")),
+		Port:           getEnvStr("PORT", "5068"),
 	}
 
 	// Parse DEVS list
