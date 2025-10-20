@@ -75,6 +75,7 @@ Copy `.env.sample` → `.env` and fill the required values:
 | `MONGO_URI`       | MongoDB connection string    | [MongoDB Atlas](https://cloud.mongodb.com)      |
 | `OWNER_ID`        | Your Telegram user ID        | [@userinfobot](https://t.me/userinfobot)        |
 | `LOGGER_ID`       | Group chat ID for logs       | Add bot to group & check `chat_id`              |
+| `SESSION_TYPE`    | Type of session string       | `pyrogram` (default), `telethon`, or `gogram`   |
 
 ---
 

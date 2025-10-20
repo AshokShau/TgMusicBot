@@ -30,6 +30,7 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg/core/dl"
 	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc/ntgcalls"
+	"github.com/AshokShau/TgMusicBot/pkg/vc/sessions"
 	"github.com/AshokShau/TgMusicBot/pkg/vc/ubot"
 
 	"github.com/Laky-64/gologging"
@@ -99,22 +100,41 @@ func (c *TelegramCalls) GetGroupAssistant(chatID int64) (*ubot.Context, error) {
 
 // StartClient initializes a new userbot client and adds it to the pool of available assistants.
 // It authenticates with Telegram using the provided API ID, API hash, and session string.
+// The session type is determined by the configuration (pyrogram, telethon, or gogram).
 func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) (*ubot.Context, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	clientName := fmt.Sprintf("client%d", c.clientCounter)
-	sess, err := decodePyrogramSessionString(stringSession)
-	if err != nil {
-		return nil, fmt.Errorf("an error occurred while decoding the session string for %s: %v", clientName, err)
-	}
+	var sess *tg.Session
+	var err error
 
-	mtProto, err := tg.NewClient(tg.ClientConfig{
+	clientConfig := tg.ClientConfig{
 		AppID:         apiID,
 		AppHash:       apiHash,
-		StringSession: sess.Encode(),
 		MemorySession: true,
-	})
+	}
+
+	switch config.Conf.SessionType {
+	case "telethon":
+		sess, err = sessions.DecodeTelethonSessionString(stringSession)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode telethon session string for %s: %w", clientName, err)
+		}
+		clientConfig.StringSession = sess.Encode()
+	case "pyrogram":
+		sess, err = sessions.DecodePyrogramSessionString(stringSession)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode pyrogram session string for %s: %w", clientName, err)
+		}
+		clientConfig.StringSession = sess.Encode()
+	case "gogram":
+		clientConfig.StringSession = stringSession
+	default:
+		return nil, fmt.Errorf("unsupported session type: %s", config.Conf.SessionType)
+	}
+
+	mtProto, err := tg.NewClient(clientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the MTProto client: %w", err)
 	}

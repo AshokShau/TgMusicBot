@@ -132,6 +132,15 @@ func (c *BotConfig) validate() error {
 		return fmt.Errorf("at least one session string (STRING1–10) is required")
 	}
 
+	// Validate session type
+	c.SessionType = strings.ToLower(strings.TrimSpace(c.SessionType))
+	switch c.SessionType {
+	case "pyrogram", "telethon", "gogram":
+		// Valid session type
+	default:
+		return fmt.Errorf("invalid SESSION_TYPE: %s, must be one of: pyrogram, telethon, gogram", c.SessionType)
+	}
+
 	if err := os.MkdirAll(c.DownloadsDir, 0750); err != nil {
 		return fmt.Errorf("failed to create downloads dir: %v", err)
 	}
