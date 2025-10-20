@@ -23,14 +23,25 @@ import (
 func searchYouTube(query string) ([]cache.MusicTrack, error) {
 	query = strings.ReplaceAll(query, " ", "+")
 	url := "https://www.youtube.com/results?search_query=" + query
-	req, _ := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64)")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
 
 	re := regexp.MustCompile(`var ytInitialData = (.*?);\s*</script>`)
 	match := re.FindSubmatch(body)
