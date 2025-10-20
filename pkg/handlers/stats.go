@@ -35,6 +35,12 @@ type AppStats struct {
 	SystemMemTotal  string
 	SystemDiskUsed  string
 	SystemDiskTotal string
+	Alloc           string
+	TotalAlloc      string
+	Sys             string
+	NumGC           uint32
+	LastGC          string
+	GCTotalPause    string
 }
 
 // Converts bytes to human-readable string.
@@ -95,9 +101,25 @@ func gatherAppStats() (*AppStats, error) {
 	}
 	diskUsage, _ := disk.Usage(rootPath)
 
+	// Get memory stats
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	// Get GC stats
+	var lastGC time.Time
+	if memStats.LastGC > 0 {
+		lastGC = time.Unix(0, int64(memStats.LastGC))
+	}
+
 	stats := &AppStats{
 		Uptime:          time.Since(startTime).Round(time.Second).String(),
 		ProcessID:       pid,
+		Alloc:           humanBytes(memStats.Alloc),
+		TotalAlloc:      humanBytes(memStats.TotalAlloc),
+		Sys:             humanBytes(memStats.Sys),
+		NumGC:           memStats.NumGC,
+		LastGC:          lastGC.Format("2006-01-02 15:04:05 -0700"),
+		GCTotalPause:    (time.Duration(memStats.PauseTotalNs) * time.Nanosecond).String(),
 		NumGoroutines:   runtime.NumGoroutine(),
 		CPUPercent:      cpuPercent,
 		MemUsed:         humanBytes(memInfo.RSS),
@@ -156,7 +178,19 @@ func sysStatsHandler(msg *telegram.NewMessage) error {
 	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_go_version"), info.GoVersion))
 	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_platform"), info.OS, info.Arch))
 
-	sb.WriteString(lang.GetString(langCode, "stats_server_header"))
+	// Memory allocation stats
+	sb.WriteString(lang.GetString(langCode, "stats_memory_header"))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_memory_alloc"), info.Alloc))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_memory_total_alloc"), info.TotalAlloc))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_memory_sys"), info.Sys))
+
+	// GC stats
+	sb.WriteString(lang.GetString(langCode, "stats_gc_header"))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_gc_count"), info.NumGC))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_gc_last"), info.LastGC))
+	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_gc_pause"), info.GCTotalPause))
+
+	sb.WriteString("\n" + lang.GetString(langCode, "stats_server_header"))
 	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_cpu"), info.SystemCPUUsage))
 	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_ram"), info.SystemMemUsed, info.SystemMemTotal))
 	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_disk"), info.SystemDiskUsed, info.SystemDiskTotal))
