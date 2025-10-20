@@ -16,6 +16,7 @@ import (
 
 	"github.com/AshokShau/TgMusicBot/pkg/config"
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
+	"github.com/Laky-64/gologging"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -24,14 +25,14 @@ import (
 
 // Database encapsulates the MongoDB connection, database, collections, and caches.
 type Database struct {
-	Client    *mongo.Client
+	client    *mongo.Client
 	DB        *mongo.Database
-	ChatDB    *mongo.Collection
-	UserDB    *mongo.Collection
-	BotDB     *mongo.Collection
-	ChatCache *cache.Cache[map[string]interface{}]
-	BotCache  *cache.Cache[map[string]interface{}]
-	UserCache *cache.Cache[map[string]interface{}]
+	chatDB    *mongo.Collection
+	userDB    *mongo.Collection
+	botDB     *mongo.Collection
+	chatCache *cache.Cache[map[string]interface{}]
+	botCache  *cache.Cache[map[string]interface{}]
+	userCache *cache.Cache[map[string]interface{}]
 }
 
 // Instance is the global singleton for the database.
@@ -48,14 +49,14 @@ func InitDatabase(ctx context.Context) error {
 	db := client.Database(config.Conf.DbName)
 
 	Instance = &Database{
-		Client:    client,
+		client:    client,
 		DB:        db,
-		ChatDB:    db.Collection("chats"),
-		UserDB:    db.Collection("users"),
-		BotDB:     db.Collection("bot"),
-		ChatCache: cache.NewCache[map[string]interface{}](20 * time.Minute),
-		BotCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
-		UserCache: cache.NewCache[map[string]interface{}](20 * time.Minute),
+		chatDB:    db.Collection("chats"),
+		userDB:    db.Collection("users"),
+		botDB:     db.Collection("bot"),
+		chatCache: cache.NewCache[map[string]interface{}](20 * time.Minute),
+		botCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
+		userCache: cache.NewCache[map[string]interface{}](20 * time.Minute),
 	}
 
 	if err := Instance.Ping(ctx); err != nil {
@@ -69,7 +70,7 @@ func InitDatabase(ctx context.Context) error {
 // Ping verifies the connection to the MongoDB server.
 // It returns an error if the connection is not active.
 func (db *Database) Ping(ctx context.Context) error {
-	return db.Client.Ping(ctx, nil)
+	return db.client.Ping(ctx, nil)
 }
 
 // ----------------- CHAT -----------------
@@ -78,12 +79,12 @@ func (db *Database) Ping(ctx context.Context) error {
 // It returns a map representing the chat data, or nil if not found.
 func (db *Database) GetChat(ctx context.Context, chatID int64) (map[string]interface{}, error) {
 	key := toKey(chatID)
-	if cached, ok := db.ChatCache.Get(key); ok {
+	if cached, ok := db.chatCache.Get(key); ok {
 		return cached, nil
 	}
 
 	var chat map[string]interface{}
-	err := db.ChatDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&chat)
+	err := db.chatDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&chat)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, nil
 	} else if err != nil {
@@ -91,7 +92,7 @@ func (db *Database) GetChat(ctx context.Context, chatID int64) (map[string]inter
 		return nil, err
 	}
 
-	db.ChatCache.Set(key, chat)
+	db.chatCache.Set(key, chat)
 	return chat, nil
 }
 
@@ -101,7 +102,7 @@ func (db *Database) AddChat(ctx context.Context, chatID int64) error {
 	if chat != nil {
 		return nil // Chat already exists.
 	}
-	_, err := db.ChatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.Update().SetUpsert(true))
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.Update().SetUpsert(true))
 	if err == nil {
 		log.Printf("[DB] A new chat has been added: %d", chatID)
 	}
@@ -110,31 +111,31 @@ func (db *Database) AddChat(ctx context.Context, chatID int64) error {
 
 // updateChatField updates a specific field in a chat's document.
 func (db *Database) updateChatField(ctx context.Context, chatID int64, key string, value interface{}) error {
-	_, err := db.ChatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{key: value}}, options.Update().SetUpsert(true))
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{key: value}}, options.Update().SetUpsert(true))
 	if err != nil {
 		return err
 	}
-	cached, _ := db.ChatCache.Get(toKey(chatID))
+	cached, _ := db.chatCache.Get(toKey(chatID))
 	if cached == nil {
 		cached = make(map[string]interface{})
 	}
 	cached[key] = value
-	db.ChatCache.Set(toKey(chatID), cached)
+	db.chatCache.Set(toKey(chatID), cached)
 	return nil
 }
 
 // updateUserField updates a specific field in a user's document.
 func (db *Database) updateUserField(ctx context.Context, userID int64, key string, value interface{}) error {
-	_, err := db.UserDB.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": bson.M{key: value}}, options.Update().SetUpsert(true))
+	_, err := db.userDB.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": bson.M{key: value}}, options.Update().SetUpsert(true))
 	if err != nil {
 		return err
 	}
-	cached, _ := db.UserCache.Get(toKey(userID))
+	cached, _ := db.userCache.Get(toKey(userID))
 	if cached == nil {
 		cached = make(map[string]interface{})
 	}
 	cached[key] = value
-	db.UserCache.Set(toKey(userID), cached)
+	db.userCache.Set(toKey(userID), cached)
 	return nil
 }
 
@@ -211,7 +212,24 @@ func (db *Database) SetAssistant(ctx context.Context, chatID int64, assistant st
 
 // RemoveAssistant removes the assistant from a chat's settings.
 func (db *Database) RemoveAssistant(ctx context.Context, chatID int64) error {
-	return db.updateChatField(ctx, chatID, "assistant", nil)
+	return db.updateChatField(ctx, chatID, "assistant", "")
+}
+
+// ClearAllAssistants removes the assistant field from all chat documents in the database.
+func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
+	result, err := db.chatDB.UpdateMany(
+		ctx,
+		bson.M{"assistant": bson.M{"$exists": true}},
+		bson.M{"$unset": bson.M{"assistant": ""}},
+	)
+
+	if err != nil {
+		gologging.WarnF("[DB] Error clearing assistants: %v", err)
+		return 0, err
+	}
+
+	db.chatCache.Clear()
+	return result.ModifiedCount, nil
 }
 
 // SetUserLang sets the language for a given user.
@@ -222,14 +240,14 @@ func (db *Database) SetUserLang(ctx context.Context, userID int64, lang string) 
 // getUserLang retrieves the language for a user.
 func (db *Database) getUserLang(ctx context.Context, userID int64) string {
 	key := toKey(userID)
-	if cached, ok := db.UserCache.Get(key); ok {
+	if cached, ok := db.userCache.Get(key); ok {
 		if val, ok := cached["language"].(string); ok {
 			return val
 		}
 	}
 
 	var user map[string]interface{}
-	err := db.UserDB.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	err := db.userDB.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
 	if err != nil {
 		return "en"
 	}
@@ -269,7 +287,7 @@ func (db *Database) GetLang(ctx context.Context, chatID int64) string {
 
 // AddAuthUser adds a user to the list of authorized users for a chat.
 func (db *Database) AddAuthUser(ctx context.Context, chatID, userID int64) error {
-	_, err := db.ChatDB.UpdateOne(ctx,
+	_, err := db.chatDB.UpdateOne(ctx,
 		bson.M{"_id": chatID},
 		bson.M{"$addToSet": bson.M{"auth_users": userID}},
 		options.Update().SetUpsert(true),
@@ -283,13 +301,13 @@ func (db *Database) AddAuthUser(ctx context.Context, chatID, userID int64) error
 		authUsers = append(authUsers, userID)
 	}
 	chat["auth_users"] = authUsers
-	db.ChatCache.Set(toKey(chatID), chat)
+	db.chatCache.Set(toKey(chatID), chat)
 	return nil
 }
 
 // RemoveAuthUser removes a user from the list of authorized users for a chat.
 func (db *Database) RemoveAuthUser(ctx context.Context, chatID, userID int64) error {
-	_, err := db.ChatDB.UpdateOne(ctx,
+	_, err := db.chatDB.UpdateOne(ctx,
 		bson.M{"_id": chatID},
 		bson.M{"$pull": bson.M{"auth_users": userID}},
 	)
@@ -300,7 +318,7 @@ func (db *Database) RemoveAuthUser(ctx context.Context, chatID, userID int64) er
 	authUsers, _ := getIntSlice(chat["auth_users"])
 	authUsers = remove(authUsers, userID)
 	chat["auth_users"] = authUsers
-	db.ChatCache.Set(toKey(chatID), chat)
+	db.chatCache.Set(toKey(chatID), chat)
 	return nil
 }
 
@@ -341,14 +359,14 @@ func (db *Database) IsAdmin(ctx context.Context, chatID, userID int64) bool {
 // It returns true if the logger is enabled, and false otherwise.
 func (db *Database) GetLoggerStatus(ctx context.Context, botID int64) bool {
 	key := toKey(botID)
-	if cached, ok := db.BotCache.Get(key); ok {
+	if cached, ok := db.botCache.Get(key); ok {
 		if v, ok := cached["logger"].(bool); ok {
 			return v
 		}
 	}
 
 	var data map[string]interface{}
-	_ = db.BotDB.FindOne(ctx, bson.M{"_id": botID}).Decode(&data)
+	_ = db.botDB.FindOne(ctx, bson.M{"_id": botID}).Decode(&data)
 
 	status := false
 	if val, ok := data["logger"].(bool); ok {
@@ -356,24 +374,24 @@ func (db *Database) GetLoggerStatus(ctx context.Context, botID int64) bool {
 	}
 
 	cached := map[string]interface{}{"logger": status}
-	db.BotCache.Set(key, cached)
+	db.botCache.Set(key, cached)
 	return status
 }
 
 // SetLoggerStatus enables or disables the logger for a bot.
 func (db *Database) SetLoggerStatus(ctx context.Context, botID int64, status bool) error {
-	_, err := db.BotDB.UpdateOne(ctx,
+	_, err := db.botDB.UpdateOne(ctx,
 		bson.M{"_id": botID},
 		bson.M{"$set": bson.M{"logger": status}},
 		options.Update().SetUpsert(true),
 	)
 	if err == nil {
-		cached, _ := db.BotCache.Get(toKey(botID))
+		cached, _ := db.botCache.Get(toKey(botID))
 		if cached == nil {
 			cached = map[string]interface{}{}
 		}
 		cached["logger"] = status
-		db.BotCache.Set(toKey(botID), cached)
+		db.botCache.Set(toKey(botID), cached)
 	}
 	return err
 }
@@ -385,12 +403,12 @@ func (db *Database) AddUser(ctx context.Context, userID int64) error {
 	key := toKey(userID)
 
 	// Check cache first to avoid unnecessary database operations.
-	if _, ok := db.UserCache.Get(key); ok {
+	if _, ok := db.userCache.Get(key); ok {
 		return nil
 	}
 
 	// Upsert in the database to ensure the user is added.
-	_, err := db.UserDB.UpdateOne(ctx,
+	_, err := db.userDB.UpdateOne(ctx,
 		bson.M{"_id": userID},
 		bson.M{"$setOnInsert": bson.M{}},
 		options.Update().SetUpsert(true),
@@ -400,7 +418,7 @@ func (db *Database) AddUser(ctx context.Context, userID int64) error {
 	}
 
 	// Update the cache to reflect the new user.
-	db.UserCache.Set(key, map[string]interface{}{})
+	db.userCache.Set(key, map[string]interface{}{})
 	return nil
 }
 
@@ -409,13 +427,13 @@ func (db *Database) RemoveUser(ctx context.Context, userID int64) error {
 	key := toKey(userID)
 
 	// Delete from the database.
-	_, err := db.UserDB.DeleteOne(ctx, bson.M{"_id": userID})
+	_, err := db.userDB.DeleteOne(ctx, bson.M{"_id": userID})
 	if err != nil {
 		return err
 	}
 
 	// Delete from the cache.
-	db.UserCache.Delete(key)
+	db.userCache.Delete(key)
 	return nil
 }
 
@@ -425,13 +443,13 @@ func (db *Database) IsUserExist(ctx context.Context, userID int64) (bool, error)
 	key := toKey(userID)
 
 	// Check the cache first.
-	if _, ok := db.UserCache.Get(key); ok {
+	if _, ok := db.userCache.Get(key); ok {
 		return true, nil
 	}
 
 	// If not in cache, check the database.
 	var result bson.M
-	err := db.UserDB.FindOne(ctx, bson.M{"_id": userID}).Decode(&result)
+	err := db.userDB.FindOne(ctx, bson.M{"_id": userID}).Decode(&result)
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return false, nil
 	} else if err != nil {
@@ -439,13 +457,13 @@ func (db *Database) IsUserExist(ctx context.Context, userID int64) (bool, error)
 	}
 
 	// If found, add to cache.
-	db.UserCache.Set(key, map[string]interface{}{})
+	db.userCache.Set(key, map[string]interface{}{})
 	return true, nil
 }
 
 // GetAllChats retrieves a list of all chat IDs from the database.
 func (db *Database) GetAllChats(ctx context.Context) ([]int64, error) {
-	cursor, err := db.ChatDB.Find(ctx, bson.M{})
+	cursor, err := db.chatDB.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
@@ -462,7 +480,7 @@ func (db *Database) GetAllChats(ctx context.Context) ([]int64, error) {
 		chats = append(chats, doc.ID)
 
 		// Cache each chat to optimize future lookups.
-		db.ChatCache.Set(toKey(doc.ID), map[string]interface{}{})
+		db.chatCache.Set(toKey(doc.ID), map[string]interface{}{})
 	}
 	if err := cursor.Err(); err != nil {
 		return nil, err
@@ -472,7 +490,7 @@ func (db *Database) GetAllChats(ctx context.Context) ([]int64, error) {
 
 // GetAllUsers retrieves a list of all user IDs from the database.
 func (db *Database) GetAllUsers(ctx context.Context) ([]int64, error) {
-	cursor, err := db.UserDB.Find(ctx, bson.M{})
+	cursor, err := db.userDB.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +507,7 @@ func (db *Database) GetAllUsers(ctx context.Context) ([]int64, error) {
 		users = append(users, doc.ID)
 
 		// Cache each user to optimize future lookups.
-		db.UserCache.Set(toKey(doc.ID), map[string]interface{}{})
+		db.userCache.Set(toKey(doc.ID), map[string]interface{}{})
 	}
 	if err := cursor.Err(); err != nil {
 		return nil, err
@@ -500,5 +518,5 @@ func (db *Database) GetAllUsers(ctx context.Context) ([]int64, error) {
 // Close gracefully closes the database connection.
 func (db *Database) Close(ctx context.Context) error {
 	log.Println("[DB] Closing the database connection...")
-	return db.Client.Disconnect(ctx)
+	return db.client.Disconnect(ctx)
 }

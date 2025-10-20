@@ -165,7 +165,7 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) 
 	c.availableClients = append(c.availableClients, clientName)
 	c.clientCounter++
 
-	gologging.InfoF("[TelegramCalls] Client %s has started successfully.", clientName)
+	gologging.InfoF("[TelegramCalls] client %s has started successfully.", clientName)
 	return call, nil
 }
 
