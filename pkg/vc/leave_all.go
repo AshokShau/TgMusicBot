@@ -11,6 +11,7 @@ package vc
 import (
 	"fmt"
 
+	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
 	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -34,6 +35,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 		}
 
 		gologging.InfoF("for %s found %d dialogs", userBot.Me().FirstName, len(dialogs))
+		activeChats := cache.ChatCache.GetActiveChats()
 
 		for _, d := range dialogs {
 			dialog := d.(*telegram.DialogObj)
@@ -53,6 +55,12 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 
 			if chatID == 0 {
 				continue
+			}
+
+			for _, activeChatID := range activeChats {
+				if activeChatID == chatID {
+					continue
+				}
 			}
 
 			err = userBot.LeaveChannel(chatID)
