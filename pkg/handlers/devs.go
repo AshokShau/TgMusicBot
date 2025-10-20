@@ -97,12 +97,17 @@ func leaveAllHandler(m *telegram.NewMessage) error {
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
 
-	leftCount, err := vc.Calls.LeaveAll()
+	reply, err := m.Reply(lang.GetString(langCode, "leave_all_start"))
 	if err != nil {
-		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "leave_all_error"), err.Error()))
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "leave_all_success"), leftCount))
+	leftCount, err := vc.Calls.LeaveAll()
+	if err != nil {
+		_, _ = reply.Edit(fmt.Sprintf(lang.GetString(langCode, "leave_all_error"), err.Error()))
+		return err
+	}
+
+	_, err = reply.Edit(fmt.Sprintf(lang.GetString(langCode, "leave_all_success"), leftCount))
 	return err
 }

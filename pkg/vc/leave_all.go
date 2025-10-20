@@ -10,6 +10,8 @@ package vc
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
 	"github.com/Laky-64/gologging"
@@ -65,11 +67,15 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 
 			err = userBot.LeaveChannel(chatID)
 			if err != nil {
+				if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") || strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
+					continue
+				}
 				gologging.WarnF("Failed to leave chat %d: %v", chatID, err)
 				continue
 			}
 
 			leftCount++
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 
