@@ -311,14 +311,18 @@ func (ctx *Client) StopPresentation(chatId int64) error {
 func (ctx *Client) AddIncomingVideo(chatId int64, endpoint string, ssrcGroups []SsrcGroup) (uint32, error) {
 	buffer := new(C.uint32_t)
 	f := CreateFuture()
-	C.ntg_add_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(endpoint), parseSsrcGroups(ssrcGroups), C.int(len(ssrcGroups)), buffer, f.ParseToC())
+	cEndpoint := C.CString(endpoint)
+	defer C.free(unsafe.Pointer(cEndpoint))
+	C.ntg_add_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), cEndpoint, parseSsrcGroups(ssrcGroups), C.int(len(ssrcGroups)), buffer, f.ParseToC())
 	f.wait()
 	return uint32(*buffer), parseErrorCode(f)
 }
 
 func (ctx *Client) RemoveIncomingVideo(chatId int64, endpoint string) error {
 	f := CreateFuture()
-	C.ntg_remove_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(endpoint), f.ParseToC())
+	cEndpoint := C.CString(endpoint)
+	defer C.free(unsafe.Pointer(cEndpoint))
+	C.ntg_remove_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), cEndpoint, f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
 }
@@ -393,14 +397,18 @@ func GetProtocol() Protocol {
 
 func (ctx *Client) Connect(chatId int64, params string, isPresentation bool) error {
 	f := CreateFuture()
-	C.ntg_connect(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(params), C.bool(isPresentation), f.ParseToC())
+	cParams := C.CString(params)
+	defer C.free(unsafe.Pointer(cParams))
+	C.ntg_connect(C.uintptr_t(ctx.ptr), C.int64_t(chatId), cParams, C.bool(isPresentation), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
 }
 
 func (ctx *Client) SetStreamSources(chatId int64, streamMode StreamMode, desc MediaDescription) error {
 	f := CreateFuture()
-	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), desc.ParseToC(), f.ParseToC())
+	cDesc := desc.ParseToC()
+	defer freeMediaDescription(cDesc)
+	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), cDesc, f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
 }

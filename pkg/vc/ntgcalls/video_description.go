@@ -11,6 +11,7 @@ package ntgcalls
 //#include "ntgcalls.h"
 //#include <stdlib.h>
 import "C"
+import "unsafe"
 
 type VideoDescription struct {
 	MediaSource   MediaSource
@@ -19,12 +20,17 @@ type VideoDescription struct {
 	Fps           uint8
 }
 
-func (ctx *VideoDescription) ParseToC() C.ntg_video_description_struct {
-	var x C.ntg_video_description_struct
-	x.mediaSource = ctx.MediaSource.ParseToC()
-	x.input = C.CString(ctx.Input)
-	x.width = C.int16_t(ctx.Width)
-	x.height = C.int16_t(ctx.Height)
-	x.fps = C.uint8_t(ctx.Fps)
-	return x
+func (ctx *VideoDescription) ParseToC() *C.ntg_video_description_struct {
+	cStruct := (*C.ntg_video_description_struct)(C.malloc(C.sizeof_ntg_video_description_struct))
+	cStruct.mediaSource = ctx.MediaSource.ParseToC()
+	cStruct.input = C.CString(ctx.Input)
+	cStruct.width = C.int16_t(ctx.Width)
+	cStruct.height = C.int16_t(ctx.Height)
+	cStruct.fps = C.uint8_t(ctx.Fps)
+	return cStruct
+}
+
+func freeVideoDescription(cStruct *C.ntg_video_description_struct) {
+	C.free(unsafe.Pointer(cStruct.input))
+	C.free(unsafe.Pointer(cStruct))
 }

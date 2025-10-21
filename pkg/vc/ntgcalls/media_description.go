@@ -10,6 +10,7 @@ package ntgcalls
 
 //#include "ntgcalls.h"
 import "C"
+import "unsafe"
 
 type MediaDescription struct {
 	Microphone *AudioDescription
@@ -21,20 +22,31 @@ type MediaDescription struct {
 func (ctx *MediaDescription) ParseToC() C.ntg_media_description_struct {
 	var x C.ntg_media_description_struct
 	if ctx.Microphone != nil {
-		microphone := ctx.Microphone.ParseToC()
-		x.microphone = &microphone
+		x.microphone = ctx.Microphone.ParseToC()
 	}
 	if ctx.Speaker != nil {
-		speaker := ctx.Speaker.ParseToC()
-		x.speaker = &speaker
+		x.speaker = ctx.Speaker.ParseToC()
 	}
 	if ctx.Camera != nil {
-		camera := ctx.Camera.ParseToC()
-		x.camera = &camera
+		x.camera = ctx.Camera.ParseToC()
 	}
 	if ctx.Screen != nil {
-		screen := ctx.Screen.ParseToC()
-		x.screen = &screen
+		x.screen = ctx.Screen.ParseToC()
 	}
 	return x
+}
+
+func freeMediaDescription(cStruct C.ntg_media_description_struct) {
+	if cStruct.microphone != nil {
+		freeAudioDescription((*C.ntg_audio_description_struct)(unsafe.Pointer(cStruct.microphone)))
+	}
+	if cStruct.speaker != nil {
+		freeAudioDescription((*C.ntg_audio_description_struct)(unsafe.Pointer(cStruct.speaker)))
+	}
+	if cStruct.camera != nil {
+		freeVideoDescription((*C.ntg_video_description_struct)(unsafe.Pointer(cStruct.camera)))
+	}
+	if cStruct.screen != nil {
+		freeVideoDescription((*C.ntg_video_description_struct)(unsafe.Pointer(cStruct.screen)))
+	}
 }

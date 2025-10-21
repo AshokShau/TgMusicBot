@@ -20,9 +20,27 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg/core/dl"
 	"github.com/AshokShau/TgMusicBot/pkg/vc/ntgcalls"
 
+	"os/exec"
+	"strconv"
+
 	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
+
+func getVideoDimensions(filePath string) (int, int) {
+	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", filePath)
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, 0
+	}
+	dimensions := strings.Split(strings.TrimSpace(string(out)), "x")
+	if len(dimensions) != 2 {
+		return 0, 0
+	}
+	width, _ := strconv.Atoi(dimensions[0])
+	height, _ := strconv.Atoi(dimensions[1])
+	return width, height
+}
 
 // getMediaDescription creates a media description for ntgcalls based on the provided file path, video status, and ffmpeg parameters.
 func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string) ntgcalls.MediaDescription {
@@ -71,10 +89,36 @@ func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string)
 		}
 	}
 
+	originalWidth, originalHeight := getVideoDimensions(filePath)
+
+	width := 1280
+	height := 720
+
+	if originalWidth > 0 && originalHeight > 0 {
+		ratio := float64(originalWidth) / float64(originalHeight)
+		newW := min(originalWidth, width)
+		newH := int(float64(newW) / ratio)
+
+		if newH > height {
+			newH = height
+			newW = int(float64(newH) * ratio)
+		}
+
+		if newW%2 != 0 {
+			newW--
+		}
+		if newH%2 != 0 {
+			newH--
+		}
+
+		width = newW
+		height = newH
+	}
+
 	videoDescription := &ntgcalls.VideoDescription{
 		MediaSource: ntgcalls.MediaSourceShell,
-		Width:       1280,
-		Height:      720,
+		Width:       int16(width),
+		Height:      int16(height),
 		Fps:         30,
 	}
 
