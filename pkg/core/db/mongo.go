@@ -217,6 +217,26 @@ func (db *Database) RemoveAssistant(ctx context.Context, chatID int64) error {
 
 // ClearAllAssistants removes the assistant field from all chat documents in the database.
 func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
+	// Find all chat IDs with an assistant field
+	cursor, err := db.chatDB.Find(
+		ctx,
+		bson.M{"assistant": bson.M{"$exists": true}},
+	)
+	if err != nil {
+		gologging.WarnF("[DB] Error finding chats with assistants: %v", err)
+		return 0, err
+	}
+	defer cursor.Close(ctx)
+	var chatIDs []int64
+	for cursor.Next(ctx) {
+		var chatDoc struct {
+			ID int64 `bson:"_id"`
+		}
+		if err := cursor.Decode(&chatDoc); err == nil {
+			chatIDs = append(chatIDs, chatDoc.ID)
+		}
+	}
+	// Remove assistant field from all matching chats
 	result, err := db.chatDB.UpdateMany(
 		ctx,
 		bson.M{"assistant": bson.M{"$exists": true}},
@@ -226,8 +246,9 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		gologging.WarnF("[DB] Error clearing assistants: %v", err)
 		return 0, err
 	}
-
-	db.chatCache.Clear()
+	for _, chatID := range chatIDs {
+		db.chatCache.Delete(toKey(chatID))
+	}
 	return result.ModifiedCount, nil
 }
 

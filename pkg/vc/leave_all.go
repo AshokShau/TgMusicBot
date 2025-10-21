@@ -36,7 +36,10 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 		}
 
 		gologging.InfoF("for %s found %d dialogs", userBot.Me().FirstName, len(dialogs))
-		activeChats := cache.ChatCache.GetActiveChats()
+		activeChats := make(map[int64]bool)
+		for _, id := range cache.ChatCache.GetActiveChats() {
+			activeChats[id] = true
+		}
 
 		for _, d := range dialogs {
 			dialog := d.(*telegram.DialogObj)
@@ -58,10 +61,9 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 				continue
 			}
 
-			for _, activeChatID := range activeChats {
-				if activeChatID == chatID {
-					continue
-				}
+			// Skip if this is an active chat
+			if activeChats[chatID] {
+				continue
 			}
 
 			err = userBot.LeaveChannel(chatID)
