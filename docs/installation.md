@@ -85,12 +85,39 @@ Deploying with Docker is the easiest and recommended method.
     docker run -d --name tgmusicbot --env-file .env --restart unless-stopped tgmusicbot
     ```
 
+#### 🔍 Monitoring
+1. Check logs:
+   ```sh
+   docker logs -f tgmusicbot
+   ```
+   (Exit with `Ctrl+C`)
+
+### ⚙️ Management Commands
+- **Stop container**:
+  ```sh
+  docker stop tgmusicbot
+  ```
+
+- **Start container**:
+  ```sh
+  docker start tgmusicbot
+  ```
+
+- **Update the bot**:
+  ```sh
+  docker stop tgmusicbot
+  docker rm tgmusicbot
+  git pull origin master
+  docker build -t tgmusicbot .
+  docker run -d --name tgmusicbot --env-file .env --restart unless-stopped tgmusicbot
+  ```
+  
 ### 🔧 Manual Installation
 
 #### 🐧 Linux / macOS
 
 ##### Prerequisites
-- [Go](https://golang.org/doc/install) (version 1.18 or higher)
+- [Go](https://golang.org/doc/install) (version 1.24.4 or higher)
 - [FFmpeg](https://ffmpeg.org/download.html)
 
 ##### Steps
@@ -120,7 +147,7 @@ Deploying with Docker is the easiest and recommended method.
 #### 🪟 Windows
 
 ##### Prerequisites
-- [Go](https://golang.org/doc/install) (version 1.18 or higher)
+- [Go](https://golang.org/doc/install) (version 1.24.4 or higher)
 - [FFmpeg](https://ffmpeg.org/download.html)
 
 ##### Steps

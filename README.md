@@ -66,17 +66,19 @@ The guide provides comprehensive instructions for deploying the bot using:
 
 Copy `sample.env` → `.env` and fill the required values:
 
-| Variable       | Description                  | How to Get                                           |
-|----------------|------------------------------|------------------------------------------------------|
-| `API_ID`       | Your Telegram app’s API ID   | [my.telegram.org](https://my.telegram.org/apps)      |
-| `API_HASH`     | Your Telegram app’s API hash | [my.telegram.org](https://my.telegram.org/apps)      |
-| `TOKEN`        | Your bot token               | [@BotFather](https://t.me/BotFather)                 |
-| `STRING1`      | Your user session string     | Your 2nd acc. string session                         |
-| `MONGO_URI`    | MongoDB connection string    | [MongoDB Atlas](https://cloud.mongodb.com)           |
-| `OWNER_ID`     | Your Telegram user ID        | [@GuardXRobot](https://t.me/GuardxRobot)  > /id      |
-| `LOGGER_ID`    | Group chat ID for logs       | Add bot to group & check `chat_id`                   |
-| `SESSION_TYPE` | Type of session string       | `pyrogram` (default), `telethon`, or `gogram`        |
-| `API_KEY`      | Your API key                 | [@FallenApiBot](https://t.me/FallenApiBot) > /apikey |
+| Variable       | Description                  | How to Get                                                                                                                                                              |
+|----------------|------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `API_ID`       | Your Telegram app’s API ID   | [my.telegram.org](https://my.telegram.org/apps)                                                                                                                         |
+| `API_HASH`     | Your Telegram app’s API hash | [my.telegram.org](https://my.telegram.org/apps)                                                                                                                         |
+| `TOKEN`        | Your bot token               | [@BotFather](https://t.me/BotFather)                                                                                                                                    |
+| `STRING1`      | Your user session string     | Your 2nd acc. string session                                                                                                                                            |
+| `MONGO_URI`    | MongoDB connection string    | [MongoDB Atlas](https://cloud.mongodb.com)                                                                                                                              |
+| `OWNER_ID`     | Your Telegram user ID        | [@GuardXRobot](https://t.me/GuardxRobot)  > /id                                                                                                                         |
+| `LOGGER_ID`    | Group chat ID for logs       | Add bot to group & check `chat_id`                                                                                                                                      |
+| `SESSION_TYPE` | Type of session string       | `pyrogram` (default), `telethon`, or `gogram`                                                                                                                           |
+| `API_KEY`      | Your API key                 | [@FallenApiBot](https://t.me/FallenApiBot) > /apikey                                                                                                                    |
+| `COOKIES_URL`  | Cookies URL for the bot      | [![Cookie Guide](https://img.shields.io/badge/Guide-Read%20Here-blue?style=flat-square)](https://github.com/AshokShau/TgMusicBot/blob/python/TgMusic/cookies/README.md) |
+
 
 ---
 
