@@ -31,7 +31,6 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 			Limit:            -1,
 			SleepThresholdMs: 20,
 		})
-
 		if err != nil {
 			return leftCount, fmt.Errorf("failed to get dialogs: %w", err)
 		}

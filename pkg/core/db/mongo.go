@@ -222,7 +222,6 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		bson.M{"assistant": bson.M{"$exists": true}},
 		bson.M{"$unset": bson.M{"assistant": ""}},
 	)
-
 	if err != nil {
 		gologging.WarnF("[DB] Error clearing assistants: %v", err)
 		return 0, err
