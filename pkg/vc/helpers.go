@@ -30,12 +30,15 @@ func getVideoDimensions(filePath string) (int, int) {
 	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", filePath)
 	out, err := cmd.Output()
 	if err != nil {
+		gologging.WarnF("[getVideoDimensions] Failed to get video dimensions: %v", err)
 		return 0, 0
 	}
 	dimensions := strings.Split(strings.TrimSpace(string(out)), "x")
 	if len(dimensions) != 2 {
+		gologging.WarnF("[getVideoDimensions] Invalid video dimensions: %s", string(out))
 		return 0, 0
 	}
+	
 	width, _ := strconv.Atoi(dimensions[0])
 	height, _ := strconv.Atoi(dimensions[1])
 	return width, height
