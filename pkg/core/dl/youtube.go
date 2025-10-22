@@ -214,6 +214,7 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 		"--no-embed-metadata",
 		"--no-embed-chapters",
 		"--no-embed-subs",
+		"--extractor-args", "youtube:player_js_version=actual",
 		"-o", outputTemplate,
 	}
 
