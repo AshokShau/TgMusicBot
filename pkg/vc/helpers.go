@@ -38,7 +38,7 @@ func getVideoDimensions(filePath string) (int, int) {
 		gologging.WarnF("[getVideoDimensions] Invalid video dimensions: %s", string(out))
 		return 0, 0
 	}
-	
+
 	width, _ := strconv.Atoi(dimensions[0])
 	height, _ := strconv.Atoi(dimensions[1])
 	return width, height
