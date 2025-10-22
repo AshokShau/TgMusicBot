@@ -24,6 +24,7 @@ from pytgcalls.types import (
     UpdatedGroupCallParticipant,
     VideoQuality,
     stream,
+    StreamEnded,
 )
 
 from TgMusic.logger import LOGGER
@@ -225,6 +226,9 @@ class Calls:
             async def general_handler(_, update: Update, _call=_call):
                 try:
                     if isinstance(update, stream.StreamEnded):
+                        if update.stream_type == StreamEnded.Type.VIDEO:
+                            return
+
                         await self.play_next(update.chat_id)
                     elif isinstance(update, UpdatedGroupCallParticipant):
                         return
