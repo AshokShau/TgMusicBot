@@ -11,17 +11,16 @@ package vc
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/AshokShau/TgMusicBot/pkg/config"
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
 	"github.com/AshokShau/TgMusicBot/pkg/core/dl"
 	"github.com/AshokShau/TgMusicBot/pkg/vc/ntgcalls"
-
-	"os/exec"
-	"strconv"
 
 	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
