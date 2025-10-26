@@ -10,8 +10,6 @@ package main
 
 import (
 	"context"
-	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,9 +20,6 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg/core/db"
 	"github.com/AshokShau/TgMusicBot/pkg/lang"
 	"github.com/AshokShau/TgMusicBot/pkg/vc"
-
-	_ "net/http"
-	_ "net/http/pprof"
 
 	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -53,11 +48,6 @@ func main() {
 	if err := config.LoadConfig(); err != nil {
 		gologging.Fatal(err.Error())
 	}
-
-	go func() {
-		gologging.InfoF("[pprof] running on :%s", config.Conf.Port)
-		log.Println(http.ListenAndServe("0.0.0.0:"+config.Conf.Port, nil))
-	}()
 
 	err := lang.LoadTranslations()
 	if err != nil {
