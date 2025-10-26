@@ -28,11 +28,23 @@
     },
     "OWNER_ID": {
       "description": "The user ID of the bot owner.",
-      "required": true
+      "required": false,
+      "value": "5938660179"
     },
     "LOGGER_ID": {
       "description": "The group ID for the bot's logs.",
-      "required": true
+      "required": true,
+      "value": "-1002166934878"
+    },
+    "SESSION_TYPE": {
+      "description": "The session type (pyrogram, telethon, or gogram).",
+      "required": true,
+      "value": "pyrogram"
+    },
+    "MAX_FILE_SIZE": {
+      "description": "The maximum file size for downloads (in bytes).",
+      "required": false,
+      "value": "524288000"
     },
     "STRING1": {
       "description": "Pyrogram/Telethon/Gogram session string.",
@@ -80,7 +92,7 @@
       "value": "https://tgmusic.fallenapi.fun"
     },
     "API_KEY": {
-      "description": "API key for external services. @FallenApiBot -> /apikey",
+      "description": "API key for external services. Get you own from @FallenApiBot -> /apikey",
       "required": false
     },
     "DEFAULT_SERVICE": {
@@ -102,16 +114,18 @@
       "required": false
     },
     "COOKIES_URL": {
-      "description": "URL to a cookies file for yt-dlp.",
+      "description": "URL to a cookies file for yt-dlp. (vai batbin.me)",
       "required": false
     },
     "SUPPORT_GROUP": {
       "description": "Link to the support group.",
-      "required": false
+      "required": false,
+      "value": "https://t.me/GuardxSupport"
     },
     "SUPPORT_CHANNEL": {
       "description": "Link to the support channel.",
-      "required": false
+      "required": false,
+      "value": "https://t.me/FallenProjects"
     },
     "DEVS": {
       "description": "A space-separated list of developer user IDs.",
