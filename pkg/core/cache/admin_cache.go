@@ -62,7 +62,7 @@ func GetAdmins(client *telegram.Client, chatID int64, forceReload bool) ([]*tele
 // GetUserAdmin retrieves the participant information for a single administrator in a chat.
 // It accepts a Telegram client, a chat ID, a user ID, and a boolean to force a reload from the API.
 // It returns a telegram.Participant object or an error if the user is not an admin.
-func GetUserAdmin(client *telegram.Client, chatID int64, userID int64, forceReload bool) (*telegram.Participant, error) {
+func GetUserAdmin(client *telegram.Client, chatID, userID int64, forceReload bool) (*telegram.Participant, error) {
 	admins, err := GetAdmins(client, chatID, forceReload)
 	if err != nil {
 		gologging.WarnF("GetUserAdmin error: %v", err)
