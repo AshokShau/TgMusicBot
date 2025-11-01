@@ -60,7 +60,7 @@ The guide provides comprehensive instructions for deploying the bot using:
 
 You can also deploy this bot to Heroku.
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/AshokShau/TgMusicBot)
+[![Deploy](https://img.shields.io/badge/Deploy%20On%20Heroku-black?style=for-the-badge&logo=heroku)](https://heroku.com/deploy?template=https://github.com/AshokShau/TgMusicBot)
 
 ---
 
