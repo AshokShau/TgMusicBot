@@ -47,6 +47,7 @@ func GetAdmins(client *telegram.Client, chatID int64, forceReload bool) ([]*tele
 	opts := &telegram.ParticipantOptions{
 		Filter:           &telegram.ChannelParticipantsAdmins{},
 		SleepThresholdMs: 3000,
+		Limit:            -1,
 	}
 
 	admins, _, err := client.GetChatMembers(chatID, opts)
@@ -67,7 +68,7 @@ func GetUserAdmin(client *telegram.Client, chatID int64, userID int64, forceRelo
 		gologging.WarnF("GetUserAdmin error: %v", err)
 		// Cache a negative result for a short period to avoid repeated failed lookups.
 		cacheKey := fmt.Sprintf("admins:%d", chatID)
-		AdminCache.SetWithTTL(cacheKey, []*telegram.Participant{}, 10*time.Minute)
+		AdminCache.SetWithTTL(cacheKey, []*telegram.Participant{}, 20*time.Minute)
 		return nil, err
 	}
 
