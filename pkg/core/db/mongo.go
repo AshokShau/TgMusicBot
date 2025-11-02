@@ -17,10 +17,10 @@ import (
 	"github.com/AshokShau/TgMusicBot/pkg/config"
 	"github.com/AshokShau/TgMusicBot/pkg/core/cache"
 	"github.com/Laky-64/gologging"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // Database encapsulates the MongoDB connection, database, collections, and caches.
@@ -41,13 +41,12 @@ var Instance *Database
 // InitDatabase initializes the database connection and sets up the global instance.
 // It returns an error if the connection fails or pinging the database is unsuccessful.
 func InitDatabase(ctx context.Context) error {
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(config.Conf.MongoUri))
+	client, err := mongo.Connect(options.Client().ApplyURI(config.Conf.MongoUri))
 	if err != nil {
 		return err
 	}
 
 	db := client.Database(config.Conf.DbName)
-
 	Instance = &Database{
 		client:    client,
 		DB:        db,
@@ -102,7 +101,7 @@ func (db *Database) AddChat(ctx context.Context, chatID int64) error {
 	if chat != nil {
 		return nil // Chat already exists.
 	}
-	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.Update().SetUpsert(true))
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
 		log.Printf("[DB] A new chat has been added: %d", chatID)
 	}
@@ -111,7 +110,7 @@ func (db *Database) AddChat(ctx context.Context, chatID int64) error {
 
 // updateChatField updates a specific field in a chat's document.
 func (db *Database) updateChatField(ctx context.Context, chatID int64, key string, value interface{}) error {
-	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{key: value}}, options.Update().SetUpsert(true))
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{key: value}}, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		return err
 	}
@@ -126,7 +125,7 @@ func (db *Database) updateChatField(ctx context.Context, chatID int64, key strin
 
 // updateUserField updates a specific field in a user's document.
 func (db *Database) updateUserField(ctx context.Context, userID int64, key string, value interface{}) error {
-	_, err := db.userDB.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": bson.M{key: value}}, options.Update().SetUpsert(true))
+	_, err := db.userDB.UpdateOne(ctx, bson.M{"_id": userID}, bson.M{"$set": bson.M{key: value}}, options.UpdateOne().SetUpsert(true))
 	if err != nil {
 		return err
 	}
@@ -310,7 +309,7 @@ func (db *Database) AddAuthUser(ctx context.Context, chatID, userID int64) error
 	_, err := db.chatDB.UpdateOne(ctx,
 		bson.M{"_id": chatID},
 		bson.M{"$addToSet": bson.M{"auth_users": userID}},
-		options.Update().SetUpsert(true),
+		options.UpdateOne().SetUpsert(true),
 	)
 	if err != nil {
 		return err
@@ -365,7 +364,7 @@ func (db *Database) IsAuthUser(ctx context.Context, chatID, userID int64) bool {
 }
 
 // IsAdmin checks if a specific user is an administrator in a chat.
-func (db *Database) IsAdmin(ctx context.Context, chatID, userID int64) bool {
+func (db *Database) IsAdmin(_ context.Context, chatID, userID int64) bool {
 	admins, err := cache.GetChatAdmins(chatID)
 	if err != nil || admins == nil {
 		admins = []int64{}
@@ -403,7 +402,7 @@ func (db *Database) SetLoggerStatus(ctx context.Context, botID int64, status boo
 	_, err := db.botDB.UpdateOne(ctx,
 		bson.M{"_id": botID},
 		bson.M{"$set": bson.M{"logger": status}},
-		options.Update().SetUpsert(true),
+		options.UpdateOne().SetUpsert(true),
 	)
 	if err == nil {
 		cached, _ := db.botCache.Get(toKey(botID))
@@ -431,7 +430,7 @@ func (db *Database) AddUser(ctx context.Context, userID int64) error {
 	_, err := db.userDB.UpdateOne(ctx,
 		bson.M{"_id": userID},
 		bson.M{"$setOnInsert": bson.M{}},
-		options.Update().SetUpsert(true),
+		options.UpdateOne().SetUpsert(true),
 	)
 	if err != nil {
 		return err

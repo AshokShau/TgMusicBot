@@ -162,6 +162,7 @@ func playMode(m *telegram.NewMessage) bool {
 	if m.IsPrivate() {
 		return false
 	}
+
 	chatID, err := getPeerId(m.Client, m.ChatID())
 	if err != nil {
 		gologging.WarnF("getPeerId error: %v", err)
@@ -191,6 +192,7 @@ func playMode(m *telegram.NewMessage) bool {
 		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_no_invite_permission"))
 		return false
 	}
+
 	getPlayMode := db.Instance.GetPlayMode(ctx, chatID)
 	if getPlayMode != cache.Everyone {
 		admins, err := cache.GetAdmins(m.Client, chatID, false)
