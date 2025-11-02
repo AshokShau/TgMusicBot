@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Laky-64/gologging"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var ctxBg = context.Background()
@@ -36,7 +36,7 @@ func getIntSlice(v interface{}) ([]int64, bool) {
 		return val, true
 	case []interface{}:
 		return convertInterfaceSlice(val)
-	case primitive.A:
+	case bson.A:
 		return convertInterfaceSlice([]interface{}(val))
 	default:
 		gologging.InfoF("Unexpected type encountered in getIntSlice: %T", v)
