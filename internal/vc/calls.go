@@ -22,9 +22,10 @@ import "C"
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -80,7 +81,13 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 		}
 	}
 
-	newClient := c.availableClients[rand.Intn(len(c.availableClients))]
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(c.availableClients))))
+	if err != nil {
+		gologging.WarnF("[TelegramCalls] Could not generate a random number: %v", err)
+		return c.availableClients[0], nil
+	}
+	newClient := c.availableClients[n.Int64()]
+
 	if err := db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
 		gologging.InfoF("[TelegramCalls] DB.SetAssistant error: %v", err)
 	}

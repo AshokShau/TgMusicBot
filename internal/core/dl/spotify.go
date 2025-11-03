@@ -42,8 +42,9 @@ var (
 func (d *Download) processSpotify() (string, error) {
 	track := d.Track
 	downloadsDir := config.Conf.DownloadsDir
+	sanitizedTrackID := filepath.Base(track.TC)
 
-	outputFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.ogg", track.TC))
+	outputFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
 	if _, err := os.Stat(outputFile); err == nil {
 		log.Printf("✅ The file already exists: %s", outputFile)
 		return outputFile, nil
@@ -58,8 +59,8 @@ func (d *Download) processSpotify() (string, error) {
 		log.Printf("The process was completed in %s.", time.Since(startTime))
 	}()
 
-	encryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.encrypted", track.TC))
-	decryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s_decrypted.ogg", track.TC))
+	encryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.encrypted", sanitizedTrackID))
+	decryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s_decrypted.ogg", sanitizedTrackID))
 
 	defer func() {
 		_ = os.Remove(encryptedFile)
@@ -189,8 +190,8 @@ func rebuildOGG(filename string) error {
 // fixOGG uses ffmpeg to correct any remaining issues in the OGG file, ensuring it is playable.
 // It takes the input file path and track information, and returns the final output file path or an error.
 func fixOGG(inputFile string, track cache.TrackInfo) (string, error) {
-	outputFile := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%s.ogg", track.TC))
-	// #nosec G204 - The input file path is trusted as it's generated internally.
+	sanitizedTrackID := filepath.Base(track.TC)
+	outputFile := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
 	cmd := exec.Command("ffmpeg", "-i", inputFile, "-c", "copy", outputFile)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("ffmpeg failed with error: %w\nOutput: %s", err, string(output))

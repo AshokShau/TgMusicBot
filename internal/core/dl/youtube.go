@@ -231,10 +231,8 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 		params = append(params, "--proxy", config.Conf.Proxy)
 	}
 
-	var b strings.Builder
-	b.WriteString("https://www.youtube.com/watch?v=")
-	b.WriteString(videoID)
-	params = append(params, b.String(), "--print", "after_move:filepath")
+	url := "https://www.youtube.com/watch?v=" + videoID
+	params = append(params, url, "--print", "after_move:filepath")
 
 	return params
 }
@@ -243,8 +241,12 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 // It returns the file path of the downloaded track or an error if the download fails.
 func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, video bool) (string, error) {
 	ytdlpParams := y.BuildYtdlpParams(videoID, video)
-	// #nosec G204 - The parameters are constructed internally and are not from user input.
-	cmd := exec.CommandContext(ctx, ytdlpParams[0], ytdlpParams[1:]...)
+	executablePath, err := exec.LookPath(ytdlpParams[0])
+	if err != nil {
+		return "", fmt.Errorf("yt-dlp executable not found in PATH: %w", err)
+	}
+
+	cmd := exec.CommandContext(ctx, executablePath, ytdlpParams[1:]...)
 
 	output, err := cmd.Output()
 	if err != nil {
