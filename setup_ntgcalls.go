@@ -54,8 +54,8 @@ func main() {
 	fmt.Println("Extracting...")
 	unzip(tmpZip, "ntgcalls_tmp")
 
-	destHeader := "pkg/vc/ntgcalls"
-	destLib := "pkg/vc"
+	destHeader := "internal/vc/ntgcalls"
+	destLib := "internal/vc"
 	os.MkdirAll(destHeader, 0755)
 	os.MkdirAll(destLib, 0755)
 
