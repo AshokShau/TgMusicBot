@@ -10,7 +10,6 @@ package handlers
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/AshokShau/TgMusicBot/internal/core"
@@ -26,25 +25,56 @@ import (
 // handleVoiceChat handles voice chat updates.
 // It takes a telegram.Update object and a telegram client as input.
 // It returns an error if any.
-func handleVoiceChat(upd telegram.Update, c *telegram.Client) error {
+func handleVoiceChat(upd telegram.Update, c *telegram.Client) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			gologging.ErrorF("Recovered from panic in handleVoiceChat: %v", r)
+			err = fmt.Errorf("panic in handleVoiceChat: %v", r)
+		}
+	}()
+
 	switch update := upd.(type) {
 	case *telegram.UpdateNewChannelMessage:
 		if msg, ok := update.Message.(*telegram.MessageService); ok {
-			chatID, _ := getPeerId(c, msg.PeerID)
+			chatID, err := getPeerId(c, msg.PeerID)
+			if err != nil {
+				gologging.ErrorF("Failed to get peer ID: %v", err)
+				return nil
+			}
+
 			ctx, cancel := db.Ctx()
 			defer cancel()
-			langCode := db.Instance.GetLang(ctx, chatID)
+
+			langCode := "en"
+			if db.Instance != nil {
+				langCode = db.Instance.GetLang(ctx, chatID)
+			}
+
 			if action, ok := msg.Action.(*telegram.MessageActionGroupCall); ok {
+				if action == nil {
+					gologging.DebugF("Received nil action in MessageActionGroupCall")
+					return nil
+				}
+
+				message := ""
 				if action.Duration == 0 {
-					cache.ChatCache.ClearChat(chatID, true)
-					_, _ = c.SendMessage(chatID, lang.GetString(langCode, "watcher_vc_started"))
+					if cache.ChatCache != nil {
+						cache.ChatCache.ClearChat(chatID, true)
+					}
+					message = lang.GetString(langCode, "watcher_vc_started")
 				} else {
-					log.Printf("Voice chat ended. Duration: %d seconds", action.Duration)
-					cache.ChatCache.ClearChat(chatID, true)
-					_, _ = c.SendMessage(chatID, lang.GetString(langCode, "watcher_vc_ended"))
+					gologging.InfoF("Voice chat ended. Duration: %d seconds", action.Duration)
+					if cache.ChatCache != nil {
+						cache.ChatCache.ClearChat(chatID, true)
+					}
+					message = lang.GetString(langCode, "watcher_vc_ended")
+				}
+
+				if message != "" {
+					_, _ = c.SendMessage(chatID, message)
 				}
 			} else {
-				log.Printf("Unhandled action type: %T", msg.Action)
+				gologging.DebugF("Unhandled action type: %T", msg.Action)
 			}
 		}
 	}

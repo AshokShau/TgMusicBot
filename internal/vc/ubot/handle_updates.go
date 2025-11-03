@@ -58,25 +58,31 @@ func (ctx *Context) handleUpdates() {
 
 		switch phoneCall.(type) {
 		case *tg.PhoneCallAccepted, *tg.PhoneCallRequested, *tg.PhoneCallWaiting:
+			ctx.mapsMutex.Lock()
 			ctx.inputCalls[userId] = &tg.InputPhoneCall{
 				ID:         ID,
 				AccessHash: AccessHash,
 			}
+			ctx.mapsMutex.Unlock()
 		}
 
 		switch call := phoneCall.(type) {
 		case *tg.PhoneCallAccepted:
+			ctx.mapsMutex.Lock()
 			if ctx.p2pConfigs[userId] != nil {
 				ctx.p2pConfigs[userId].GAorB = call.GB
 				ctx.p2pConfigs[userId].WaitData <- nil
 			}
+			ctx.mapsMutex.Unlock()
 		case *tg.PhoneCallObj:
+			ctx.mapsMutex.Lock()
 			if ctx.p2pConfigs[userId] != nil {
 				ctx.p2pConfigs[userId].GAorB = call.GAOrB
 				ctx.p2pConfigs[userId].KeyFingerprint = call.KeyFingerprint
 				ctx.p2pConfigs[userId].PhoneCall = call
 				ctx.p2pConfigs[userId].WaitData <- nil
 			}
+			ctx.mapsMutex.Unlock()
 		case *tg.PhoneCallDiscarded:
 			var reasonMessage string
 			switch call.Reason.(type) {
@@ -85,21 +91,29 @@ func (ctx *Context) handleUpdates() {
 			case *tg.PhoneCallDiscardReasonHangup:
 				reasonMessage = fmt.Sprintf("call declined by %d", userId)
 			}
+			ctx.mapsMutex.Lock()
 			if ctx.p2pConfigs[userId] != nil {
 				ctx.p2pConfigs[userId].WaitData <- fmt.Errorf("%s", reasonMessage)
 			}
 			delete(ctx.inputCalls, userId)
+			ctx.mapsMutex.Unlock()
 			_ = ctx.binding.Stop(userId)
 		case *tg.PhoneCallRequested:
+			ctx.mapsMutex.Lock()
 			if ctx.p2pConfigs[userId] == nil {
+				ctx.mapsMutex.Unlock()
 				p2pConfigs, err := ctx.getP2PConfigs(call.GAHash)
 				if err != nil {
 					return err
 				}
+				ctx.mapsMutex.Lock()
 				ctx.p2pConfigs[userId] = p2pConfigs
+				ctx.mapsMutex.Unlock()
 				for _, callback := range ctx.incomingCallCallbacks {
 					go callback(ctx, userId)
 				}
+			} else {
+				ctx.mapsMutex.Unlock()
 			}
 		}
 		return nil
@@ -217,13 +231,17 @@ func (ctx *Context) handleUpdates() {
 			switch groupCallRaw.(type) {
 			case *tg.GroupCallObj:
 				groupCall := groupCallRaw.(*tg.GroupCallObj)
+				ctx.mapsMutex.Lock()
 				ctx.inputGroupCalls[chatID] = &tg.InputGroupCallObj{
 					ID:         groupCall.ID,
 					AccessHash: groupCall.AccessHash,
 				}
+				ctx.mapsMutex.Unlock()
 				return nil
 			case *tg.GroupCallDiscarded:
+				ctx.mapsMutex.Lock()
 				delete(ctx.inputGroupCalls, chatID)
+				ctx.mapsMutex.Unlock()
 				_ = ctx.binding.Stop(chatID)
 				return nil
 			}
@@ -232,16 +250,22 @@ func (ctx *Context) handleUpdates() {
 	})
 
 	ctx.binding.OnRequestBroadcastTimestamp(func(chatId int64) {
+		ctx.mapsMutex.Lock()
 		if ctx.inputGroupCalls[chatId] != nil {
+			ctx.mapsMutex.Unlock()
 			channels, err := ctx.App.PhoneGetGroupCallStreamChannels(ctx.inputGroupCalls[chatId])
 			if err == nil {
 				_ = ctx.binding.SendBroadcastTimestamp(chatId, channels.Channels[0].LastTimestampMs)
 			}
+		} else {
+			ctx.mapsMutex.Unlock()
 		}
 	})
 
 	ctx.binding.OnRequestBroadcastPart(func(chatId int64, segmentPartRequest ntgcalls.SegmentPartRequest) {
+		ctx.mapsMutex.Lock()
 		if ctx.inputGroupCalls[chatId] != nil {
+			ctx.mapsMutex.Unlock()
 			file, err := ctx.App.UploadGetFile(
 				&tg.UploadGetFileParams{
 					Location: &tg.InputGroupCallStream{
@@ -278,11 +302,15 @@ func (ctx *Context) handleUpdates() {
 				segmentPartRequest.QualityUpdate,
 				data,
 			)
+		} else {
+			ctx.mapsMutex.Unlock()
 		}
 	})
 
 	ctx.binding.OnSignal(func(chatId int64, signal []byte) {
+		ctx.mapsMutex.Lock()
 		_, _ = ctx.App.PhoneSendSignalingData(ctx.inputCalls[chatId], signal)
+		ctx.mapsMutex.Unlock()
 	})
 
 	ctx.binding.OnConnectionChange(func(chatId int64, state ntgcalls.NetworkInfo) {
