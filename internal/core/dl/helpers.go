@@ -24,9 +24,8 @@ const (
 )
 
 var (
-	tgURLRegex             = regexp.MustCompile(`^https?://t\.me/`)
-	errMissingCDNURL       = errors.New("missing cdn url")
-	errUnsupportedPlatform = errors.New("unsupported platform")
+	tgURLRegex       = regexp.MustCompile(`^https?://t\.me/`)
+	errMissingCDNURL = errors.New("missing cdn url")
 )
 
 // Download encapsulates the information and context required for a download operation.

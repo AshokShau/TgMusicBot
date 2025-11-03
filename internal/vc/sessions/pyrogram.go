@@ -46,7 +46,7 @@ func DecodePyrogramSessionString(encodedString string) (*telegram.Session, error
 		return nil, fmt.Errorf("the app ID is invalid: %d", appID)
 	}
 	return &telegram.Session{
-		Hostname: telegram.ResolveDataCenterIP(int(uint8(packedData[0])), packedData[5] != 0, false),
+		Hostname: telegram.ResolveDataCenterIP(int(packedData[0]), packedData[5] != 0, false),
 		AppID:    appID,
 		Key:      packedData[6 : 6+authKeySize],
 	}, nil

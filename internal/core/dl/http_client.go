@@ -101,7 +101,8 @@ func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, he
 // isTemporaryError determines if an error is temporary and thus worth retrying.
 // It returns true for network timeouts and temporary operational errors.
 func isTemporaryError(err error) bool {
-	if netErr, ok := err.(net.Error); ok {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
 		return netErr.Timeout() || netErr.Temporary()
 	}
 	return false
@@ -140,7 +141,9 @@ func writeToFile(filename string, data io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("failed to create the file: %w", err)
 	}
-	defer out.Close()
+	defer func(out *os.File) {
+		_ = out.Close()
+	}(out)
 
 	if _, err := io.Copy(out, data); err != nil {
 		return fmt.Errorf("failed to write to the file: %w", err)
@@ -169,7 +172,9 @@ func DownloadFile(ctx context.Context, urlStr, fileName string, overwrite bool) 
 	if err != nil {
 		return "", fmt.Errorf("the request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("unexpected status code received: %d", resp.StatusCode)

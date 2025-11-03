@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -79,7 +80,9 @@ func (a *ApiData) GetInfo(ctx context.Context) (cache.PlatformTracks, error) {
 	if err != nil {
 		return cache.PlatformTracks{}, fmt.Errorf("the GetInfo request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return cache.PlatformTracks{}, fmt.Errorf("unexpected status code while fetching info: %s", resp.Status)
@@ -115,7 +118,9 @@ func (a *ApiData) Search(ctx context.Context) (cache.PlatformTracks, error) {
 	if err != nil {
 		return cache.PlatformTracks{}, fmt.Errorf("the search request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return cache.PlatformTracks{}, fmt.Errorf("unexpected status code during search: %s", resp.Status)
@@ -136,7 +141,9 @@ func (a *ApiData) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
 	if err != nil {
 		return cache.TrackInfo{}, fmt.Errorf("the GetTrack request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return cache.TrackInfo{}, fmt.Errorf("unexpected status code while fetching the track: %s", resp.Status)

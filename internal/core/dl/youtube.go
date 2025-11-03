@@ -102,7 +102,7 @@ func (y *YouTubeData) IsValid() bool {
 
 // GetInfo retrieves metadata for a track from YouTube.
 // It returns a PlatformTracks object or an error if the information cannot be fetched.
-func (y *YouTubeData) GetInfo(ctx context.Context) (cache.PlatformTracks, error) {
+func (y *YouTubeData) GetInfo(_ context.Context) (cache.PlatformTracks, error) {
 	if !y.IsValid() {
 		return cache.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
@@ -129,7 +129,7 @@ func (y *YouTubeData) GetInfo(ctx context.Context) (cache.PlatformTracks, error)
 
 // Search performs a search for a track on YouTube.
 // It accepts a context for handling timeouts and cancellations, and returns a PlatformTracks object or an error.
-func (y *YouTubeData) Search(ctx context.Context) (cache.PlatformTracks, error) {
+func (y *YouTubeData) Search(_ context.Context) (cache.PlatformTracks, error) {
 	tracks, err := searchYouTube(y.Query)
 	if err != nil {
 		return cache.PlatformTracks{}, err

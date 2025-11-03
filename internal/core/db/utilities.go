@@ -37,7 +37,7 @@ func getIntSlice(v interface{}) ([]int64, bool) {
 	case []interface{}:
 		return convertInterfaceSlice(val)
 	case bson.A:
-		return convertInterfaceSlice([]interface{}(val))
+		return convertInterfaceSlice(val)
 	default:
 		gologging.InfoF("Unexpected type encountered in getIntSlice: %T", v)
 		return []int64{}, false

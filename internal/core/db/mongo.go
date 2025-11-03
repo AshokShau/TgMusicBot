@@ -225,7 +225,9 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		gologging.WarnF("[DB] Error finding chats with assistants: %v", err)
 		return 0, err
 	}
-	defer cursor.Close(ctx)
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		_ = cursor.Close(ctx)
+	}(cursor, ctx)
 	var chatIDs []int64
 	for cursor.Next(ctx) {
 		var chatDoc struct {
@@ -486,7 +488,9 @@ func (db *Database) GetAllChats(ctx context.Context) ([]int64, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		_ = cursor.Close(ctx)
+	}(cursor, ctx)
 
 	var chats []int64
 	for cursor.Next(ctx) {
@@ -513,7 +517,9 @@ func (db *Database) GetAllUsers(ctx context.Context) ([]int64, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		_ = cursor.Close(ctx)
+	}(cursor, ctx)
 
 	var users []int64
 	for cursor.Next(ctx) {

@@ -56,17 +56,6 @@ func getEnvInt32(key string, def int32) int32 {
 	return int32(i)
 }
 
-// getEnvBool retrieves a boolean from an environment variable or returns a default value.
-// It takes the environment variable key and a default boolean as input.
-// It returns the value of the environment variable if it exists and is a valid boolean, otherwise it returns the default value.
-func getEnvBool(key string, def bool) bool {
-	val := strings.ToLower(os.Getenv(key))
-	if val == "" {
-		return def
-	}
-	return val == "true"
-}
-
 // getSessionStrings retrieves a list of session strings from environment variables.
 // It takes a prefix and a count as input.
 // It returns a slice of strings containing the session strings.

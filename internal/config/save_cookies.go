@@ -37,7 +37,9 @@ func fetchContent(url string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to GET %s: %w", rawURL, err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("unexpected status %d for %s", resp.StatusCode, rawURL)
@@ -68,7 +70,9 @@ func saveContent(url, content string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create file %s: %w", filePath, err)
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
 	if _, err := f.WriteString(content); err != nil {
 		return "", fmt.Errorf("failed to write file %s: %w", filePath, err)

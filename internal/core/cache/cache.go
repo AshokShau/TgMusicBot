@@ -13,15 +13,15 @@ import (
 	"time"
 )
 
-// CacheItem represents an item stored in the cache, containing a value and its expiration time.
-type CacheItem[T any] struct {
+// Item represents an item stored in the cache, containing a value and its expiration time.
+type Item[T any] struct {
 	Value      T
 	Expiration time.Time
 }
 
 // Cache is a generic, thread-safe TTL cache that stores values with string keys.
 type Cache[T any] struct {
-	data map[string]CacheItem[T]
+	data map[string]Item[T]
 	mu   sync.RWMutex
 	ttl  time.Duration
 }
@@ -30,7 +30,7 @@ type Cache[T any] struct {
 // The ttl parameter sets the default time-to-live duration for cache items.
 func NewCache[T any](ttl time.Duration) *Cache[T] {
 	return &Cache[T]{
-		data: make(map[string]CacheItem[T]),
+		data: make(map[string]Item[T]),
 		ttl:  ttl,
 	}
 }
@@ -61,7 +61,7 @@ func (c *Cache[T]) SetWithTTL(key string, value T, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.data[key] = CacheItem[T]{
+	c.data[key] = Item[T]{
 		Value:      value,
 		Expiration: time.Now().Add(ttl),
 	}
@@ -78,5 +78,5 @@ func (c *Cache[T]) Delete(key string) {
 func (c *Cache[T]) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.data = make(map[string]CacheItem[T])
+	c.data = make(map[string]Item[T])
 }
