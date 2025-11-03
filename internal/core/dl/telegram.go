@@ -17,6 +17,11 @@ import (
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
+var (
+	publicRe  = regexp.MustCompile(`^https?://t\.me/([a-zA-Z0-9_]{4,})/(\d+)$`)
+	privateRe = regexp.MustCompile(`^https?://t\.me/c/(\d+)/(\d+)$`)
+)
+
 // GetMessage retrieves a Telegram message by its URL.
 // It supports both public (e.g., https://t.me/ChannelName/1234) and private (e.g., https://t.me/c/12345678/90) URLs.
 // It returns the message object or an error if the URL is invalid or the message cannot be fetched.
@@ -27,8 +32,6 @@ func GetMessage(client *tg.Client, url string) (*tg.NewMessage, error) {
 	}
 
 	parseTelegramURL := func(input string) (username string, chatID int64, msgID int, isPrivate bool, ok bool) {
-		// Regular expression for public channel URLs.
-		publicRe := regexp.MustCompile(`^https?://t\.me/([a-zA-Z0-9_]{4,})/(\d+)$`)
 		if matches := publicRe.FindStringSubmatch(input); matches != nil {
 			id, err := strconv.Atoi(matches[2])
 			if err != nil {
@@ -37,8 +40,6 @@ func GetMessage(client *tg.Client, url string) (*tg.NewMessage, error) {
 			return matches[1], 0, id, false, true
 		}
 
-		// Regular expression for private or supergroup channel URLs.
-		privateRe := regexp.MustCompile(`^https?://t\.me/c/(\d+)/(\d+)$`)
 		if matches := privateRe.FindStringSubmatch(input); matches != nil {
 			chat, err1 := strconv.ParseInt(matches[1], 10, 64)
 			msg, err2 := strconv.Atoi(matches[2])

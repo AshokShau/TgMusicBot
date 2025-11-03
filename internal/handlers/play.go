@@ -86,9 +86,10 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	rMsg := m
 	var err error
 
+	var telegramURLRegex = regexp.MustCompile(`^https://t\.me/([a-zA-Z0-9_]{4,})/(\d+)$`)
+
 	parseTelegramURL := func(input string) (string, int, bool) {
-		re := regexp.MustCompile(`^https://t\.me/([a-zA-Z0-9_]{4,})/(\d+)$`)
-		matches := re.FindStringSubmatch(input)
+		matches := telegramURLRegex.FindStringSubmatch(input)
 		if matches == nil {
 			return "", 0, false
 		}

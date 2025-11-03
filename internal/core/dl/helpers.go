@@ -73,13 +73,18 @@ func (d *Download) processDirectDL() (string, error) {
 	return filePath, nil
 }
 
+var (
+	sanitizeRegex = regexp.MustCompile(`[<>:"/\\|?*]`)
+	filenameRegex = regexp.MustCompile(`filename\*?=(?:UTF-8'')?([^;]+)`)
+)
+
 // sanitizeFilename removes invalid characters from a filename to ensure it is safe for the filesystem.
 func sanitizeFilename(fileName string) string {
 	// Remove path separators.
 	fileName = strings.ReplaceAll(fileName, "/", "")
 	fileName = strings.ReplaceAll(fileName, "\\", "")
 	// Remove other invalid characters.
-	fileName = regexp.MustCompile(`[<>:"/\\|?*]`).ReplaceAllString(fileName, "")
+	fileName = sanitizeRegex.ReplaceAllString(fileName, "")
 	// Trim leading and trailing whitespace.
 	fileName = strings.TrimSpace(fileName)
 	return fileName
@@ -92,8 +97,7 @@ func extractFilename(contentDisp string) string {
 		return ""
 	}
 	// Match both "filename=" and "filename*=" to support a wider range of servers.
-	re := regexp.MustCompile(`filename\*?=(?:UTF-8'')?([^;]+)`)
-	matches := re.FindStringSubmatch(contentDisp)
+	matches := filenameRegex.FindStringSubmatch(contentDisp)
 	if len(matches) > 1 {
 		// URL-decode the filename to handle encoded characters.
 		decoded, err := url.QueryUnescape(matches[1])

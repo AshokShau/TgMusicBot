@@ -33,17 +33,19 @@ type YouTubeData struct {
 	Patterns map[string]*regexp.Regexp
 }
 
+var youtubePatterns = map[string]*regexp.Regexp{
+	"youtube":   regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([\w-]{11})(?:[&#?].*)?$`),
+	"youtu_be":  regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtu\.be/([\w-]{11})(?:[?#].*)?$`),
+	"yt_shorts": regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/shorts/([\w-]{11})(?:[?#].*)?$`),
+}
+
 // NewYouTubeData initializes a YouTubeData instance with pre-compiled regex patterns and a cleaned query.
 func NewYouTubeData(query string) *YouTubeData {
 	return &YouTubeData{
-		Query:  clearQuery(query),
-		ApiUrl: strings.TrimRight(config.Conf.ApiUrl, "/"),
-		APIKey: config.Conf.ApiKey,
-		Patterns: map[string]*regexp.Regexp{
-			"youtube":   regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([\w-]{11})(?:[&#?].*)?$`),
-			"youtu_be":  regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtu\.be/([\w-]{11})(?:[?#].*)?$`),
-			"yt_shorts": regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/shorts/([\w-]{11})(?:[?#].*)?$`),
-		},
+		Query:    clearQuery(query),
+		ApiUrl:   strings.TrimRight(config.Conf.ApiUrl, "/"),
+		APIKey:   config.Conf.ApiKey,
+		Patterns: youtubePatterns,
 	}
 }
 
@@ -56,23 +58,21 @@ func clearQuery(query string) string {
 
 // normalizeYouTubeURL converts various YouTube URL formats (e.g., youtu.be, shorts) into a standard watch URL.
 func (y *YouTubeData) normalizeYouTubeURL(url string) string {
-	if url == "" {
-		return ""
-	}
-
-	if strings.Contains(url, "youtu.be/") {
+	var videoID string
+	switch {
+	case strings.Contains(url, "youtu.be/"):
 		parts := strings.SplitN(strings.SplitN(url, "youtu.be/", 2)[1], "?", 2)
-		videoID := strings.SplitN(parts[0], "#", 2)[0]
-		return "https://www.youtube.com/watch?v=" + videoID
-	}
-
-	if strings.Contains(url, "youtube.com/shorts/") {
+		videoID = strings.SplitN(parts[0], "#", 2)[0]
+	case strings.Contains(url, "youtube.com/shorts/"):
 		parts := strings.SplitN(strings.SplitN(url, "youtube.com/shorts/", 2)[1], "?", 2)
-		videoID := strings.SplitN(parts[0], "#", 2)[0]
-		return "https://www.youtube.com/watch?v=" + videoID
+		videoID = strings.SplitN(parts[0], "#", 2)[0]
+	default:
+		return url
 	}
-
-	return url
+	var b strings.Builder
+	b.WriteString("https://www.youtube.com/watch?v=")
+	b.WriteString(videoID)
+	return b.String()
 }
 
 // extractVideoID parses a YouTube URL and extracts the video ID.
@@ -231,8 +231,10 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 		params = append(params, "--proxy", config.Conf.Proxy)
 	}
 
-	videoURL := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
-	params = append(params, videoURL, "--print", "after_move:filepath")
+	var b strings.Builder
+	b.WriteString("https://www.youtube.com/watch?v=")
+	b.WriteString(videoID)
+	params = append(params, b.String(), "--print", "after_move:filepath")
 
 	return params
 }
@@ -246,16 +248,13 @@ func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, vid
 
 	output, err := cmd.Output()
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			stderr := string(exitErr.Stderr)
-			return "", fmt.Errorf("yt-dlp failed with exit code %d: %s", exitErr.ExitCode(), stderr)
-		}
-
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return "", fmt.Errorf("yt-dlp timed out for video ID: %s", videoID)
 		}
-
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return "", fmt.Errorf("yt-dlp failed with exit code %d: %s", exitErr.ExitCode(), string(exitErr.Stderr))
+		}
 		return "", fmt.Errorf("an unexpected error occurred while downloading %s: %w", videoID, err)
 	}
 
@@ -290,8 +289,10 @@ func (y *YouTubeData) getCookieFile() string {
 // downloadWithApi downloads a track using the external API.
 // It returns the file path of the downloaded track or an error if the download fails.
 func (y *YouTubeData) downloadWithApi(ctx context.Context, videoID string, _ bool) (string, error) {
-	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
-	api := NewApiData(videoUrl)
+	var b strings.Builder
+	b.WriteString("https://www.youtube.com/watch?v=")
+	b.WriteString(videoID)
+	api := NewApiData(b.String())
 	track, err := api.GetTrack(ctx)
 	if err != nil {
 		return "", err

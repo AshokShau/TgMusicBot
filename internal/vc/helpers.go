@@ -44,6 +44,8 @@ func getVideoDimensions(filePath string) (int, int) {
 	return width, height
 }
 
+var isURLRegex = regexp.MustCompile(`^https?://`)
+
 // getMediaDescription creates a media description for ntgcalls based on the provided file path, video status, and ffmpeg parameters.
 func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string) ntgcalls.MediaDescription {
 	audioDescription := &ntgcalls.AudioDescription{
@@ -53,7 +55,7 @@ func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string)
 	}
 
 	quotedPath := fmt.Sprintf("\"%s\"", filePath)
-	isURL := regexp.MustCompile(`^https?://`).MatchString(filePath)
+	isURL := isURLRegex.MatchString(filePath)
 
 	var audioCmd strings.Builder
 	audioCmd.WriteString("ffmpeg ")
@@ -153,6 +155,8 @@ func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string)
 	}
 }
 
+var telegramMessageRegex = regexp.MustCompile(`t\.me/(\w+)/(\d+)`)
+
 // DownloadSong downloads a song using the provided cached track information.
 // It returns the file path, track information, and an error if the download fails.
 func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Client) (string, *cache.TrackInfo, error) {
@@ -177,8 +181,7 @@ func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Cl
 		}
 
 		filePath, err := wrapper.DownloadTrack(ctx, trackInfo, song.IsVideo)
-		reg := regexp.MustCompile(`t\.me/(\w+)/(\d+)`)
-		if match := reg.FindStringSubmatch(filePath); match != nil {
+		if match := telegramMessageRegex.FindStringSubmatch(filePath); match != nil {
 			msg, err := dl.GetMessage(bot, filePath)
 			if err != nil {
 				return "", &trackInfo, fmt.Errorf("failed to get the message for %s: %w", trackInfo.Name, err)

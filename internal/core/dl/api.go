@@ -32,20 +32,22 @@ type ApiData struct {
 	Patterns map[string]*regexp.Regexp
 }
 
+var apiPatterns = map[string]*regexp.Regexp{
+	"apple_music": regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*music\.apple\.com/([a-z]{2}/)?(album|playlist|song)/[a-zA-Z0-9\-._]+/(pl\.[a-zA-Z0-9]+|\d+)(\?.*)?$`),
+	"spotify":     regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$`),
+	"yt_playlist": regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)/(?:playlist|watch)\?.*\blist=([\w-]+)`),
+	"yt_music":    regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/(?:watch|playlist)\?.*v=([\w-]+)`),
+	"jiosaavn":    regexp.MustCompile(`(?i)^(https?://)?(www\.)?jiosaavn\.com/(song|featured)/[\w-]+/[a-zA-Z0-9_-]+$`),
+	"soundcloud":  regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*soundcloud\.com/[a-zA-Z0-9_-]+(/(sets)?/[a-zA-Z0-9_-]+)?(\?.*)?$`),
+}
+
 // NewApiData creates and initializes a new ApiData instance with the provided query.
 func NewApiData(query string) *ApiData {
 	return &ApiData{
-		Query:  strings.TrimSpace(query),
-		ApiUrl: strings.TrimRight(config.Conf.ApiUrl, "/"),
-		APIKey: config.Conf.ApiKey,
-		Patterns: map[string]*regexp.Regexp{
-			"apple_music": regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*music\.apple\.com/([a-z]{2}/)?(album|playlist|song)/[a-zA-Z0-9\-._]+/(pl\.[a-zA-Z0-9]+|\d+)(\?.*)?$`),
-			"spotify":     regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$`),
-			"yt_playlist": regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)/(?:playlist|watch)\?.*\blist=([\w-]+)`),
-			"yt_music":    regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/(?:watch|playlist)\?.*v=([\w-]+)`),
-			"jiosaavn":    regexp.MustCompile(`(?i)^(https?://)?(www\.)?jiosaavn\.com/(song|featured)/[\w-]+/[a-zA-Z0-9_-]+$`),
-			"soundcloud":  regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*soundcloud\.com/[a-zA-Z0-9_-]+(/(sets)?/[a-zA-Z0-9_-]+)?(\?.*)?$`),
-		},
+		Query:    strings.TrimSpace(query),
+		ApiUrl:   strings.TrimRight(config.Conf.ApiUrl, "/"),
+		APIKey:   config.Conf.ApiKey,
+		Patterns: apiPatterns,
 	}
 }
 
