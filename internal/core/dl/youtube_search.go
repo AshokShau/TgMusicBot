@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -21,9 +22,10 @@ import (
 
 // searchYouTube scrapes YouTube results page
 func searchYouTube(query string) ([]cache.MusicTrack, error) {
-	query = strings.ReplaceAll(query, " ", "+")
-	url := "https://www.youtube.com/results?search_query=" + query
-	req, err := http.NewRequest("GET", url, nil)
+	encoded := url.QueryEscape(query)
+	searchURL := "https://www.youtube.com/results?search_query=" + encoded
+
+	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -56,7 +58,6 @@ func searchYouTube(query string) ([]cache.MusicTrack, error) {
 		return nil, err
 	}
 
-	// Navigate nested fields
 	contents := dig(data, "contents", "twoColumnSearchResultsRenderer",
 		"primaryContents", "sectionListRenderer", "contents")
 
