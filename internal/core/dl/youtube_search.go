@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -21,9 +22,10 @@ import (
 
 // searchYouTube scrapes YouTube results page
 func searchYouTube(query string) ([]cache.MusicTrack, error) {
-	query = strings.ReplaceAll(query, " ", "+")
-	url := "https://www.youtube.com/results?search_query=" + query
-	req, err := http.NewRequest("GET", url, nil)
+	encoded := url.QueryEscape(query)
+	searchURL := "https://www.youtube.com/results?search_query=" + encoded
+
+	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -32,9 +34,7 @@ func searchYouTube(query string) ([]cache.MusicTrack, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
@@ -56,7 +56,6 @@ func searchYouTube(query string) ([]cache.MusicTrack, error) {
 		return nil, err
 	}
 
-	// Navigate nested fields
 	contents := dig(data, "contents", "twoColumnSearchResultsRenderer",
 		"primaryContents", "sectionListRenderer", "contents")
 
