@@ -69,10 +69,7 @@ func (y *YouTubeData) normalizeYouTubeURL(url string) string {
 	default:
 		return url
 	}
-	var b strings.Builder
-	b.WriteString("https://www.youtube.com/watch?v=")
-	b.WriteString(videoID)
-	return b.String()
+	return "https://www.youtube.com/watch?v=" + videoID
 }
 
 // extractVideoID parses a YouTube URL and extracts the video ID.
@@ -102,7 +99,7 @@ func (y *YouTubeData) IsValid() bool {
 
 // GetInfo retrieves metadata for a track from YouTube.
 // It returns a PlatformTracks object or an error if the information cannot be fetched.
-func (y *YouTubeData) GetInfo(_ context.Context) (cache.PlatformTracks, error) {
+func (y *YouTubeData) GetInfo(ctx context.Context) (cache.PlatformTracks, error) {
 	if !y.IsValid() {
 		return cache.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
@@ -129,7 +126,7 @@ func (y *YouTubeData) GetInfo(_ context.Context) (cache.PlatformTracks, error) {
 
 // Search performs a search for a track on YouTube.
 // It accepts a context for handling timeouts and cancellations, and returns a PlatformTracks object or an error.
-func (y *YouTubeData) Search(_ context.Context) (cache.PlatformTracks, error) {
+func (y *YouTubeData) Search(ctx context.Context) (cache.PlatformTracks, error) {
 	tracks, err := searchYouTube(y.Query)
 	if err != nil {
 		return cache.PlatformTracks{}, err
@@ -231,8 +228,8 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 		params = append(params, "--proxy", config.Conf.Proxy)
 	}
 
-	url := "https://www.youtube.com/watch?v=" + videoID
-	params = append(params, url, "--print", "after_move:filepath")
+	videoURL := "https://www.youtube.com/watch?v=" + videoID
+	params = append(params, videoURL, "--print", "after_move:filepath")
 
 	return params
 }
@@ -241,22 +238,20 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 // It returns the file path of the downloaded track or an error if the download fails.
 func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, video bool) (string, error) {
 	ytdlpParams := y.BuildYtdlpParams(videoID, video)
-	executablePath, err := exec.LookPath(ytdlpParams[0])
-	if err != nil {
-		return "", fmt.Errorf("yt-dlp executable not found in PATH: %w", err)
-	}
-
-	cmd := exec.CommandContext(ctx, executablePath, ytdlpParams[1:]...)
+	cmd := exec.CommandContext(ctx, ytdlpParams[0], ytdlpParams[1:]...)
 
 	output, err := cmd.Output()
 	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			stderr := string(exitErr.Stderr)
+			return "", fmt.Errorf("yt-dlp failed with exit code %d: %s", exitErr.ExitCode(), stderr)
+		}
+
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return "", fmt.Errorf("yt-dlp timed out for video ID: %s", videoID)
 		}
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			return "", fmt.Errorf("yt-dlp failed with exit code %d: %s", exitErr.ExitCode(), string(exitErr.Stderr))
-		}
+
 		return "", fmt.Errorf("an unexpected error occurred while downloading %s: %w", videoID, err)
 	}
 
@@ -291,10 +286,8 @@ func (y *YouTubeData) getCookieFile() string {
 // downloadWithApi downloads a track using the external API.
 // It returns the file path of the downloaded track or an error if the download fails.
 func (y *YouTubeData) downloadWithApi(ctx context.Context, videoID string, _ bool) (string, error) {
-	var b strings.Builder
-	b.WriteString("https://www.youtube.com/watch?v=")
-	b.WriteString(videoID)
-	api := NewApiData(b.String())
+	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
+	api := NewApiData(videoUrl)
 	track, err := api.GetTrack(ctx)
 	if err != nil {
 		return "", err
