@@ -119,16 +119,18 @@ Deploying with Docker is the easiest and recommended method.
 ##### Prerequisites
 - [Go](https://golang.org/doc/install) (version 1.24.4 or higher)
 - [FFmpeg](https://ffmpeg.org/download.html)
+- [Deno](https://deno.com/)
 
 ##### Steps
 1.  **Install prerequisites:**
     - **On Debian/Ubuntu:**
       ```sh
       sudo apt-get update && sudo apt-get install -y golang ffmpeg
+      curl -fsSL https://deno.land/install.sh | sh
       ```
     - **On macOS (using Homebrew):**
       ```sh
-      brew install go ffmpeg
+      brew install go ffmpeg deno
       ```
 
 2.  **Clone the repository and create the `.env` file** as described in the [Configuration](#-configuration) section.
@@ -149,11 +151,16 @@ Deploying with Docker is the easiest and recommended method.
 ##### Prerequisites
 - [Go](https://golang.org/doc/install) (version 1.24.4 or higher)
 - [FFmpeg](https://ffmpeg.org/download.html)
+- [Deno](https://deno.com/)
 
 ##### Steps
 1.  **Install prerequisites:**
     - Download and install Go from the [official website](https://golang.org/doc/install).
     - Download FFmpeg from the [official website](https://ffmpeg.org/download.html) and add it to your system's PATH.
+    - Install Deno using PowerShell:
+      ```powershell
+      irm https://deno.land/install.ps1 | iex
+      ```
 
 2.  **Clone the repository** as described in the [Configuration](#-configuration) section.
 
