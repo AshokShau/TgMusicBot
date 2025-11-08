@@ -58,7 +58,7 @@ func main() {
 		gologging.InfoF("[pprof] running on :%s", config.Conf.Port)
 		log.Println(http.ListenAndServe("0.0.0.0:"+config.Conf.Port, nil))
 	}()
-	
+
 	err := lang.LoadTranslations()
 	if err != nil {
 		panic(err)
@@ -71,6 +71,7 @@ func main() {
 	cfg := tg.NewClientConfigBuilder(config.Conf.ApiId, config.Conf.ApiHash).
 		WithSession("bot.dat").
 		WithFloodHandler(handleFlood).
+		WithLogLevel(1).
 		Build()
 
 	client, err := tg.NewClient(cfg)
