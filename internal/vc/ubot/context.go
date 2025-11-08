@@ -27,6 +27,7 @@ type Context struct {
 	inputCalls            map[int64]*tg.InputPhoneCall
 	inputGroupCalls       map[int64]tg.InputGroupCall
 	participantsMutex     sync.Mutex
+	mapsMutex             sync.Mutex
 	callParticipants      map[int64]*types.CallParticipantsCache
 	pendingConnections    map[int64]*types.PendingConnection
 	callSources           map[int64]*types.CallSources
