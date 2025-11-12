@@ -10,15 +10,10 @@ package main
 
 import (
 	"context"
-	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	_ "net/http"
-	_ "net/http/pprof"
 
 	"github.com/AshokShau/TgMusicBot/internal"
 	"github.com/AshokShau/TgMusicBot/internal/config"
@@ -54,11 +49,6 @@ func main() {
 		gologging.Fatal(err.Error())
 	}
 
-	go func() {
-		gologging.InfoF("[pprof] running on :%s", config.Conf.Port)
-		log.Println(http.ListenAndServe("0.0.0.0:"+config.Conf.Port, nil))
-	}()
-
 	err := lang.LoadTranslations()
 	if err != nil {
 		panic(err)
@@ -71,7 +61,6 @@ func main() {
 	cfg := tg.NewClientConfigBuilder(config.Conf.ApiId, config.Conf.ApiHash).
 		WithSession("bot.dat").
 		WithFloodHandler(handleFlood).
-		WithLogLevel(1).
 		Build()
 
 	client, err := tg.NewClient(cfg)
