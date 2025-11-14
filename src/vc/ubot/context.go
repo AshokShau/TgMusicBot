@@ -15,13 +15,18 @@ type Context struct {
 	presentations         []int64
 	pendingPresentation   map[int64]bool
 	p2pConfigs            map[int64]*types.P2PConfig
+	p2pMutex              sync.RWMutex
 	inputCalls            map[int64]*tg.InputPhoneCall
+	inputCallsMutex       sync.RWMutex
 	inputGroupCalls       map[int64]tg.InputGroupCall
+	groupCallsMutex       sync.RWMutex
 	participantsMutex     sync.Mutex
 	callParticipants      map[int64]*types.CallParticipantsCache
 	pendingConnections    map[int64]*types.PendingConnection
+	pendingConnMutex      sync.RWMutex
 	callSources           map[int64]*types.CallSources
 	waitConnect           map[int64]chan error
+	waitConnMutex         sync.RWMutex
 	self                  *tg.UserObj
 	incomingCallCallbacks []func(client *Context, chatId int64)
 	streamEndCallbacks    []ntgcalls.StreamEndCallback
