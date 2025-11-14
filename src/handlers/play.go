@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"ashokshau/tgmusic/src/config"
@@ -30,34 +29,7 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// statusUpdater is a wrapper around telegram.NewMessage to prevent flood waits.
-type statusUpdater struct {
-	*telegram.NewMessage
-	mu          sync.Mutex
-	lastMessage string
-	lastSent    time.Time
-}
-
-// Edit edits the message, but only if the content has changed, and it has been more than 500ms since the last edit.
-func (su *statusUpdater) Edit(text string, opts ...telegram.SendOptions) (*telegram.NewMessage, error) {
-	su.mu.Lock()
-	defer su.mu.Unlock()
-
-	if text == su.lastMessage {
-		return su.NewMessage, nil
-	}
-
-	if time.Since(su.lastSent) < 500*time.Millisecond {
-		time.Sleep(500*time.Millisecond - time.Since(su.lastSent))
-	}
-
-	msg, err := su.NewMessage.Edit(text, opts...)
-	if err == nil {
-		su.lastMessage = text
-		su.lastSent = time.Now()
-	}
-	return msg, err
-}
+var telegramURLRegex = regexp.MustCompile(`^https://t\.me/([a-zA-Z0-9_]{4,})/(\d+)$`)
 
 // playHandler handles the /play command.
 func playHandler(m *telegram.NewMessage) error {
@@ -75,9 +47,10 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
+
 	if queue := cache.ChatCache.GetQueue(chatID); len(queue) > 10 {
-		_, err := m.Reply(lang.GetString(langCode, "play_queue_full"))
-		return err
+		_, _ = m.Reply(lang.GetString(langCode, "play_queue_full"))
+		return telegram.EndGroup
 	}
 
 	isReply := m.IsReply()
@@ -85,8 +58,6 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	args := m.Args()
 	rMsg := m
 	var err error
-
-	telegramURLRegex := regexp.MustCompile(`^https://t\.me/([a-zA-Z0-9_]{4,})/(\d+)$`)
 
 	parseTelegramURL := func(input string) (string, int, bool) {
 		matches := telegramURLRegex.FindStringSubmatch(input)
@@ -101,6 +72,7 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	}
 
 	input := coalesce(url, args)
+
 	if username, msgID, ok := parseTelegramURL(input); ok {
 		rMsg, err = m.Client.GetMessageByID(username, int32(msgID))
 		if err != nil {
@@ -120,17 +92,15 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	}
 
 	if url == "" && args == "" && (!isReply || !isValidMedia(rMsg)) {
-		_, err := m.Reply(lang.GetString(langCode, "play_usage"), telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
-		return err
+		_, _ = m.Reply(lang.GetString(langCode, "play_usage"), telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
+		return telegram.EndGroup
 	}
 
-	statusMsg, err := m.Reply(lang.GetString(langCode, "play_searching"))
+	updater, err := m.Reply(lang.GetString(langCode, "play_searching"))
 	if err != nil {
 		gologging.WarnF("failed to send message: %v", err)
-		return err
+		return telegram.EndGroup
 	}
-
-	updater := &statusUpdater{NewMessage: statusMsg, lastMessage: lang.GetString(langCode, "play_searching"), lastSent: time.Now()}
 
 	if isReply && isValidMedia(rMsg) {
 		return handleMedia(m, updater, rMsg, chatID, isVideo, langCode)
@@ -139,31 +109,32 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	wrapper := dl.NewDownloaderWrapper(input)
 	if url != "" {
 		if !wrapper.IsValid() {
-			_, err = updater.Edit(lang.GetString(langCode, "play_invalid_url"), telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
-			return err
+			_, _ = updater.Edit(lang.GetString(langCode, "play_invalid_url"), telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
+			return telegram.EndGroup
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		trackInfo, err := wrapper.GetInfo(ctx)
 		if err != nil {
-			_, err = updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_fetch_error"), err.Error()))
-			return err
+			_, _ = updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_fetch_error"), err.Error()))
+			return telegram.EndGroup
 		}
+
 		if trackInfo.Results == nil {
-			_, err = updater.Edit(lang.GetString(langCode, "play_no_tracks_found"))
-			return err
+			_, _ = updater.Edit(lang.GetString(langCode, "play_no_tracks_found"))
+			return telegram.EndGroup
 		}
 		return handleUrl(m, updater, trackInfo, chatID, isVideo, langCode)
 	}
 
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel2()
 	return handleTextSearch(m, updater, wrapper, chatID, isVideo, ctx2, langCode)
 }
 
 // handleMedia handles playing media from a message.
-func handleMedia(m *telegram.NewMessage, updater *statusUpdater, dlMsg *telegram.NewMessage, chatId int64, isVideo bool, langCode string) error {
+func handleMedia(m *telegram.NewMessage, updater *telegram.NewMessage, dlMsg *telegram.NewMessage, chatId int64, isVideo bool, langCode string) error {
 	if dlMsg.File.Size > config.Conf.MaxFileSize {
 		_, err := updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_file_too_large"), config.Conf.MaxFileSize/(1024*1024)))
 		if err != nil {
@@ -174,13 +145,9 @@ func handleMedia(m *telegram.NewMessage, updater *statusUpdater, dlMsg *telegram
 
 	fileName := dlMsg.File.Name
 	fileId := dlMsg.File.FileID
-
 	if _track := cache.ChatCache.GetTrackIfExists(chatId, fileId); _track != nil {
 		_, err := updater.Edit(lang.GetString(langCode, "play_track_already_in_queue"))
-		if err != nil {
-			gologging.InfoF("[play.go - handleMedia] Edit message failed: %v", err)
-		}
-		return nil
+		return err
 	}
 
 	dur := cache.GetFileDur(dlMsg)
@@ -191,15 +158,14 @@ func handleMedia(m *telegram.NewMessage, updater *statusUpdater, dlMsg *telegram
 		}
 		queue := cache.ChatCache.GetQueue(chatId)
 		cache.ChatCache.AddSong(chatId, &saveCache)
+
 		queueInfo := fmt.Sprintf(
 			lang.GetString(langCode, "play_added_to_queue"),
 			len(queue), saveCache.URL, saveCache.Name, cache.SecToMin(saveCache.Duration), saveCache.User,
 		)
+
 		_, err := updater.Edit(queueInfo, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
-		if err != nil {
-			gologging.WarnF("[play.go - handleMedia] Edit message failed: %v", err)
-		}
-		return nil
+		return err
 	}
 
 	filePath, err := dlMsg.Download(&telegram.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, fileName)})
@@ -216,11 +182,12 @@ func handleMedia(m *telegram.NewMessage, updater *statusUpdater, dlMsg *telegram
 	track := cache.MusicTrack{
 		Name: fileName, Duration: dur, URL: dlMsg.Link(), ID: fileId, Platform: cache.Telegram,
 	}
+
 	return handleSingleTrack(m, updater, track, filePath, chatId, isVideo, langCode)
 }
 
 // handleTextSearch handles a text search for a song.
-func handleTextSearch(m *telegram.NewMessage, updater *statusUpdater, wrapper *dl.DownloaderWrapper, chatId int64, isVideo bool, ctx context.Context, langCode string) error {
+func handleTextSearch(m *telegram.NewMessage, updater *telegram.NewMessage, wrapper *dl.DownloaderWrapper, chatId int64, isVideo bool, ctx context.Context, langCode string) error {
 	searchResult, err := wrapper.Search(ctx)
 	if err != nil {
 		_, err = updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_search_failed"), err.Error()))
@@ -242,7 +209,7 @@ func handleTextSearch(m *telegram.NewMessage, updater *statusUpdater, wrapper *d
 }
 
 // handleUrl handles a URL search for a song.
-func handleUrl(m *telegram.NewMessage, updater *statusUpdater, trackInfo cache.PlatformTracks, chatId int64, isVideo bool, langCode string) error {
+func handleUrl(m *telegram.NewMessage, updater *telegram.NewMessage, trackInfo cache.PlatformTracks, chatId int64, isVideo bool, langCode string) error {
 	if len(trackInfo.Results) == 1 {
 		track := trackInfo.Results[0]
 		if _track := cache.ChatCache.GetTrackIfExists(chatId, track.ID); _track != nil {
@@ -255,7 +222,7 @@ func handleUrl(m *telegram.NewMessage, updater *statusUpdater, trackInfo cache.P
 }
 
 // handleSingleTrack handles a single track.
-func handleSingleTrack(m *telegram.NewMessage, updater *statusUpdater, song cache.MusicTrack, filePath string, chatId int64, isVideo bool, langCode string) error {
+func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, song cache.MusicTrack, filePath string, chatId int64, isVideo bool, langCode string) error {
 	saveCache := cache.CachedTrack{
 		URL: song.URL, Name: song.Name, User: m.Sender.FirstName, FilePath: filePath,
 		Thumbnail: song.Cover, TrackID: song.ID, Duration: song.Duration,
@@ -265,15 +232,14 @@ func handleSingleTrack(m *telegram.NewMessage, updater *statusUpdater, song cach
 	if cache.ChatCache.IsActive(chatId) {
 		queue := cache.ChatCache.GetQueue(chatId)
 		cache.ChatCache.AddSong(chatId, &saveCache)
+
 		queueInfo := fmt.Sprintf(
 			lang.GetString(langCode, "play_added_to_queue"),
 			len(queue), saveCache.URL, saveCache.Name, cache.SecToMin(saveCache.Duration), saveCache.User,
 		)
+
 		_, err := updater.Edit(queueInfo, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
-		if err != nil {
-			gologging.WarnF("[play.go - handleSingleTrack] Edit message failed: %v", err)
-		}
-		return nil
+		return err
 	}
 
 	if saveCache.FilePath == "" {
@@ -311,17 +277,16 @@ func handleSingleTrack(m *telegram.NewMessage, updater *statusUpdater, song cach
 		lang.GetString(langCode, "play_now_playing"),
 		saveCache.URL, saveCache.Name, cache.SecToMin(song.Duration), saveCache.User,
 	)
+
 	_, err := updater.Edit(nowPlaying, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
-	if err != nil {
-		gologging.WarnF("[play.go - handleSingleTrack] Edit message failed: %v", err)
-	}
-	return nil
+	return err
 }
 
 // handleMultipleTracks handles multiple tracks.
-func handleMultipleTracks(m *telegram.NewMessage, updater *statusUpdater, tracks []cache.MusicTrack, chatId int64, isVideo bool, langCode string) error {
+func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, tracks []cache.MusicTrack, chatId int64, isVideo bool, langCode string) error {
 	isActive := cache.ChatCache.IsActive(chatId)
 	queue := cache.ChatCache.GetQueue(chatId)
+
 	queueHeader := lang.GetString(langCode, "play_added_to_queue_header")
 	var queueItems []string
 
@@ -336,7 +301,11 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *statusUpdater, tracks
 			saveCache.Loop = 1
 		}
 		cache.ChatCache.AddSong(chatId, &saveCache)
-		queueItems = append(queueItems, fmt.Sprintf(lang.GetString(langCode, "play_queue_item"), position, track.Name, cache.SecToMin(track.Duration)))
+
+		queueItems = append(queueItems,
+			fmt.Sprintf(lang.GetString(langCode, "play_queue_item"),
+				position, track.Name, cache.SecToMin(track.Duration)),
+		)
 	}
 
 	totalDuration := 0
@@ -348,6 +317,7 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *statusUpdater, tracks
 		lang.GetString(langCode, "play_queue_summary"),
 		len(cache.ChatCache.GetQueue(chatId)), cache.SecToMin(totalDuration), m.Sender.FirstName,
 	)
+
 	fullMessage := queueHeader + strings.Join(queueItems, "\n") + queueSummary
 	if len(fullMessage) > 4096 {
 		fullMessage = queueSummary
@@ -358,8 +328,5 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *statusUpdater, tracks
 	}
 
 	_, err := updater.Edit(fullMessage, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
-	if err != nil {
-		gologging.WarnF("[play.go - handleMultipleTracks] Edit message failed: %v", err)
-	}
-	return nil
+	return err
 }
