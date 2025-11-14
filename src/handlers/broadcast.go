@@ -11,112 +11,152 @@ package handlers
 import (
 	"ashokshau/tgmusic/src/core/db"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
-func broadCastHandler(m *tg.NewMessage) error {
+var (
+	broadcastCancelFlag atomic.Bool
+)
+
+func cancelBroadcastHandler(m *tg.NewMessage) error {
+	broadcastCancelFlag.Store(true)
+	_, _ = m.Reply("🚫 Broadcast cancelled.")
+	return tg.EndGroup
+}
+
+func broadcastHandler(m *tg.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
+
 	reply, err := m.GetReplyMessage()
 	if err != nil {
-		_, _ = m.Reply(
-			"❗ <b>Usage:</b> Reply to a message and send:\n" +
-				"<code>/broadcast</code>\n" +
-				"<code>`/broadcast -copy</code>\n" +
-				"<code>/broadcast -nochat</code>\n" +
-				"<code>/broadcast -nouser</code>\n\n" +
-				"Multiple flags allowed (e.g. <code>-copy -nochat</code>)",
-		)
+		_, _ = m.Reply("❗ Reply to a message to broadcast.\nExample:\n`/broadcast -copy -limit 100 -delay 2s optional preview text`")
 		return tg.EndGroup
 	}
 
-	args := strings.Fields(strings.ToLower(m.Args()))
+	args := strings.Fields(m.Args())
+	if len(args) == 0 {
+		_, _ = m.Reply("Provide flags.\nExample: `/broadcast -copy -limit 50 -delay 1s`")
+		return tg.EndGroup
+	}
+
 	copyMode := false
 	noChats := false
 	noUsers := false
+	limit := 0
+	delay := time.Duration(0)
 
 	for _, a := range args {
-		switch a {
-		case "-copy":
+		switch {
+		case a == "-copy":
 			copyMode = true
-		case "-nochat", "-nochats":
+		case a == "-nochat" || a == "-nochats":
 			noChats = true
-		case "-nouser", "-nousers":
+		case a == "-nouser" || a == "-nousers":
 			noUsers = true
+
+		case strings.HasPrefix(a, "-limit"):
+			val := strings.TrimPrefix(a, "-limit")
+			val = strings.TrimSpace(val)
+			n, err := strconv.Atoi(val)
+			if err != nil || n <= 0 {
+				_, _ = m.Reply("❗ Invalid limit value. Example: `-limit 100`")
+				return tg.EndGroup
+			}
+			limit = n
+
+		case strings.HasPrefix(a, "-delay"):
+			val := strings.TrimPrefix(a, "-delay")
+			val = strings.TrimSpace(val)
+			d, err := time.ParseDuration(val)
+			if err != nil {
+				_, _ = m.Reply("❗ Invalid delay. Example: `-delay 2s`")
+				return tg.EndGroup
+			}
+			delay = d
 		}
 	}
 
-	chats, err := db.Instance.GetAllChats(ctx)
-	if err != nil {
-		gologging.Error("GetAllChats: %v", err)
-	}
-
-	users, err := db.Instance.GetAllUsers(ctx)
-	if err != nil {
-		gologging.Error("GetAllUsers: %v", err)
-	}
+	broadcastCancelFlag.Store(false)
+	chats, _ := db.Instance.GetAllChats(ctx)
+	users, _ := db.Instance.GetAllUsers(ctx)
 
 	var targets []int64
 	if !noChats {
 		targets = append(targets, chats...)
 	}
-
 	if !noUsers {
 		targets = append(targets, users...)
 	}
 
 	if len(targets) == 0 {
-		_, _ = m.Reply("⚠️ No valid targets to broadcast.")
+		_, _ = m.Reply("❗ No targets found.")
 		return tg.EndGroup
 	}
 
-	sentMsg, _ := m.Reply(fmt.Sprintf("📡 Broadcasting to %d targets...", len(targets)))
+	if limit > 0 && limit < len(targets) {
+		targets = targets[:limit]
+	}
 
-	total := len(targets)
-	success := 0
-	failed := 0
+	sentMsg, _ := m.Reply(fmt.Sprintf(
+		"🚀 <b>Broadcast Started</b>\nTargets: %d\nMode: %s\nDelay: %v\n\nSend <code>/cancelbroadcast</code> to stop.",
+		len(targets),
+		map[bool]string{true: "Copy", false: "Forward"}[copyMode],
+		delay,
+	))
+
+	var success int32
+	var failed int32
 
 	workers := 20
 	jobs := make(chan int64, workers)
 	wg := sync.WaitGroup{}
 
-	sendToTarget := func(chatID int64) {
-		defer wg.Done()
-
-		for {
-			_, errSend := reply.ForwardTo(chatID, &tg.ForwardOptions{
-				Noforwards: copyMode,
-			})
-
-			if errSend == nil {
-				success++
-				return
-			}
-
-			if wait := tg.GetFloodWait(errSend); wait > 0 {
-				gologging.Warn("FloodWait %ds → retry chatID=%d", wait, chatID)
-				time.Sleep(time.Duration(wait) * time.Second)
+	worker := func() {
+		for id := range jobs {
+			if broadcastCancelFlag.Load() {
+				atomic.AddInt32(&failed, 1)
 				continue
 			}
 
-			failed++
-			gologging.WarnF("[Broadcast] chatID=%d error=%v", chatID, errSend)
-			return
+			for {
+				_, errSend := reply.ForwardTo(id, &tg.ForwardOptions{
+					Noforwards: copyMode,
+				})
+
+				if errSend == nil {
+					atomic.AddInt32(&success, 1)
+					break
+				}
+
+				if wait := tg.GetFloodWait(errSend); wait > 0 {
+					gologging.Warn("FloodWait %ds for chatID=%d", wait, id)
+					time.Sleep(time.Duration(wait) * time.Second)
+					continue
+				}
+
+				atomic.AddInt32(&failed, 1)
+				gologging.WarnF("[Broadcast] chatID: %d error: %v", id, errSend)
+				break
+			}
+
+			if delay > 0 {
+				time.Sleep(delay)
+			}
 		}
+		wg.Done()
 	}
 
+	wg.Add(workers)
 	for i := 0; i < workers; i++ {
-		go func() {
-			for id := range jobs {
-				wg.Add(1)
-				sendToTarget(id)
-			}
-		}()
+		go worker()
 	}
 
 	for _, id := range targets {
@@ -126,24 +166,23 @@ func broadCastHandler(m *tg.NewMessage) error {
 
 	wg.Wait()
 
-	text := fmt.Sprintf(
+	total := len(targets)
+	result := fmt.Sprintf(
 		"📢 <b>Broadcast Complete</b>\n\n"+
-			"👥 Total Targets: %d\n"+
+			"👥 Total: %d\n"+
 			"✅ Success: %d\n"+
 			"❌ Failed: %d\n"+
-			"⚙ Mode: %s\n",
+			"⚙ Mode: %s\n"+
+			"⏱ Delay: %v\n"+
+			"🛑 Cancelled: %v\n",
 		total,
 		success,
 		failed,
-		func() string {
-			if copyMode {
-				return "Copy"
-			}
-			return "Forward"
-		}(),
+		map[bool]string{true: "Copy", false: "Forward"}[copyMode],
+		delay,
+		broadcastCancelFlag.Load(),
 	)
 
-	_, _ = sentMsg.Edit(text)
-	gologging.Info("[Broadcast completed] total=%d success=%d failed=%d", total, success, failed)
+	_, _ = sentMsg.Edit(result)
 	return tg.EndGroup
 }
