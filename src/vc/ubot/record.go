@@ -2,16 +2,12 @@ package ubot
 
 import "ashokshau/tgmusic/src/vc/ntgcalls"
 
-func (ctx *Context) Record(chatId any, mediaDescription ntgcalls.MediaDescription) error {
-	parsedChatId, err := ctx.parseChatId(chatId)
-	if err != nil {
-		return err
-	}
-	if ctx.binding.Calls()[parsedChatId] == nil {
-		err = ctx.Play(chatId, ntgcalls.MediaDescription{})
+func (ctx *Context) Record(chatId int64, mediaDescription ntgcalls.MediaDescription) error {
+	if ctx.binding.Calls()[chatId] == nil {
+		err := ctx.Play(chatId, ntgcalls.MediaDescription{})
 		if err != nil {
 			return err
 		}
 	}
-	return ctx.binding.SetStreamSources(parsedChatId, ntgcalls.PlaybackStream, mediaDescription)
+	return ctx.binding.SetStreamSources(chatId, ntgcalls.PlaybackStream, mediaDescription)
 }

@@ -2,10 +2,6 @@ package ubot
 
 import "ashokshau/tgmusic/src/vc/ntgcalls"
 
-func (ctx *Context) Time(chatId any, streamMode ntgcalls.StreamMode) (uint64, error) {
-	parsedChatId, err := ctx.parseChatId(chatId)
-	if err != nil {
-		return 0, err
-	}
-	return ctx.binding.Time(parsedChatId, streamMode)
+func (ctx *Context) Time(chatId int64, streamMode ntgcalls.StreamMode) (uint64, error) {
+	return ctx.binding.Time(chatId, streamMode)
 }
