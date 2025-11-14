@@ -31,21 +31,21 @@ update_dir() {
 }
 
 # Update ntgcalls, ubot, and ubot/types
-update_dir "ntgcalls" "internal/vc/ntgcalls"
-update_dir "ubot" "internal/vc/ubot"
-update_dir "ubot/types" "internal/vc/ubot/types"
+update_dir "ntgcalls" "src/vc/ntgcalls"
+update_dir "ubot" "src/vc/ubot"
+update_dir "ubot/types" "src/vc/ubot/types"
 
 echo "Update complete."
 
 echo "Fixing Go import paths..."
 
-find internal/vc/ubot -maxdepth 1 -type f -name "*.go" -print0 | xargs -0 sed -i \
-    -e "s|\"../ntgcalls\"|\"${MODULE_PATH}/internal/vc/ntgcalls\"|g" \
-    -e "s|\"gotgcalls/ntgcalls\"|\"${MODULE_PATH}/internal/vc/ntgcalls\"|g" \
-    -e "s|\"gotgcalls/ubot/types\"|\"${MODULE_PATH}/internal/vc/ubot/types\"|g"
+find src/vc/ubot -maxdepth 1 -type f -name "*.go" -print0 | xargs -0 sed -i \
+    -e "s|\"../ntgcalls\"|\"${MODULE_PATH}/src/vc/ntgcalls\"|g" \
+    -e "s|\"gotgcalls/ntgcalls\"|\"${MODULE_PATH}/src/vc/ntgcalls\"|g" \
+    -e "s|\"gotgcalls/ubot/types\"|\"${MODULE_PATH}/src/vc/ubot/types\"|g"
 
-find internal/vc/ubot/types -type f -name "*.go" -print0 | xargs -0 sed -i \
-    -e "s|\"../../ntgcalls\"|\"${MODULE_PATH}/internal/vc/ntgcalls\"|g" \
-    -e "s|\"gotgcalls/ntgcalls\"|\"${MODULE_PATH}/internal/vc/ntgcalls\"|g"
+find src/vc/ubot/types -type f -name "*.go" -print0 | xargs -0 sed -i \
+    -e "s|\"../../ntgcalls\"|\"${MODULE_PATH}/src/vc/ntgcalls\"|g" \
+    -e "s|\"gotgcalls/ntgcalls\"|\"${MODULE_PATH}/src/vc/ntgcalls\"|g"
 
 echo "Import paths fixed."
