@@ -118,7 +118,7 @@ Copy `sample.env` → `.env` and fill the required values:
 
 ```
 TgMusicBot/
-├── pkg/
+├── src/
 │   ├── config/       # Configuration loading
 │   ├── core/         # Core logic: database, caching, etc.
 │   ├── handlers/     # Telegram command handlers
