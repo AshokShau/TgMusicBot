@@ -69,6 +69,7 @@ func LoadModules(c *telegram.Client) {
 	c.On("callback:setlang_\\w+", setLangCallbackHandler)
 
 	c.On(telegram.OnParticipant, handleParticipant)
+
 	c.AddRawHandler(&telegram.UpdateNewChannelMessage{}, handleVoiceChat)
 	gologging.Debug("Handlers loaded successfully.")
 }

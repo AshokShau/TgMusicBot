@@ -36,7 +36,7 @@ func muteHandler(m *telegram.NewMessage) error {
 		return err
 	}
 
-	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "mute_success"), m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
+	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "mute_success"), m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
 	return err
 }
 
@@ -56,6 +56,6 @@ func unmuteHandler(m *telegram.NewMessage) error {
 		return err
 	}
 
-	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "unmute_success"), m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
+	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "unmute_success"), m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
 	return err
 }

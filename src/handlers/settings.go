@@ -54,18 +54,14 @@ func settingsHandler(m *telegram.NewMessage) error {
 	text := fmt.Sprintf(lang.GetString(langCode, "settings_header"),
 		m.Chat.Title, getPlayMode, getAdminMode)
 
-	_, err = m.Reply(text, telegram.SendOptions{
+	_, err = m.Reply(text, &telegram.SendOptions{
 		ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode),
 	})
 	return err
 }
 
 func settingsCallbackHandler(c *telegram.CallbackQuery) error {
-	chatID, err := getPeerId(c.Client, c.ChatID)
-	if err != nil {
-		gologging.WarnF("getPeerId error: %v", err)
-		return nil
-	}
+	chatID := c.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

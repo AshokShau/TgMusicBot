@@ -91,7 +91,8 @@ func handleParticipant(pu *telegram.ParticipantUpdate) error {
 	}
 
 	client := pu.Client
-	chatID, _ := getPeerId(client, pu.Channel.ID)
+	chatID := pu.ChannelID()
+
 	userID := pu.UserID()
 	chat := pu.Channel
 	ctx, cancel := db.Ctx()

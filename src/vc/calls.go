@@ -321,7 +321,7 @@ func (c *TelegramCalls) playSong(chatID int64, song *cache.CachedTrack) error {
 		song.User,
 	)
 
-	_, err = reply.Edit(text, tg.SendOptions{ReplyMarkup: core.ControlButtons("play")})
+	_, err = reply.Edit(text, &tg.SendOptions{ReplyMarkup: core.ControlButtons("play")})
 	if err != nil {
 		gologging.InfoF("[playSong] Failed to edit message: %v", err)
 		return nil

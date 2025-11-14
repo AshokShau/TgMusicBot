@@ -1,7 +1,7 @@
 github.com/Laky-64/gologging v1.1.0 h1:iV/VgoIbImLrI3EPssOzzoyv1OQrp6t5RtDQTKzUes8=
 github.com/Laky-64/gologging v1.1.0/go.mod h1:Ody93tsM0OZUAsWApkfb3rg35fAvyZDAx07kNH13DhI=
-github.com/amarnathcjd/gogram v1.6.5-0.20251113141502-36894e31a83b h1:6vy6EfEXwNJbELhBdxbf6HCEl2eRjP3gxfpQrzd37lc=
-github.com/amarnathcjd/gogram v1.6.5-0.20251113141502-36894e31a83b/go.mod h1:vZURSYiNYNPnZ70msOgmRmcVuku1P6ol2zIAHMM1CFY=
+github.com/amarnathcjd/gogram v1.6.5-0.20251114185648-ae2b931ff4fa h1:5Nd/AOcCmfDsfbyjLEA/r7wfHLHiqCclzy+0r8QQ3zc=
+github.com/amarnathcjd/gogram v1.6.5-0.20251114185648-ae2b931ff4fa/go.mod h1:R6oIfyidP7PqzskDl13P+pFY0ObPXTBzQyQfWo+GCjU=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1/go.mod h1:uYgXzlJ7ZpABp8OJ+exZzJJhRNQ2ASbcXHWsFqH8hp8=
 github.com/charmbracelet/colorprofile v0.3.2 h1:9J27WdztfJQVAQKX2WOlSSRB+5gaKqqITmrvb1uTIiI=
@@ -78,8 +78,6 @@ golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4/go.mod h1:jJ57K6gSWd91
 golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
 golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
 golang.org/x/net v0.0.0-20220722155237-a158d28d115b/go.mod h1:XRhObCWvk6IyKnWLug+ECip1KBveYUHfp+8e9klMJ9c=
-golang.org/x/net v0.46.0 h1:giFlY12I07fugqwPuWJi68oOnpfqFnJIJzaIIm2JVV4=
-golang.org/x/net v0.46.0/go.mod h1:Q9BGdFy1y4nkUwiLvT5qtyhAnEHgnQ/zd8PfU6nc210=
 golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
 golang.org/x/sync v0.17.0 h1:l60nONMj9l5drqw6jlhIELNv9I0A4OFgRsG9k2oT9Ug=

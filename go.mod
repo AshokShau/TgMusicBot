@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	github.com/Laky-64/gologging v1.1.0
-	github.com/amarnathcjd/gogram v1.6.5-0.20251113141502-36894e31a83b
+	github.com/amarnathcjd/gogram v1.6.5-0.20251114185648-ae2b931ff4fa
 	github.com/joho/godotenv v1.5.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	go.mongodb.org/mongo-driver/v2 v2.4.0
@@ -38,7 +38,6 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/crypto v0.43.0 // indirect
-	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/term v0.36.0 // indirect

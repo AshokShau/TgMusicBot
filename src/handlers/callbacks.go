@@ -31,8 +31,7 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 
-	// TODO: update this
-	chatID, _ := getPeerId(cb.Client, cb.ChatID)
+	chatID := cb.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
@@ -136,8 +135,7 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 // It takes a telegram.CallbackQuery object as input.
 // It returns an error if any.
 func vcPlayHandler(cb *telegram.CallbackQuery) error {
-	// TODO: chatID := cb.ChannelID()
-	chatID, _ := getPeerId(cb.Client, cb.ChatID)
+	chatID := cb.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

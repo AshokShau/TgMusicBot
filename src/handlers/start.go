@@ -63,7 +63,7 @@ func startHandler(m *telegram.NewMessage) error {
 	langCode := db.Instance.GetLang(ctx, chatID)
 
 	response := fmt.Sprintf(lang.GetString(langCode, "start_text"), m.Sender.FirstName, bot.FirstName)
-	_, err := m.Reply(response, telegram.SendOptions{
+	_, err := m.Reply(response, &telegram.SendOptions{
 		ReplyMarkup: core.AddMeMarkup(m.Client.Me().Username),
 	})
 

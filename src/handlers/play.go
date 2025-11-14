@@ -92,7 +92,7 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	}
 
 	if url == "" && args == "" && (!isReply || !isValidMedia(rMsg)) {
-		_, _ = m.Reply(lang.GetString(langCode, "play_usage"), telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
+		_, _ = m.Reply(lang.GetString(langCode, "play_usage"), &telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
 		return telegram.EndGroup
 	}
 
@@ -109,7 +109,7 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	wrapper := dl.NewDownloaderWrapper(input)
 	if url != "" {
 		if !wrapper.IsValid() {
-			_, _ = updater.Edit(lang.GetString(langCode, "play_invalid_url"), telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
+			_, _ = updater.Edit(lang.GetString(langCode, "play_invalid_url"), &telegram.SendOptions{ReplyMarkup: core.SupportKeyboard()})
 			return telegram.EndGroup
 		}
 
@@ -164,7 +164,7 @@ func handleMedia(m *telegram.NewMessage, updater *telegram.NewMessage, dlMsg *te
 			len(queue), saveCache.URL, saveCache.Name, cache.SecToMin(saveCache.Duration), saveCache.User,
 		)
 
-		_, err := updater.Edit(queueInfo, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
+		_, err := updater.Edit(queueInfo, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
 		return err
 	}
 
@@ -238,7 +238,7 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 			len(queue), saveCache.URL, saveCache.Name, cache.SecToMin(saveCache.Duration), saveCache.User,
 		)
 
-		_, err := updater.Edit(queueInfo, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
+		_, err := updater.Edit(queueInfo, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
 		return err
 	}
 
@@ -278,7 +278,7 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		saveCache.URL, saveCache.Name, cache.SecToMin(song.Duration), saveCache.User,
 	)
 
-	_, err := updater.Edit(nowPlaying, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
+	_, err := updater.Edit(nowPlaying, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
 	return err
 }
 
@@ -327,6 +327,6 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 		_ = vc.Calls.PlayNext(chatId)
 	}
 
-	_, err := updater.Edit(fullMessage, telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
+	_, err := updater.Edit(fullMessage, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
 	return err
 }

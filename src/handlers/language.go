@@ -25,7 +25,7 @@ func langHandler(m *telegram.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
-	_, err := m.Reply(lang.GetString(langCode, "choose_lang"), telegram.SendOptions{
+	_, err := m.Reply(lang.GetString(langCode, "choose_lang"), &telegram.SendOptions{
 		ReplyMarkup: core.LanguageKeyboard(),
 	})
 	return err
@@ -53,7 +53,7 @@ func setLangCallbackHandler(c *telegram.CallbackQuery) error {
 		return err
 	}
 
-	chatID, _ := getPeerId(c.Client, c.ChatID)
+	chatID := c.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 

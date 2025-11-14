@@ -57,7 +57,7 @@ func getHelpCategories(langCode string) map[string]struct {
 // It returns an error if any.
 func helpCallbackHandler(cb *telegram.CallbackQuery) error {
 	data := cb.DataString()
-	chatID, _ := getPeerId(cb.Client, cb.ChatID)
+	chatID := cb.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
@@ -100,6 +100,6 @@ func privacyHandler(m *telegram.NewMessage) error {
 
 	text := fmt.Sprintf(lang.GetString(langCode, "privacy_policy"), botName, botName, botName, botName, botName)
 
-	_, err := m.Reply(text, telegram.SendOptions{LinkPreview: false})
+	_, err := m.Reply(text, &telegram.SendOptions{LinkPreview: false})
 	return err
 }

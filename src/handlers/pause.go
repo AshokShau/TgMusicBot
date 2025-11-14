@@ -36,7 +36,7 @@ func pauseHandler(m *telegram.NewMessage) error {
 		return nil
 	}
 
-	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "pause_success"), m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
+	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "pause_success"), m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
 	return err
 }
 
@@ -61,6 +61,6 @@ func resumeHandler(m *telegram.NewMessage) error {
 		return nil
 	}
 
-	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "resume_success"), m.Sender.FirstName), telegram.SendOptions{ReplyMarkup: core.ControlButtons("resume")})
+	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "resume_success"), m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("resume")})
 	return err
 }

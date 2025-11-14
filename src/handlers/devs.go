@@ -66,7 +66,7 @@ func activeVcHandler(m *telegram.NewMessage) error {
 		text = fmt.Sprintf(lang.GetString(langCode, "active_chats_header_short"), len(activeChats))
 	}
 
-	_, err := m.Reply(text, telegram.SendOptions{LinkPreview: false})
+	_, err := m.Reply(text, &telegram.SendOptions{LinkPreview: false})
 	if err != nil {
 		return err
 	}

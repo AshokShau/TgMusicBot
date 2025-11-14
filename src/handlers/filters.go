@@ -96,11 +96,7 @@ func adminMode(m *telegram.NewMessage) bool {
 }
 
 func adminModeCB(cb *telegram.CallbackQuery) bool {
-	chatID, err := getPeerId(cb.Client, cb.ChatID)
-	if err != nil {
-		gologging.WarnF("getPeerId error: %v", err)
-		return false
-	}
+	chatID := cb.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
