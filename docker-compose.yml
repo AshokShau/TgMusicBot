@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  app:
+  tgmusic:
     build: .
-    container_name: tgmusic
     env_file: .env
