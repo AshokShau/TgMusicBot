@@ -14,12 +14,13 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"ashokshau/tgmusic/src/core/cache"
 )
 
 const (
-	downloadTimeout        = 300
+	downloadTimeout        = 300 * time.Second
 	defaultDownloadDirPerm = 0755
 )
 
