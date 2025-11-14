@@ -153,7 +153,8 @@ func gatherAppStats() (*AppStats, error) {
 func sysStatsHandler(msg *telegram.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, msg.ChatID())
+	chatID := msg.ChannelID()
+	langCode := db.Instance.GetLang(ctx, chatID)
 	sysMsg, err := msg.Reply(lang.GetString(langCode, "stats_gathering"))
 	if err != nil {
 		return err

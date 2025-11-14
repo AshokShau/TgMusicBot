@@ -24,7 +24,7 @@ import (
 
 // queueHandler displays the current playback queue with detailed information.
 func queueHandler(m *tg.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

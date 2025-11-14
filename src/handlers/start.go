@@ -32,7 +32,7 @@ func pingHandler(m *telegram.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	langCode := db.Instance.GetLang(ctx, chatID)
 	response := fmt.Sprintf(lang.GetString(langCode, "ping_text"), latency, uptime)
 	_, err = msg.Edit(response)
@@ -42,7 +42,7 @@ func pingHandler(m *telegram.NewMessage) error {
 // startHandler handles the /start command.
 func startHandler(m *telegram.NewMessage) error {
 	bot := m.Client.Me()
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 
 	if m.IsPrivate() {
 		go func(chatID int64) {

@@ -61,7 +61,7 @@ func authListHandler(m *telegram.NewMessage) error {
 	if m.IsPrivate() {
 		return nil
 	}
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
@@ -88,7 +88,7 @@ func addAuthHandler(m *telegram.NewMessage) error {
 	if m.IsPrivate() {
 		return nil
 	}
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
@@ -122,7 +122,7 @@ func removeAuthHandler(m *telegram.NewMessage) error {
 		return nil
 	}
 
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

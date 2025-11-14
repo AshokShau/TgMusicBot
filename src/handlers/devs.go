@@ -16,6 +16,7 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
+
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -23,7 +24,7 @@ import (
 // It takes a telegram.NewMessage object as input.
 // It returns an error if any.
 func activeVcHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
@@ -75,7 +76,7 @@ func activeVcHandler(m *telegram.NewMessage) error {
 
 // Handles the /clearass command to remove all assistant assignments
 func clearAssistantsHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
@@ -92,7 +93,7 @@ func clearAssistantsHandler(m *telegram.NewMessage) error {
 
 // Handles the /leaveall command to leave all chats
 func leaveAllHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

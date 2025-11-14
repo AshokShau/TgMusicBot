@@ -22,7 +22,7 @@ import (
 
 // muteHandler handles the /mute command.
 func muteHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
@@ -42,7 +42,7 @@ func muteHandler(m *telegram.NewMessage) error {
 
 // unmuteHandler handles the /unmute command.
 func unmuteHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

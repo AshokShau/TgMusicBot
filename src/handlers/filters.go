@@ -29,6 +29,7 @@ func isDev(m *telegram.NewMessage) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -41,11 +42,7 @@ func adminMode(m *telegram.NewMessage) bool {
 	if m.IsPrivate() {
 		return false
 	}
-	chatID, err := getPeerId(m.Client, m.ChatID())
-	if err != nil {
-		gologging.WarnF("getPeerId error: %v", err)
-		return false
-	}
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
@@ -163,11 +160,7 @@ func playMode(m *telegram.NewMessage) bool {
 		return false
 	}
 
-	chatID, err := getPeerId(m.Client, m.ChatID())
-	if err != nil {
-		gologging.WarnF("getPeerId error: %v", err)
-		return false
-	}
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

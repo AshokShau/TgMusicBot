@@ -64,27 +64,27 @@ func helpCallbackHandler(cb *telegram.CallbackQuery) error {
 	langCode := db.Instance.GetLang(ctx, chatID)
 	helpCategories := getHelpCategories(langCode)
 	if strings.Contains(data, "help_all") {
-		_, _ = cb.Answer(lang.GetString(langCode, "opening_help_menu"), &telegram.CallbackOptions{Alert: true})
+		_, _ = cb.Answer(lang.GetString(langCode, "opening_help_menu"), &telegram.CallbackOptions{Alert: false})
 		response := fmt.Sprintf(lang.GetString(langCode, "start_text"), cb.Sender.FirstName, cb.Client.Me().FirstName)
 		_, _ = cb.Edit(response, &telegram.SendOptions{ReplyMarkup: core.HelpMenuKeyboard()})
 		return nil
 	}
 
 	if strings.Contains(data, "help_back") {
-		_, _ = cb.Answer(lang.GetString(langCode, "returning_to_home"), &telegram.CallbackOptions{Alert: true})
+		_, _ = cb.Answer(lang.GetString(langCode, "returning_to_home"), &telegram.CallbackOptions{Alert: false})
 		response := fmt.Sprintf(lang.GetString(langCode, "start_text"), cb.Sender.FirstName, cb.Client.Me().FirstName)
 		_, _ = cb.Edit(response, &telegram.SendOptions{ReplyMarkup: core.AddMeMarkup(cb.Client.Me().Username)})
 		return nil
 	}
 
 	if category, ok := helpCategories[data]; ok {
-		_, _ = cb.Answer(fmt.Sprintf(lang.GetString(langCode, "opening_category"), category.Title), &telegram.CallbackOptions{Alert: true})
+		_, _ = cb.Answer(fmt.Sprintf(lang.GetString(langCode, "opening_category"), category.Title), &telegram.CallbackOptions{Alert: false})
 		text := fmt.Sprintf(lang.GetString(langCode, "help_category_text"), category.Title, category.Content)
 		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: category.Markup})
 		return nil
 	}
 
-	_, _ = cb.Answer(lang.GetString(langCode, "unknown_command_category"), &telegram.CallbackOptions{Alert: true})
+	_, _ = cb.Answer(lang.GetString(langCode, "unknown_command_category"), &telegram.CallbackOptions{Alert: false})
 	return nil
 }
 
@@ -92,7 +92,7 @@ func helpCallbackHandler(cb *telegram.CallbackQuery) error {
 // It takes a telegram.NewMessage object as input.
 // It returns an error if any.
 func privacyHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

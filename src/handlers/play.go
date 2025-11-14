@@ -71,7 +71,7 @@ func vPlayHandler(m *telegram.NewMessage) error {
 
 // handlePlay is the main handler for /play and /vplay commands.
 func handlePlay(m *telegram.NewMessage, isVideo bool) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

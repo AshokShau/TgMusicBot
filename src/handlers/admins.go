@@ -29,8 +29,7 @@ func reloadAdminCacheHandler(m *telegram.NewMessage) error {
 	if m.IsPrivate() {
 		return nil
 	}
-
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

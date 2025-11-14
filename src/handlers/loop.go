@@ -21,7 +21,7 @@ import (
 
 // loopHandler handles the /loop command.
 func loopHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)

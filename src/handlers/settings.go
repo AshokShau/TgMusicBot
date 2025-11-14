@@ -29,7 +29,7 @@ func settingsHandler(m *telegram.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	admins, err := cache.GetAdmins(m.Client, chatID, false)
 	if err != nil {
 		return err

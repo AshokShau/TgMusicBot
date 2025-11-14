@@ -21,7 +21,7 @@ import (
 
 // removeHandler handles the /remove command.
 func removeHandler(m *telegram.NewMessage) error {
-	chatID, _ := getPeerId(m.Client, m.ChatID())
+	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
