@@ -125,7 +125,7 @@ Deploying with Docker is the easiest and recommended method.
 1.  **Install prerequisites:**
     - **On Debian/Ubuntu:**
       ```sh
-      sudo apt-get update && sudo apt-get install -y golang ffmpeg
+      sudo apt-get update && sudo apt-get install -y golang ffmpeg unzip
       curl -fsSL https://deno.land/install.sh | sh
       ```
     - **On macOS (using Homebrew):**

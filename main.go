@@ -15,11 +15,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/AshokShau/TgMusicBot/internal"
-	"github.com/AshokShau/TgMusicBot/internal/config"
-	"github.com/AshokShau/TgMusicBot/internal/core/db"
-	"github.com/AshokShau/TgMusicBot/internal/lang"
-	"github.com/AshokShau/TgMusicBot/internal/vc"
+	"ashokshau/tgmusic/src"
+	"ashokshau/tgmusic/src/config"
+	"ashokshau/tgmusic/src/core/db"
+	"ashokshau/tgmusic/src/lang"
+	"ashokshau/tgmusic/src/vc"
 
 	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"

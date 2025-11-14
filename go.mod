@@ -1,4 +1,4 @@
-module github.com/AshokShau/TgMusicBot
+module ashokshau/tgmusic
 
 go 1.24.4
 

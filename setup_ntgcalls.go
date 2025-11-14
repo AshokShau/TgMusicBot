@@ -54,11 +54,9 @@ func main() {
 	fmt.Println("Extracting...")
 	unzip(tmpZip, "ntgcalls_tmp")
 
-	destHeader := "internal/vc/ntgcalls"
-	destLib := "internal/vc"
-	os.MkdirAll(destHeader, 0755)
-	os.MkdirAll(destLib, 0755)
-
+	destHeader := "src/vc/ntgcalls"
+	destLib := "src/vc"
+	
 	filepath.Walk("ntgcalls_tmp", func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil

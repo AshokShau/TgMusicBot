@@ -9,7 +9,7 @@ fi
 
 BASE_URL="https://raw.githubusercontent.com/ashokshau/ntgcalls/master/examples/go"
 API_URL="https://api.github.com/repos/ashokshau/ntgcalls/contents/examples/go"
-MODULE_PATH="github.com/AshokShau/TgMusicBot"
+MODULE_PATH="ashokshau/tgmusic"
 
 update_dir() {
     local remote_dir="$1"
