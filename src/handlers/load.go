@@ -57,6 +57,8 @@ func LoadModules(c *telegram.Client) {
 	c.On("command:clear_assistants", clearAssistantsHandler, telegram.FilterFunc(isDev))
 	c.On("command:clearAss", clearAssistantsHandler, telegram.FilterFunc(isDev))
 	c.On("command:leaveAll", leaveAllHandler, telegram.FilterFunc(isDev))
+	c.On("command:broadcast", broadCastHandler, telegram.FilterFunc(isDev))
+	c.On("command:gCast", broadCastHandler, telegram.FilterFunc(isDev))
 
 	c.On("command:settings", settingsHandler, telegram.FilterFunc(adminMode))
 	c.On("callback:play_\\w+", playCallbackHandler, telegram.FilterFuncCallback(adminModeCB))
