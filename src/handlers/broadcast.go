@@ -22,7 +22,8 @@ import (
 )
 
 var (
-	broadcastCancelFlag atomic.Bool
+	broadcastCancelFlag  atomic.Bool
+	broadcastInProgress atomic.Bool
 )
 
 func cancelBroadcastHandler(m *tg.NewMessage) error {
@@ -32,6 +33,14 @@ func cancelBroadcastHandler(m *tg.NewMessage) error {
 }
 
 func broadcastHandler(m *tg.NewMessage) error {
+	if broadcastInProgress.Load() {
+		_, _ = m.Reply("❗ A broadcast is already in progress. Please wait for it to complete or cancel it with /cancelbroadcast")
+		return tg.EndGroup
+	}
+
+	broadcastInProgress.Store(true)
+	defer broadcastInProgress.Store(false)
+
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
@@ -184,5 +193,6 @@ func broadcastHandler(m *tg.NewMessage) error {
 	)
 
 	_, _ = sentMsg.Edit(result)
+	broadcastInProgress.Store(false)
 	return tg.EndGroup
 }
