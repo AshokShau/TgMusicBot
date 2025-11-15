@@ -8,7 +8,17 @@ import (
 
 func (ctx *Context) parseChatId(chatId any) (int64, error) {
 	var parsedChatId int64
+
 	switch v := chatId.(type) {
+	case tg.Peer:
+		switch v.(type) {
+		case *tg.PeerUser:
+			parsedChatId = v.(*tg.PeerUser).UserID
+		case *tg.PeerChat:
+			parsedChatId = -v.(*tg.PeerChat).ChatID
+		case *tg.PeerChannel:
+			parsedChatId = -1000000000000 - v.(*tg.PeerChannel).ChannelID
+		}
 	case int64:
 		parsedChatId = v
 	case int:
