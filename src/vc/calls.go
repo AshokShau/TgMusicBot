@@ -42,7 +42,7 @@ import (
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 	"ashokshau/tgmusic/src/vc/sessions"
 	"ashokshau/tgmusic/src/vc/ubot"
-	
+
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -120,6 +120,7 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) 
 		AppID:         apiID,
 		AppHash:       apiHash,
 		MemorySession: true,
+		SessionName:   clientName,
 	}
 
 	switch config.Conf.SessionType {

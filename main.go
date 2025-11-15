@@ -56,6 +56,7 @@ func main() {
 	cfg := tg.NewClientConfigBuilder(config.Conf.ApiId, config.Conf.ApiHash).
 		WithSession("bot.dat").
 		WithFloodHandler(handleFlood).
+		WithLogLevel(2).
 		Build()
 
 	client, err := tg.NewClient(cfg)
@@ -63,6 +64,7 @@ func main() {
 		panic(err)
 	}
 
+	client.Log.SetColor(true)
 	_, err = client.Conn()
 	if err != nil {
 		panic(err)
