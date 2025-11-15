@@ -168,7 +168,9 @@ func handleMedia(m *telegram.NewMessage, updater *telegram.NewMessage, dlMsg *te
 		return err
 	}
 
-	filePath, err := dlMsg.Download(&telegram.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, fileName)})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	filePath, err := dlMsg.Download(&telegram.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, fileName), Ctx: ctx})
 	if err != nil {
 		_, err = updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_download_failed"), err.Error()))
 		return err

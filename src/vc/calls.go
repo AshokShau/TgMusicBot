@@ -488,7 +488,9 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 				return
 			}
 
-			filePath, err := msg.Download(&tg.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, msg.File.Name)})
+			dCtx, dCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+			defer dCancel()
+			filePath, err := msg.Download(&tg.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, msg.File.Name), Ctx: dCtx})
 			if err != nil {
 				gologging.InfoF("[OnIncomingCall] Failed to download the message: %v", err)
 				return

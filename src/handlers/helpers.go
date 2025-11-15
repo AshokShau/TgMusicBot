@@ -9,33 +9,9 @@
 package handlers
 
 import (
-	"fmt"
-
 	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
-
-// getPeerId gets the peer ID from a chat ID.
-// It takes a telegram client and a chat ID as input.
-// It returns the peer ID and an error if any.
-func getPeerId(c *telegram.Client, chatId any) (int64, error) {
-	peer, err := c.ResolvePeer(chatId)
-	if err != nil {
-		gologging.WarnF("failed to resolve Peer for %d", chatId)
-		return 0, err
-	}
-
-	switch p := peer.(type) {
-	case *telegram.InputPeerUser:
-		return p.UserID, nil
-	case *telegram.InputPeerChat:
-		return -p.ChatID, nil
-	case *telegram.InputPeerChannel:
-		return -1000000000000 - p.ChannelID, nil
-	default:
-		return 0, fmt.Errorf("unsupported peer type %T", p)
-	}
-}
 
 // getUrl gets a URL from a message.
 // It takes a telegram.NewMessage object and a boolean indicating whether it is a reply.

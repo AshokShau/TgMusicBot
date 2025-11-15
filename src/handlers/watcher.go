@@ -22,62 +22,42 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// handleVoiceChat handles voice chat updates.
-// It takes a telegram.Update object and a telegram client as input.
-// It returns an error if any.
-func handleVoiceChat(upd telegram.Update, c *telegram.Client) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			gologging.ErrorF("Recovered from panic in handleVoiceChat: %v", r)
-			err = fmt.Errorf("panic in handleVoiceChat: %v", r)
-		}
-	}()
-
-	switch update := upd.(type) {
-	case *telegram.UpdateNewChannelMessage:
-		if msg, ok := update.Message.(*telegram.MessageService); ok {
-			chatID, err := getPeerId(c, msg.PeerID)
-			if err != nil {
-				gologging.ErrorF("Failed to get peer ID: %v", err)
-				return nil
-			}
-
-			ctx, cancel := db.Ctx()
-			defer cancel()
-
-			langCode := "en"
-			if db.Instance != nil {
-				langCode = db.Instance.GetLang(ctx, chatID)
-			}
-
-			if action, ok := msg.Action.(*telegram.MessageActionGroupCall); ok {
-				if action == nil {
-					gologging.DebugF("Received nil action in MessageActionGroupCall")
-					return nil
-				}
-
-				message := ""
-				if action.Duration == 0 {
-					if cache.ChatCache != nil {
-						cache.ChatCache.ClearChat(chatID, true)
-					}
-					message = lang.GetString(langCode, "watcher_vc_started")
-				} else {
-					gologging.InfoF("Voice chat ended. Duration: %d seconds", action.Duration)
-					if cache.ChatCache != nil {
-						cache.ChatCache.ClearChat(chatID, true)
-					}
-					message = lang.GetString(langCode, "watcher_vc_ended")
-				}
-
-				if message != "" {
-					_, _ = c.SendMessage(chatID, message)
-				}
-			} else {
-				gologging.DebugF("Unhandled action type: %T", msg.Action)
-			}
-		}
+func handleVoiceChatMessage(m *telegram.NewMessage) error {
+	if m.Action == nil {
+		return nil
 	}
+
+	chatID := m.ChannelID()
+	ctx, cancel := db.Ctx()
+	defer cancel()
+
+	langCode := "en"
+	if db.Instance != nil {
+		langCode = db.Instance.GetLang(ctx, chatID)
+	}
+
+	if action, ok := m.Action.(*telegram.MessageActionGroupCall); ok {
+		message := ""
+		if action.Duration == 0 {
+			if cache.ChatCache != nil {
+				cache.ChatCache.ClearChat(chatID, true)
+			}
+			message = lang.GetString(langCode, "watcher_vc_started")
+		} else {
+			gologging.InfoF("Voice chat ended. Duration: %d seconds", action.Duration)
+			if cache.ChatCache != nil {
+				cache.ChatCache.ClearChat(chatID, true)
+			}
+			message = lang.GetString(langCode, "watcher_vc_ended")
+		}
+
+		if message != "" {
+			_, _ = m.Client.SendMessage(chatID, message)
+		}
+	} else {
+		gologging.InfoF("Unhandled action type: %T", m.Action)
+	}
+
 	return nil
 }
 

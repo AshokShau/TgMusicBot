@@ -4,7 +4,7 @@ go 1.24.4
 
 require (
 	github.com/Laky-64/gologging v1.1.0
-	github.com/amarnathcjd/gogram v1.6.5-0.20251114185648-ae2b931ff4fa
+	github.com/amarnathcjd/gogram v1.6.5-0.20251115042034-1711433628b2
 	github.com/joho/godotenv v1.5.1
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	go.mongodb.org/mongo-driver/v2 v2.4.0
