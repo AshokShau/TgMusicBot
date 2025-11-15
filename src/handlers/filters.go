@@ -16,7 +16,6 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/lang"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -54,7 +53,7 @@ func adminMode(m *telegram.NewMessage) bool {
 			return false
 		}
 
-		gologging.WarnF("GetUserAdmin error: %v", err)
+		logger.Warn("GetUserAdmin error: %v", err)
 		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_admin_status_failed"))
 		return false
 	}
@@ -110,7 +109,7 @@ func adminModeCB(cb *telegram.CallbackQuery) bool {
 			return false
 		}
 
-		gologging.WarnF("GetUserAdmin error: %v", err)
+		logger.Warn("GetUserAdmin error: %v", err)
 		_, _ = cb.Answer(lang.GetString(langCode, "filter_bot_admin_status_failed"), opts)
 		return false
 	}
@@ -167,7 +166,7 @@ func playMode(m *telegram.NewMessage) bool {
 			return false
 		}
 
-		gologging.WarnF("GetUserAdmin error: %v", err)
+		logger.Warn("GetUserAdmin error: %v", err)
 		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_admin_status_failed"))
 		return false
 	}
@@ -186,7 +185,7 @@ func playMode(m *telegram.NewMessage) bool {
 	if getPlayMode != cache.Everyone {
 		admins, err := cache.GetAdmins(m.Client, chatID, false)
 		if err != nil {
-			gologging.WarnF("getAdmins error: %v", err)
+			logger.Warn("getAdmins error: %v", err)
 			return false
 		}
 

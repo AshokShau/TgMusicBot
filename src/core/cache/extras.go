@@ -12,10 +12,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
 	"time"
 
-	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -39,7 +39,7 @@ func GetFileDur(m *tg.NewMessage) int {
 	case *tg.MessageMediaPhoto:
 		return 0 // Photos do not have a duration.
 	default:
-		gologging.InfoF("Unsupported media type: %T", media)
+		m.Client.Logger.Info("Unsupported media type: %T", media)
 		return 0
 	}
 }
@@ -49,26 +49,23 @@ func GetFileDur(m *tg.NewMessage) int {
 func getDocumentDuration(media *tg.MessageMediaDocument) int {
 	doc, ok := media.Document.(*tg.DocumentObj)
 	if !ok {
-		gologging.InfoF("Unsupported document type: %T", media.Document)
+		log.Printf("Unsupported document type: %T", media.Document)
 		return 0
 	}
 
-	for i, attr := range doc.Attributes {
-		gologging.DebugF("Attribute %d: Type: %T, Value: %+v", i, attr, attr)
+	for _, attr := range doc.Attributes {
 		switch a := attr.(type) {
 		case *tg.DocumentAttributeAudio:
-			gologging.DebugF("Found audio attribute with duration: %d", a.Duration)
 			return int(a.Duration)
 		case *tg.DocumentAttributeVideo:
-			gologging.DebugF("Found video attribute with duration: %f", a.Duration)
 			return int(a.Duration)
 		}
 	}
 
 	if len(doc.Attributes) > 0 {
-		gologging.InfoF("No supported duration attributes found in: %+v", doc.Attributes)
+		log.Printf("No supported duration attributes found in: %+v", doc.Attributes)
 	} else {
-		gologging.DebugF("No attributes found in the document.")
+		log.Print("No attributes found in the document.")
 	}
 
 	return 0
@@ -90,20 +87,20 @@ func GetFileDuration(filePath string) int {
 
 	output, err := cmd.Output()
 	if err != nil {
-		gologging.WarnF("Failed to get audio duration with ffprobe: %v", err)
+		log.Printf("Failed to get audio duration with ffprobe: %v", err)
 		return 0
 	}
 
 	var info FFProbeFormat
 	if err := json.Unmarshal(output, &info); err != nil {
-		gologging.WarnF("Failed to parse ffprobe's JSON output: %v", err)
+		log.Printf("Failed to parse ffprobe's JSON output: %v", err)
 		return 0
 	}
 
 	var duration float64
 	if info.Format.Duration != "" {
 		if _, err := fmt.Sscanf(info.Format.Duration, "%f", &duration); err != nil {
-			gologging.WarnF("Could not parse duration format: %v", err)
+			log.Printf("Could not parse duration format: %v", err)
 			return 0
 		}
 	}

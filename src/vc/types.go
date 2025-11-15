@@ -18,6 +18,8 @@ import (
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
+var logger tg.Logger
+
 // TelegramCalls manages the state and operations for voice calls, including userbots and the main bot client.
 type TelegramCalls struct {
 	mu               sync.RWMutex
@@ -35,8 +37,8 @@ var (
 	once     sync.Once
 )
 
-// GetCalls returns the singleton instance of the TelegramCalls manager, ensuring that only one instance is created.
-func GetCalls() *TelegramCalls {
+// getCalls returns the singleton instance of the TelegramCalls manager, ensuring that only one instance is created.
+func getCalls() *TelegramCalls {
 	once.Do(func() {
 		instance = &TelegramCalls{
 			uBContext:     make(map[string]*ubot.Context),
@@ -50,4 +52,4 @@ func GetCalls() *TelegramCalls {
 }
 
 // Calls is the singleton instance of TelegramCalls, initialized lazily.
-var Calls = GetCalls()
+var Calls = getCalls()

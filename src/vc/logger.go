@@ -14,7 +14,6 @@ import (
 	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core/cache"
 
-	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -38,6 +37,6 @@ func sendLogger(client *tg.Client, chatID int64, song *cache.CachedTrack) {
 
 	_, err := client.SendMessage(config.Conf.LoggerId, text, &tg.SendOptions{LinkPreview: false})
 	if err != nil {
-		gologging.WarnF("[sendLogger] Failed to send the message: %v", err)
+		logger.Warn("[sendLogger] Failed to send the message: %v", err)
 	}
 }

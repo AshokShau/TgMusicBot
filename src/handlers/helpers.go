@@ -9,7 +9,6 @@
 package handlers
 
 import (
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -39,7 +38,7 @@ func getUrl(m *telegram.NewMessage, isReply bool) string {
 			url := text[e.Offset : e.Offset+e.Length]
 			return url
 		default:
-			gologging.DebugF("Ignoring entity type: %T", e)
+			logger.Debug("Ignoring entity type: %T", e)
 		}
 	}
 

@@ -17,7 +17,6 @@ import (
 	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core/cache"
 
-	"github.com/Laky-64/gologging"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -223,7 +222,7 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		bson.M{"assistant": bson.M{"$exists": true}},
 	)
 	if err != nil {
-		gologging.WarnF("[DB] Error finding chats with assistants: %v", err)
+		log.Printf("[DB] Error finding chats with assistants: %v", err)
 		return 0, err
 	}
 	defer func(cursor *mongo.Cursor, ctx context.Context) {
@@ -245,7 +244,7 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		bson.M{"$unset": bson.M{"assistant": ""}},
 	)
 	if err != nil {
-		gologging.WarnF("[DB] Error clearing assistants: %v", err)
+		log.Printf("[DB] Error clearing assistants: %v", err)
 		return 0, err
 	}
 	for _, chatID := range chatIDs {

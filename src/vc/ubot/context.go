@@ -46,6 +46,7 @@ func NewInstance(app *tg.Client) (*Context, error) {
 		callSources:         make(map[int64]*types.CallSources),
 		waitConnect:         make(map[int64]chan error),
 	}
+
 	if app.IsConnected() {
 		self, err := app.GetMe()
 		if err != nil {
@@ -53,6 +54,7 @@ func NewInstance(app *tg.Client) (*Context, error) {
 		}
 		client.self = self
 	}
+
 	client.handleUpdates()
 	return client, nil
 }

@@ -11,9 +11,9 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/Laky-64/gologging"
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
@@ -39,7 +39,7 @@ func getIntSlice(v interface{}) ([]int64, bool) {
 	case bson.A:
 		return convertInterfaceSlice(val)
 	default:
-		gologging.InfoF("Unexpected type encountered in getIntSlice: %T", v)
+		log.Printf("Unexpected type encountered in getIntSlice: %T", v)
 		return []int64{}, false
 	}
 }
@@ -60,7 +60,7 @@ func convertInterfaceSlice(arr []interface{}) ([]int64, bool) {
 				out = append(out, int64(n))
 			}
 		default:
-			gologging.InfoF("Unhandled numeric type in convertInterfaceSlice: %T", n)
+			log.Printf("Unhandled numeric type in convertInterfaceSlice: %T", n)
 			return nil, false
 		}
 	}

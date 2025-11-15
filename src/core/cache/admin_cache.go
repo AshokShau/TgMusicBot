@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -51,7 +50,7 @@ func GetAdmins(client *telegram.Client, chatID int64, forceReload bool) ([]*tele
 
 	admins, _, err := client.GetChatMembers(chatID, opts)
 	if err != nil {
-		gologging.WarnF("GetAdmins error: %v", err)
+		client.Logger.Warn("GetAdmins error: %v", err)
 		return nil, err
 	}
 
@@ -65,7 +64,7 @@ func GetAdmins(client *telegram.Client, chatID int64, forceReload bool) ([]*tele
 func GetUserAdmin(client *telegram.Client, chatID, userID int64, forceReload bool) (*telegram.Participant, error) {
 	admins, err := GetAdmins(client, chatID, forceReload)
 	if err != nil {
-		gologging.WarnF("GetUserAdmin error: %v", err)
+		client.Logger.Warn("GetUserAdmin error: %v", err)
 		// Cache a negative result for a short period to avoid repeated failed lookups.
 		cacheKey := fmt.Sprintf("admins:%d", chatID)
 		AdminCache.SetWithTTL(cacheKey, []*telegram.Participant{}, 20*time.Minute)

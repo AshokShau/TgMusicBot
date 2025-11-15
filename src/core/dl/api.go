@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -21,8 +22,6 @@ import (
 
 	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core/cache"
-
-	"github.com/Laky-64/gologging"
 )
 
 // ApiData provides a unified interface for fetching track and playlist information from various music platforms via an API gateway.
@@ -56,12 +55,12 @@ func NewApiData(query string) *ApiData {
 // It returns true if the URL matches a known pattern, and false otherwise.
 func (a *ApiData) IsValid() bool {
 	if a.Query == "" || a.ApiUrl == "" || a.APIKey == "" {
-		gologging.WarnF("The query, API URL, or API key is missing.")
+		log.Printf("The query, API URL, or API key is missing.")
 		return false
 	}
-	for name, pattern := range a.Patterns {
+
+	for _, pattern := range a.Patterns {
 		if pattern.MatchString(a.Query) {
-			gologging.DebugF("The platform has been matched: %s\n", name)
 			return true
 		}
 	}

@@ -26,8 +26,6 @@ import (
 	"time"
 
 	"ashokshau/tgmusic/src/config"
-
-	"github.com/Laky-64/gologging"
 )
 
 const (
@@ -80,11 +78,11 @@ func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, he
 				return resp, nil // Success
 			}
 			if err := resp.Body.Close(); err != nil {
-				gologging.WarnF("failed to close response body: %v", err)
+				log.Printf("failed to close response body: %v", err)
 			}
 			reqErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		} else if isTemporaryError(reqErr) {
-			gologging.InfoF("Temporary error on attempt %d/%d: %v", attempt+1, maxRetries, reqErr)
+			log.Printf("Temporary error on attempt %d/%d: %v", attempt+1, maxRetries, reqErr)
 			continue // Retry on temporary errors
 		} else {
 			break // Do not retry on permanent errors

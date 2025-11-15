@@ -4,10 +4,10 @@ import (
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 	"ashokshau/tgmusic/src/vc/ubot/types"
 	"fmt"
+	"log"
 	"slices"
 	"time"
 
-	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -189,7 +189,7 @@ func (ctx *Context) handleUpdates() {
 			for _, participant := range participantsUpdate.Participants {
 				userPeer, ok := participant.Peer.(*tg.PeerUser)
 				if !ok {
-					gologging.WarnF("[uBContext] Participant is not a user %T", participant.Peer)
+					log.Printf("[uBContext] Participant is not a user %T", participant.Peer)
 					continue
 				}
 
@@ -322,14 +322,14 @@ func (ctx *Context) handleUpdates() {
 	})
 
 	ctx.binding.OnUpgrade(func(chatId int64, state ntgcalls.MediaState) {
-        ctx.groupCallsMutex.RLock()
-        call := ctx.inputGroupCalls[chatId]
-        ctx.groupCallsMutex.RUnlock()
-        err := ctx.setCallStatus(call, state)
-        if err != nil {
-            fmt.Println(err)
-        }
-    })
+		ctx.groupCallsMutex.RLock()
+		call := ctx.inputGroupCalls[chatId]
+		ctx.groupCallsMutex.RUnlock()
+		err := ctx.setCallStatus(call, state)
+		if err != nil {
+			fmt.Println(err)
+		}
+	})
 
 	ctx.binding.OnStreamEnd(func(chatId int64, streamType ntgcalls.StreamType, streamDevice ntgcalls.StreamDevice) {
 		for _, callback := range ctx.streamEndCallbacks {

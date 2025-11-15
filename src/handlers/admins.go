@@ -16,7 +16,6 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/lang"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -50,12 +49,12 @@ func reloadAdminCacheHandler(m *telegram.NewMessage) error {
 	cache.ClearAdminCache(chatID)
 	admins, err := cache.GetAdmins(m.Client, chatID, true)
 	if err != nil {
-		gologging.WarnF("Failed to reload the admin cache for chat %d: %v", chatID, err)
+		logger.Warn("Failed to reload the admin cache for chat %d: %v", chatID, err)
 		_, _ = reply.Edit(lang.GetString(langCode, "reload_error"))
 		return nil
 	}
 
-	gologging.InfoF("Reloaded %d admins for chat %d", len(admins), chatID)
+	logger.Info("Reloaded %d admins for chat %d", len(admins), chatID)
 	_, err = reply.Edit(lang.GetString(langCode, "reload_success"))
 	return err
 }

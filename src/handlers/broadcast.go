@@ -17,12 +17,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Laky-64/gologging"
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
 var (
-	broadcastCancelFlag  atomic.Bool
+	broadcastCancelFlag atomic.Bool
 	broadcastInProgress atomic.Bool
 )
 
@@ -146,13 +145,13 @@ func broadcastHandler(m *tg.NewMessage) error {
 				}
 
 				if wait := tg.GetFloodWait(errSend); wait > 0 {
-					gologging.Warn("FloodWait %ds for chatID=%d", wait, id)
+					logger.Warn("FloodWait %ds for chatID=%d", wait, id)
 					time.Sleep(time.Duration(wait) * time.Second)
 					continue
 				}
 
 				atomic.AddInt32(&failed, 1)
-				gologging.WarnF("[Broadcast] chatID: %d error: %v", id, errSend)
+				logger.Warn("[Broadcast] chatID: %d error: %v", id, errSend)
 				break
 			}
 

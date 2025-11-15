@@ -18,7 +18,6 @@ import (
 	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -44,7 +43,7 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 			}
 			message = lang.GetString(langCode, "watcher_vc_started")
 		} else {
-			gologging.InfoF("Voice chat ended. Duration: %d seconds", action.Duration)
+			logger.Info("Voice chat ended. Duration: %d seconds", action.Duration)
 			if cache.ChatCache != nil {
 				cache.ChatCache.ClearChat(chatID, true)
 			}
@@ -55,7 +54,7 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 			_, _ = m.Client.SendMessage(chatID, message)
 		}
 	} else {
-		gologging.InfoF("Unhandled action type: %T", m.Action)
+		logger.Info("Unhandled action type: %T", m.Action)
 	}
 
 	return nil
@@ -66,7 +65,7 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 // It returns an error if any.
 func handleParticipant(pu *telegram.ParticipantUpdate) error {
 	if pu == nil || pu.Channel == nil {
-		gologging.ErrorF("[handleParticipant] Received nil participant update or nil channel")
+		logger.Error("[handleParticipant] Received nil participant update or nil channel")
 		return nil
 	}
 
@@ -103,21 +102,21 @@ func handleParticipant(pu *telegram.ParticipantUpdate) error {
 		vc.Calls.UpdateInviteLink(chatID, fmt.Sprintf("https://t.me/%s", chat.Username))
 	}
 
-	gologging.DebugF("[handleParticipant] Update: Old=%T New=%T ChatID=%d UserID=%d", pu.Old, pu.New, chatID, userID)
+	logger.Debug("[handleParticipant] Update: Old=%T New=%T ChatID=%d UserID=%d", pu.Old, pu.New, chatID, userID)
 
 	oldStatus := getStatusFromParticipant(pu.Old)
 	newStatus := getStatusFromParticipant(pu.New)
 
-	gologging.DebugF("[handleParticipant] old=%s new=%s chat=%d user=%d", oldStatus, newStatus, chatID, userID)
+	logger.Debug("[handleParticipant] old=%s new=%s chat=%d user=%d", oldStatus, newStatus, chatID, userID)
 	call, err := vc.Calls.GetGroupAssistant(chatID)
 	if err != nil {
-		gologging.ErrorF("[handleParticipant] Failed to get group assistant: %v", err)
+		logger.Error("[handleParticipant] Failed to get group assistant: %v", err)
 		return nil
 	}
 
 	ubID := call.App.Me().ID
 	if userID != ubID && userID != client.Me().ID {
-		gologging.DebugF("[handleParticipant] Ignoring non-self update for user %d", userID)
+		logger.Debug("[handleParticipant] Ignoring non-self update for user %d", userID)
 		return nil
 	}
 
@@ -147,14 +146,14 @@ func handleParticipantStatusChange(client *telegram.Client, chatID int64, userID
 // It returns an error if any.
 func handleJoin(client *telegram.Client, chatID, userID, ubID int64) error {
 	if userID == client.Me().ID {
-		gologging.InfoF("bot joined chat %d. Initializing...", chatID)
+		logger.Info("bot joined chat %d. Initializing...", chatID)
 	}
 
 	if userID == ubID {
-		gologging.InfoF("UB joined chat %d. Initializing...", chatID)
+		logger.Info("UB joined chat %d. Initializing...", chatID)
 	}
 
-	gologging.DebugF("User %d joined chat %d", userID, chatID)
+	logger.Debug("User %d joined chat %d", userID, chatID)
 	updateUbStatusCache(chatID, userID, telegram.Member)
 	return nil
 }
@@ -163,14 +162,14 @@ func handleJoin(client *telegram.Client, chatID, userID, ubID int64) error {
 // It takes a telegram client, a chat ID, a user ID, and a userbot ID as input.
 // It returns an error if any.
 func handleLeaveOrKick(client *telegram.Client, chatID, userID, ubId int64) error {
-	gologging.DebugF("User %d left or was kicked from %d", userID, chatID)
+	logger.Debug("User %d left or was kicked from %d", userID, chatID)
 	if userID == ubId {
-		gologging.InfoF("UB left chat %d. Stopping call...", chatID)
+		logger.Info("UB left chat %d. Stopping call...", chatID)
 		cache.ChatCache.ClearChat(chatID, true)
 	}
 
 	if userID == client.Me().ID {
-		gologging.InfoF("bot left chat %d. Stopping call...", chatID)
+		logger.Info("bot left chat %d. Stopping call...", chatID)
 		_ = vc.Calls.Stop(chatID)
 	}
 
@@ -182,25 +181,25 @@ func handleLeaveOrKick(client *telegram.Client, chatID, userID, ubId int64) erro
 // It takes a telegram client, a chat ID, a user ID, and a userbot ID as input.
 // It returns an error if any.
 func handleBan(client *telegram.Client, chatID, userID, ubId int64) error {
-	gologging.DebugF("User %d was banned in chat %d", userID, chatID)
+	logger.Debug("User %d was banned in chat %d", userID, chatID)
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
 	if userID == ubId {
-		gologging.InfoF("The bot (assistant) was banned in chat %d. Stopping any active calls and clearing cache...", chatID)
+		logger.Info("The bot (assistant) was banned in chat %d. Stopping any active calls and clearing cache...", chatID)
 		cache.ChatCache.ClearChat(chatID, true)
 
 		_, err := client.SendMessage(chatID, fmt.Sprintf(lang.GetString(langCode, "watcher_assistant_banned"),
 			ubId,
 		))
 		if err != nil {
-			gologging.ErrorF("Failed to send ban message in chat %d: %v", chatID, err)
+			logger.Error("Failed to send ban message in chat %d: %v", chatID, err)
 			return err
 		}
 	}
 
 	if userID == client.Me().ID {
-		gologging.InfoF("bot banned in chat %d. Stopping call...", chatID)
+		logger.Info("bot banned in chat %d. Stopping call...", chatID)
 		_ = vc.Calls.Stop(chatID)
 	}
 
@@ -212,7 +211,7 @@ func handleBan(client *telegram.Client, chatID, userID, ubId int64) error {
 // It takes a chat ID and a user ID as input.
 // It returns an error if any.
 func handleUnban(chatID, userID int64) error {
-	gologging.DebugF("User %d was unbanned in chat %d", userID, chatID)
+	logger.Debug("User %d was unbanned in chat %d", userID, chatID)
 	updateUbStatusCache(chatID, userID, telegram.Left)
 	return nil
 }
@@ -222,7 +221,7 @@ func handleUnban(chatID, userID int64) error {
 func updateUbStatusCache(chatId, userId int64, status string) {
 	call, err := vc.Calls.GetGroupAssistant(chatId)
 	if err != nil {
-		gologging.ErrorF("[updateUbStatusCache] Failed to get group assistant: %v", err)
+		logger.Error("[updateUbStatusCache] Failed to get group assistant: %v", err)
 		return
 	}
 
@@ -250,14 +249,14 @@ func handlePromotionDemotion(client *telegram.Client, chatID, userID int64, oldS
 
 	if userID == client.Me().ID {
 		if isPromoted {
-			gologging.InfoF("bot promoted in %d, reloading admin cache", chatID)
+			logger.Info("bot promoted in %d, reloading admin cache", chatID)
 			_, _ = cache.GetAdmins(client, chatID, true)
 		} else {
-			gologging.InfoF("bot demoted in %d, clearing admin cache", chatID)
+			logger.Info("bot demoted in %d, clearing admin cache", chatID)
 			cache.ClearAdminCache(chatID)
 		}
 	} else {
-		gologging.DebugF("User %d was %s in %d", userID, action, chatID)
+		logger.Debug("User %d was %s in %d", userID, action, chatID)
 	}
 
 	vc.Calls.UpdateMembership(chatID, userID, newStatus)
@@ -282,7 +281,7 @@ func getStatusFromParticipant(p telegram.ChannelParticipant) string {
 	case nil:
 		return telegram.Left
 	default:
-		gologging.WarnF("Unknown participant type: %T", p)
+		logger.Warn("Unknown participant type: %T", p)
 		return telegram.Restricted
 	}
 }

@@ -15,7 +15,6 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/lang"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -105,7 +104,7 @@ func addAuthHandler(m *telegram.NewMessage) error {
 	}
 
 	if err := db.Instance.AddAuthUser(ctx, chatID, userID); err != nil {
-		gologging.Error("Failed to add authorized user:", err)
+		logger.Error("Failed to add authorized user:", err)
 		_, _ = m.Reply(lang.GetString(langCode, "add_auth_error"))
 		return nil
 	}
@@ -139,7 +138,7 @@ func removeAuthHandler(m *telegram.NewMessage) error {
 	}
 
 	if err := db.Instance.RemoveAuthUser(ctx, chatID, userID); err != nil {
-		gologging.Error("Failed to remove authorized user:", err)
+		logger.Error("Failed to remove authorized user:", err)
 		_, _ = m.Reply(lang.GetString(langCode, "remove_auth_error"))
 		return nil
 	}

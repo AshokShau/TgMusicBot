@@ -15,7 +15,6 @@ import (
 
 	"ashokshau/tgmusic/src/core/cache"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -36,7 +35,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 			return leftCount, fmt.Errorf("failed to get dialogs: %w", err)
 		}
 
-		gologging.InfoF("for %s found %d dialogs", userBot.Me().FirstName, len(dialogs))
+		logger.Info("for %s found %d dialogs", userBot.Me().FirstName, len(dialogs))
 		activeChats := make(map[int64]bool)
 		for _, id := range cache.ChatCache.GetActiveChats() {
 			activeChats[id] = true
@@ -53,7 +52,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 			case *telegram.PeerUser:
 				continue
 			default:
-				gologging.WarnF("Unknown peer type: %T", peer)
+				logger.Warn("Unknown peer type: %T", peer)
 				continue
 			}
 
@@ -71,7 +70,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 				if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") || strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
 					continue
 				}
-				gologging.WarnF("Failed to leave chat %d: %v", chatID, err)
+				logger.Warn("Failed to leave chat %d: %v", chatID, err)
 				continue
 			}
 

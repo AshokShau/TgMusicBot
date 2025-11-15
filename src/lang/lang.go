@@ -10,12 +10,12 @@ package lang
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/Laky-64/gologging"
 )
 
 var translations = make(map[string]map[string]string)
@@ -51,14 +51,14 @@ func LoadTranslations() error {
 				return err
 			}
 			translations[langCode] = langMap
-			gologging.InfoF("Loaded language: %s", langCode)
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load %s: %w", localePath, err)
 	}
 
+	log.Printf("Loaded %d languages", len(translations))
 	return nil
 }
 

@@ -17,7 +17,6 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/lang"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -122,7 +121,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
 	chat, err := c.GetChannel()
 	if err != nil {
-		gologging.WarnF("Failed to get chat: %v", err)
+		logger.Warn("Failed to get chat: %v", err)
 		return nil
 	}
 
@@ -133,7 +132,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 		ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode),
 	})
 	if err != nil {
-		gologging.WarnF("Failed to edit message: %v", err)
+		logger.Warn("Failed to edit message: %v", err)
 		return err
 	}
 

@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Laky-64/gologging"
 	"github.com/joho/godotenv"
 )
 
@@ -94,8 +93,6 @@ func LoadConfig() error {
 		if err := os.MkdirAll(tmpDir, 0750); err != nil {
 			return fmt.Errorf("failed to create temp dir: %w", err)
 		}
-
-		gologging.InfoF("Saving cookies...")
 		go saveAllCookies(Conf.cookiesUrl)
 	}
 	return nil

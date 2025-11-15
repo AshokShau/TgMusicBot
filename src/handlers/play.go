@@ -25,7 +25,6 @@ import (
 	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -98,7 +97,7 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 
 	updater, err := m.Reply(lang.GetString(langCode, "play_searching"))
 	if err != nil {
-		gologging.WarnF("failed to send message: %v", err)
+		logger.Warn("failed to send message: %v", err)
 		return telegram.EndGroup
 	}
 
@@ -138,7 +137,7 @@ func handleMedia(m *telegram.NewMessage, updater *telegram.NewMessage, dlMsg *te
 	if dlMsg.File.Size > config.Conf.MaxFileSize {
 		_, err := updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_file_too_large"), config.Conf.MaxFileSize/(1024*1024)))
 		if err != nil {
-			gologging.WarnF("[play.go - handleMedia] Edit message failed: %v", err)
+			logger.Warn("[play.go - handleMedia] Edit message failed: %v", err)
 		}
 		return nil
 	}
@@ -247,7 +246,7 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 	if saveCache.FilePath == "" {
 		_, err := updater.Edit(fmt.Sprintf(lang.GetString(langCode, "downloading"), song.Name))
 		if err != nil {
-			gologging.WarnF("[play.go - handleSingleTrack] Edit message failed: %v", err)
+			logger.Warn("[play.go - handleSingleTrack] Edit message failed: %v", err)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

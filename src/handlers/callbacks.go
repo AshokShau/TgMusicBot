@@ -18,7 +18,6 @@ import (
 	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -145,6 +144,6 @@ func vcPlayHandler(cb *telegram.CallbackQuery) error {
 		_, _ = cb.Delete()
 		return nil
 	}
-	gologging.InfoF("vcPlayHandler: %s", data)
+	logger.Info("vcPlayHandler: %s", data)
 	return nil
 }

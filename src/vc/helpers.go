@@ -22,7 +22,6 @@ import (
 	"ashokshau/tgmusic/src/core/dl"
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 
-	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -30,12 +29,12 @@ func getVideoDimensions(filePath string) (int, int) {
 	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", filePath)
 	out, err := cmd.Output()
 	if err != nil {
-		gologging.WarnF("[getVideoDimensions] Failed to get video dimensions: %v", err)
+		logger.Warn("[getVideoDimensions] Failed to get video dimensions: %v", err)
 		return 0, 0
 	}
 	dimensions := strings.Split(strings.TrimSpace(string(out)), "x")
 	if len(dimensions) != 2 {
-		gologging.WarnF("[getVideoDimensions] Invalid video dimensions: %s", string(out))
+		logger.Warn("[getVideoDimensions] Invalid video dimensions: %s", string(out))
 		return 0, 0
 	}
 
@@ -176,7 +175,7 @@ func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Cl
 	if wrapper.IsValid() {
 		trackInfo, err := wrapper.GetTrack(ctx)
 		if err != nil {
-			gologging.InfoF("[DownloadSong] Failed to get track information: %v", err)
+			logger.Info("[DownloadSong] Failed to get track information: %v", err)
 			return "", nil, err
 		}
 
@@ -211,7 +210,7 @@ func (c *TelegramCalls) UpdateMembership(chatId, userId int64, status string) {
 	cacheKey := fmt.Sprintf("%d:%d", chatId, userId)
 	if c.statusCache != nil {
 		c.statusCache.Set(cacheKey, status)
-		gologging.InfoF("[UpdateMembership] The cache has been updated: chat=%d user=%d status=%s", chatId, userId, status)
+		logger.Info("[UpdateMembership] The cache has been updated: chat=%d user=%d status=%s", chatId, userId, status)
 	}
 }
 
