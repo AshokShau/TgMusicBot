@@ -53,13 +53,15 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	cfg := tg.NewClientConfigBuilder(config.Conf.ApiId, config.Conf.ApiHash).
-		WithSession("bot.dat").
-		WithFloodHandler(handleFlood).
-		WithLogLevel(2).
-		Build()
+	clientConfig := tg.ClientConfig{
+		AppID:         config.Conf.ApiId,
+		AppHash:       config.Conf.ApiHash,
+		MemorySession: true,
+		FloodHandler:  handleFlood,
+		SessionName:   "bot",
+	}
 
-	client, err := tg.NewClient(cfg)
+	client, err := tg.NewClient(clientConfig)
 	if err != nil {
 		panic(err)
 	}
