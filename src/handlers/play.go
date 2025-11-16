@@ -71,6 +71,31 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	}
 
 	input := coalesce(url, args)
+	if strings.HasPrefix(input, "tgpl_") {
+		playlist, err := db.Instance.GetPlaylist(ctx, input)
+		if err != nil {
+			_, err := m.Reply(lang.GetString(langCode, "playlist_not_found"))
+			return err
+		}
+
+		var tracks []cache.MusicTrack
+		for _, song := range playlist.Songs {
+			tracks = append(tracks, cache.MusicTrack{
+				URL:      song.URL,
+				Name:     song.Name,
+				ID:       song.TrackID,
+				Duration: song.Duration,
+				Platform: song.Platform,
+			})
+		}
+
+		updater, err := m.Reply(lang.GetString(langCode, "play_searching"))
+		if err != nil {
+			logger.Warn("failed to send message: %v", err)
+			return telegram.EndGroup
+		}
+		return handleMultipleTracks(m, updater, tracks, chatID, isVideo, langCode)
+	}
 
 	if username, msgID, ok := parseTelegramURL(input); ok {
 		rMsg, err = m.Client.GetMessageByID(username, int32(msgID))

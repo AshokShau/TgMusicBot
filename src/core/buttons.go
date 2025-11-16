@@ -38,6 +38,9 @@ var OwnerBtn = telegram.Button.Data("Oᴡɴᴇʀ Cᴏᴍᴍᴀɴᴅꜱ", "help_o
 // DevsBtn is a button that displays the developer commands.
 var DevsBtn = telegram.Button.Data("Dᴇᴠꜱ Cᴏᴍᴍᴀɴᴅꜱ", "help_devs")
 
+// PlaylistBtn is a button that displays the playlist commands.
+var PlaylistBtn = telegram.Button.Data("Pʟᴀʏʟɪsᴛ Cᴏᴍᴍᴀɴᴅꜱ", "help_playlist")
+
 // ChannelBtn is a button that links to the updates channel.
 var ChannelBtn = telegram.Button.URL("ᴜᴘᴅᴀᴛᴇꜱ", "https://t.me/FallenProjects")
 
@@ -96,6 +99,7 @@ func HelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 	keyboard := telegram.NewKeyboard().
 		AddRow(UserBtn, AdminBtn).
 		AddRow(OwnerBtn, DevsBtn).
+		AddRow(PlaylistBtn).
 		AddRow(CloseBtn, HomeBtn)
 
 	return keyboard.Build()
@@ -119,12 +123,13 @@ func ControlButtons(mode string) *telegram.ReplyInlineMarkup {
 	resumeBtn := telegram.Button.Data("▷", "play_resume")
 	muteBtn := telegram.Button.Data("🔇", "play_mute")
 	unmuteBtn := telegram.Button.Data("🔊", "play_unmute")
+	addToPlaylistBtn := telegram.Button.Data("➕ Playlist", "play_add_to_list")
 
 	var keyboard *telegram.KeyboardBuilder
 
 	switch mode {
 	case "play":
-		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, pauseBtn, resumeBtn).AddRow(CloseBtn)
+		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, pauseBtn, resumeBtn).AddRow(addToPlaylistBtn, CloseBtn)
 	case "pause":
 		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, resumeBtn).AddRow(CloseBtn)
 	case "resume":

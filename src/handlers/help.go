@@ -49,6 +49,11 @@ func getHelpCategories(langCode string) map[string]struct {
 			Content: lang.GetString(langCode, "help_owner_content"),
 			Markup:  core.BackHelpMenuKeyboard(),
 		},
+		"help_playlist": {
+			Title:   lang.GetString(langCode, "help_playlist_title"),
+			Content: lang.GetString(langCode, "help_playlist_content"),
+			Markup:  core.BackHelpMenuKeyboard(),
+		},
 	}
 }
 

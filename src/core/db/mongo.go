@@ -25,14 +25,15 @@ import (
 
 // Database encapsulates the MongoDB connection, database, collections, and caches.
 type Database struct {
-	client    *mongo.Client
-	DB        *mongo.Database
-	chatDB    *mongo.Collection
-	userDB    *mongo.Collection
-	botDB     *mongo.Collection
-	chatCache *cache.Cache[map[string]interface{}]
-	botCache  *cache.Cache[map[string]interface{}]
-	userCache *cache.Cache[map[string]interface{}]
+	client     *mongo.Client
+	DB         *mongo.Database
+	chatDB     *mongo.Collection
+	userDB     *mongo.Collection
+	botDB      *mongo.Collection
+	playlistDB *mongo.Collection
+	chatCache  *cache.Cache[map[string]interface{}]
+	botCache   *cache.Cache[map[string]interface{}]
+	userCache  *cache.Cache[map[string]interface{}]
 }
 
 // Instance is the global singleton for the database.
@@ -48,14 +49,15 @@ func InitDatabase(ctx context.Context) error {
 
 	db := client.Database(config.Conf.DbName)
 	Instance = &Database{
-		client:    client,
-		DB:        db,
-		chatDB:    db.Collection("chats"),
-		userDB:    db.Collection("users"),
-		botDB:     db.Collection("bot"),
-		chatCache: cache.NewCache[map[string]interface{}](20 * time.Minute),
-		botCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
-		userCache: cache.NewCache[map[string]interface{}](20 * time.Minute),
+		client:     client,
+		DB:         db,
+		chatDB:     db.Collection("chats"),
+		userDB:     db.Collection("users"),
+		botDB:      db.Collection("bot"),
+		playlistDB: db.Collection("playlists"),
+		chatCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
+		botCache:   cache.NewCache[map[string]interface{}](20 * time.Minute),
+		userCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
 	}
 
 	if err := Instance.Ping(ctx); err != nil {

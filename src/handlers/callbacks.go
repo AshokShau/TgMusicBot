@@ -123,6 +123,47 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 		text := buildTrackMessage(lang.GetString(langCode, "now_playing"), "🎵") + fmt.Sprintf(lang.GetString(langCode, "unmuted_by"), cb.Sender.FirstName)
 		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
 		return nil
+	case strings.Contains(data, "play_add_to_list"):
+		userID := cb.GetSenderID()
+		playlists, err := db.Instance.GetUserPlaylists(ctx, userID)
+		if err != nil {
+			_, _ = cb.Answer(lang.GetString(langCode, "playlist_fetch_error"), &telegram.CallbackOptions{Alert: true})
+			return nil
+		}
+
+		var playlistID string
+		if len(playlists) == 0 {
+			playlistID, err = db.Instance.CreatePlaylist(ctx, "My Playlist (TgMusic)", userID)
+			if err != nil {
+				_, _ = cb.Answer(lang.GetString(langCode, "playlist_create_error"), &telegram.CallbackOptions{Alert: true})
+				return nil
+			}
+		} else {
+			playlistID = playlists[0].ID
+		}
+
+		song := db.Song{
+			URL:      currentTrack.URL,
+			Name:     currentTrack.Name,
+			TrackID:  currentTrack.TrackID,
+			Duration: currentTrack.Duration,
+			Platform: currentTrack.Platform,
+		}
+
+		err = db.Instance.AddSongToPlaylist(ctx, playlistID, song)
+		if err != nil {
+			_, _ = cb.Answer(lang.GetString(langCode, "playlist_add_error"), &telegram.CallbackOptions{Alert: true})
+			return nil
+		}
+
+		playlist, err := db.Instance.GetPlaylist(ctx, playlistID)
+		if err != nil {
+			_, _ = cb.Answer(lang.GetString(langCode, "playlist_not_found"), &telegram.CallbackOptions{Alert: true})
+			return nil
+		}
+
+		_, _ = cb.Answer(fmt.Sprintf(lang.GetString(langCode, "playlist_song_added"), song.Name, playlist.Name), &telegram.CallbackOptions{Alert: true})
+		return nil
 	}
 
 	text := buildTrackMessage(lang.GetString(langCode, "now_playing"), "🎵")

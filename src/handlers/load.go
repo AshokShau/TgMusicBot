@@ -63,6 +63,20 @@ func LoadModules(c *tg.Client) {
 	c.On("command:cancelBroadcast", cancelBroadcastHandler, tg.FilterFunc(isDev))
 
 	c.On("command:settings", settingsHandler, tg.FilterFunc(adminMode))
+
+	c.On("command:cplist", createPlaylistHandler)
+	c.On("command:createplaylist", createPlaylistHandler)
+	c.On("command:dlplist", deletePlaylistHandler)
+	c.On("command:deleteplaylist", deletePlaylistHandler)
+	c.On("command:addtoplist", addToPlaylistHandler)
+	c.On("command:addtoplaylist", addToPlaylistHandler)
+	c.On("command:rmplist", removeFromPlaylistHandler)
+	c.On("command:removefromplaylist", removeFromPlaylistHandler)
+	c.On("command:plistinfo", playlistInfoHandler)
+	c.On("command:playlistinfo", playlistInfoHandler)
+	c.On("command:myplist", myPlaylistsHandler)
+	c.On("command:myplaylists", myPlaylistsHandler)
+
 	c.On("callback:play_\\w+", playCallbackHandler, tg.FilterFuncCallback(adminModeCB))
 	c.On("callback:vcplay_\\w+", vcPlayHandler)
 	c.On("callback:help_\\w+", helpCallbackHandler)
