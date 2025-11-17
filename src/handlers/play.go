@@ -249,6 +249,10 @@ func handleUrl(m *telegram.NewMessage, updater *telegram.NewMessage, trackInfo c
 
 // handleSingleTrack handles a single track.
 func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, song cache.MusicTrack, filePath string, chatId int64, isVideo bool, langCode string) error {
+	if song.Duration > int(config.Conf.SongDurationLimit) {
+		_, err := updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_song_too_long"), config.Conf.SongDurationLimit/60))
+		return err
+	}
 	saveCache := cache.CachedTrack{
 		URL: song.URL, Name: song.Name, User: m.Sender.FirstName, FilePath: filePath,
 		Thumbnail: song.Cover, TrackID: song.ID, Duration: song.Duration,
@@ -315,8 +319,13 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 
 	queueHeader := lang.GetString(langCode, "play_added_to_queue_header")
 	var queueItems []string
+	var skippedTracks []string
 
 	for i, track := range tracks {
+		if track.Duration > int(config.Conf.SongDurationLimit) {
+			skippedTracks = append(skippedTracks, track.Name)
+			continue
+		}
 		position := len(queue) + i
 		saveCache := cache.CachedTrack{
 			Name: track.Name, TrackID: track.ID, Duration: track.Duration,
@@ -345,6 +354,9 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 	)
 
 	fullMessage := queueHeader + strings.Join(queueItems, "\n") + queueSummary
+	if len(skippedTracks) > 0 {
+		fullMessage += fmt.Sprintf(lang.GetString(langCode, "play_skipped_tracks"), len(skippedTracks))
+	}
 	if len(fullMessage) > 4096 {
 		fullMessage = queueSummary
 	}

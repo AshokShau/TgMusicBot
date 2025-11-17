@@ -219,5 +219,7 @@
   "playlist_no_playlists": "❌ You don't have any playlists.",
   "playlist_my_playlists": "<b>🎵 My Playlists</b>\n\n%s",
   "playlist_song_added_default": "✅ '%s' has been added to your default playlist.",
-  "playlist_create_limit": "You have reached the maximum limit of %d playlists."
+  "playlist_create_limit": "You have reached the maximum limit of %d playlists.",
+  "play_song_too_long": "Sorry, this song is longer than the maximum allowed duration of %d minutes.",
+  "play_skipped_tracks": "\n\n<b>Skipped %d tracks</b> due to duration limit."
 }

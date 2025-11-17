@@ -19,27 +19,27 @@ import (
 
 // BotConfig holds the configuration for the bot.
 type BotConfig struct {
-	ApiId          int32    // ApiId is the Telegram API ID.
-	ApiHash        string   // ApiHash is the Telegram API hash.
-	Token          string   // Token is the bot token.
-	SessionStrings []string // SessionStrings is a list of pyrogram/telethon/gogram session strings.
-	SessionType    string   // SessionType is the type of session (pyrogram/telethon/gogram).
-	MongoUri       string   // MongoUri is the MongoDB connection string.
-	DbName         string   // DbName is the name of the database.
-	ApiUrl         string   // ApiUrl is the URL of the API.
-	ApiKey         string   // ApiKey is the API key.
-	OwnerId        int64    // OwnerId is the user ID of the bot owner.
-	LoggerId       int64    // LoggerId is the group ID of the bot logger.
-	Proxy          string   // Proxy is the proxy URL for the bot.
-	DefaultService string   // DefaultService is the default search platform.
-	MinMemberCount int64    // MinMemberCount is the minimum number of members required to use the bot.
-	MaxFileSize    int64    // MaxFileSize is the maximum file size for downloads.
-	DownloadsDir   string   // DownloadsDir is the directory where downloads are stored.
-	SupportGroup   string   // SupportGroup is the Telegram group link.
-	SupportChannel string   // SupportChannel is the Telegram channel link.
-	DEVS           []int64  // DEVS is a list of developer user IDs.
-	CookiesPath    []string // CookiesPath is a list of paths to cookies files.
-	cookiesUrl     []string // cookiesUrl is a list of URLs to cookies files.
+	ApiId             int32    // ApiId is the Telegram API ID.
+	ApiHash           string   // ApiHash is the Telegram API hash.
+	Token             string   // Token is the bot token.
+	SessionStrings    []string // SessionStrings is a list of pyrogram/telethon/gogram session strings.
+	SessionType       string   // SessionType is the type of session (pyrogram/telethon/gogram).
+	MongoUri          string   // MongoUri is the MongoDB connection string.
+	DbName            string   // DbName is the name of the database.
+	ApiUrl            string   // ApiUrl is the URL of the API.
+	ApiKey            string   // ApiKey is the API key.
+	OwnerId           int64    // OwnerId is the user ID of the bot owner.
+	LoggerId          int64    // LoggerId is the group ID of the bot logger.
+	Proxy             string   // Proxy is the proxy URL for the bot.
+	DefaultService    string   // DefaultService is the default search platform.
+	MaxFileSize       int64    // MaxFileSize is the maximum file size for downloads.
+	SongDurationLimit int64    // SongDurationLimit is the maximum duration of a song in seconds.
+	DownloadsDir      string   // DownloadsDir is the directory where downloads are stored.
+	SupportGroup      string   // SupportGroup is the Telegram group link.
+	SupportChannel    string   // SupportChannel is the Telegram channel link.
+	DEVS              []int64  // DEVS is a list of developer user IDs.
+	CookiesPath       []string // CookiesPath is a list of paths to cookies files.
+	cookiesUrl        []string // cookiesUrl is a list of URLs to cookies files.
 }
 
 // Conf is the global configuration for the bot.
@@ -51,25 +51,25 @@ func LoadConfig() error {
 	_ = godotenv.Load()
 
 	Conf = &BotConfig{
-		ApiId:          getEnvInt32("API_ID", 0),
-		ApiHash:        os.Getenv("API_HASH"),
-		Token:          os.Getenv("TOKEN"),
-		SessionStrings: getSessionStrings("STRING", 10),
-		SessionType:    getEnvStr("SESSION_TYPE", "pyrogram"),
-		MongoUri:       os.Getenv("MONGO_URI"),
-		DbName:         getEnvStr("DB_NAME", "MusicBot"),
-		ApiUrl:         getEnvStr("API_URL", "https://tgmusic.fallenapi.fun"),
-		ApiKey:         os.Getenv("API_KEY"),
-		OwnerId:        getEnvInt64("OWNER_ID", 5938660179),
-		LoggerId:       getEnvInt64("LOGGER_ID", -1002166934878),
-		Proxy:          os.Getenv("PROXY"),
-		DefaultService: strings.ToLower(getEnvStr("DEFAULT_SERVICE", "youtube")),
-		MinMemberCount: getEnvInt64("MIN_MEMBER_COUNT", 50),
-		MaxFileSize:    getEnvInt64("MAX_FILE_SIZE", 500*1024*1024),
-		DownloadsDir:   getEnvStr("DOWNLOADS_DIR", "downloads"),
-		SupportGroup:   getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
-		SupportChannel: getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
-		cookiesUrl:     processCookieURLs(os.Getenv("COOKIES_URL")),
+		ApiId:             getEnvInt32("API_ID", 0),
+		ApiHash:           os.Getenv("API_HASH"),
+		Token:             os.Getenv("TOKEN"),
+		SessionStrings:    getSessionStrings("STRING", 10),
+		SessionType:       getEnvStr("SESSION_TYPE", "pyrogram"),
+		MongoUri:          os.Getenv("MONGO_URI"),
+		DbName:            getEnvStr("DB_NAME", "MusicBot"),
+		ApiUrl:            getEnvStr("API_URL", "https://tgmusic.fallenapi.fun"),
+		ApiKey:            os.Getenv("API_KEY"),
+		OwnerId:           getEnvInt64("OWNER_ID", 5938660179),
+		LoggerId:          getEnvInt64("LOGGER_ID", -1002166934878),
+		Proxy:             os.Getenv("PROXY"),
+		DefaultService:    strings.ToLower(getEnvStr("DEFAULT_SERVICE", "youtube")),
+		MaxFileSize:       getEnvInt64("MAX_FILE_SIZE", 500*1024*1024),
+		SongDurationLimit: getEnvInt64("SONG_DURATION_LIMIT", 3600),
+		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "downloads"),
+		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
+		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
+		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
 	}
 
 	// Parse DEVS list
