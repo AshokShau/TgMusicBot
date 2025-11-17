@@ -242,5 +242,10 @@ func (ctx *Context) connectCall(chatId int64, mediaDescription ntgcalls.MediaDes
 	ctx.waitConnMutex.RLock()
 	ch := ctx.waitConnect[chatId]
 	ctx.waitConnMutex.RUnlock()
-	return <-ch
+	select {
+	case err := <-ch:
+		return err
+	case <-time.After(15 * time.Second):
+		return fmt.Errorf("timed out waiting for connection")
+	}
 }
