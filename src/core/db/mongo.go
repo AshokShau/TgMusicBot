@@ -61,7 +61,7 @@ func InitDatabase(ctx context.Context) error {
 	}
 
 	if err := Instance.Ping(ctx); err != nil {
-		return err
+		return errors.New("failed to ping database: " + err.Error())
 	}
 
 	log.Println("[DB] The database connection has been successfully established.")

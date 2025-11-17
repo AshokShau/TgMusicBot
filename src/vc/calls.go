@@ -196,7 +196,7 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 
 	if chatID < 0 {
 		if err := c.joinAssistant(chatID, call.App.Me().ID); err != nil {
-			cache.ChatCache.ClearChat(chatID, true)
+			cache.ChatCache.ClearChat(chatID)
 			return err
 		}
 	} else {
@@ -207,7 +207,7 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 	mediaDesc := getMediaDescription(filePath, video, ffmpegParameters)
 	if err := call.Play(chatID, mediaDesc); err != nil {
 		logger.Error("Failed to play the media: %v", err)
-		cache.ChatCache.ClearChat(chatID, true)
+		cache.ChatCache.ClearChat(chatID)
 		return fmt.Errorf("playback failed: %w", err)
 	}
 
@@ -263,11 +263,11 @@ func (c *TelegramCalls) PlayNext(chatID int64) error {
 	}
 
 	if nextSong := cache.ChatCache.GetUpcomingTrack(chatID); nextSong != nil {
-		cache.ChatCache.RemoveCurrentSong(chatID, true)
+		cache.ChatCache.RemoveCurrentSong(chatID)
 		return c.playSong(chatID, nextSong)
 	}
 
-	cache.ChatCache.RemoveCurrentSong(chatID, true)
+	cache.ChatCache.RemoveCurrentSong(chatID)
 	return c.handleNoSong(chatID)
 }
 
@@ -329,7 +329,7 @@ func (c *TelegramCalls) Stop(chatId int64) error {
 	if err != nil {
 		return err
 	}
-	cache.ChatCache.ClearChat(chatId, true)
+	cache.ChatCache.ClearChat(chatId)
 	err = call.Stop(chatId)
 	if err != nil {
 		c.bot.Log.Info("[Stop] Failed to stop the call: %v", err)

@@ -10,7 +10,6 @@ package lang
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -51,11 +50,14 @@ func LoadTranslations() error {
 				return err
 			}
 			translations[langCode] = langMap
+			log.Printf("Loaded language: %s", langCode)
 		}
 		return nil
 	})
+
 	if err != nil {
-		return fmt.Errorf("failed to load %s: %w", localePath, err)
+		log.Printf("Failed to load translations: %v", err)
+		return err
 	}
 
 	log.Printf("Loaded %d languages", len(translations))

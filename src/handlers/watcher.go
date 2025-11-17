@@ -39,13 +39,13 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 		message := ""
 		if action.Duration == 0 {
 			if cache.ChatCache != nil {
-				cache.ChatCache.ClearChat(chatID, true)
+				cache.ChatCache.ClearChat(chatID)
 			}
 			message = lang.GetString(langCode, "watcher_vc_started")
 		} else {
 			logger.Info("Voice chat ended. Duration: %d seconds", action.Duration)
 			if cache.ChatCache != nil {
-				cache.ChatCache.ClearChat(chatID, true)
+				cache.ChatCache.ClearChat(chatID)
 			}
 			message = lang.GetString(langCode, "watcher_vc_ended")
 		}
@@ -53,11 +53,8 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 		if message != "" {
 			_, _ = m.Client.SendMessage(chatID, message)
 		}
-	} else {
-		logger.Info("Unhandled action type: %T", m.Action)
 	}
-
-	return nil
+	return telegram.EndGroup
 }
 
 // handleParticipant handles participant updates.
@@ -165,7 +162,7 @@ func handleLeaveOrKick(client *telegram.Client, chatID, userID, ubId int64) erro
 	logger.Debug("User %d left or was kicked from %d", userID, chatID)
 	if userID == ubId {
 		logger.Info("UB left chat %d. Stopping call...", chatID)
-		cache.ChatCache.ClearChat(chatID, true)
+		cache.ChatCache.ClearChat(chatID)
 	}
 
 	if userID == client.Me().ID {
@@ -187,7 +184,7 @@ func handleBan(client *telegram.Client, chatID, userID, ubId int64) error {
 	langCode := db.Instance.GetLang(ctx, chatID)
 	if userID == ubId {
 		logger.Info("The bot (assistant) was banned in chat %d. Stopping any active calls and clearing cache...", chatID)
-		cache.ChatCache.ClearChat(chatID, true)
+		cache.ChatCache.ClearChat(chatID)
 
 		_, err := client.SendMessage(chatID, fmt.Sprintf(lang.GetString(langCode, "watcher_assistant_banned"),
 			ubId,

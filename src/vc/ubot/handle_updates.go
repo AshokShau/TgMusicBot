@@ -4,7 +4,6 @@ import (
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 	"ashokshau/tgmusic/src/vc/ubot/types"
 	"fmt"
-	"log"
 	"slices"
 	"time"
 
@@ -183,7 +182,7 @@ func (ctx *Context) handleUpdates() {
 			for _, participant := range participantsUpdate.Participants {
 				userPeer, ok := participant.Peer.(*tg.PeerUser)
 				if !ok {
-					log.Printf("[uBContext] Participant is not a user %T", participant.Peer)
+					ctx.App.Log.Warnf("Participant is not a user %T", participant.Peer)
 					continue
 				}
 

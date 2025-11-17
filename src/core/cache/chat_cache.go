@@ -9,8 +9,6 @@
 package cache
 
 import (
-	"os"
-	"path/filepath"
 	"sync"
 )
 
@@ -76,9 +74,8 @@ func (c *ChatCacher) GetPlayingTrack(chatID int64) *CachedTrack {
 }
 
 // RemoveCurrentSong removes the currently playing song from the queue.
-// It can also optionally clear the associated file from the disk.
 // It returns the removed track or nil if the queue was empty.
-func (c *ChatCacher) RemoveCurrentSong(chatID int64, diskClear bool) *CachedTrack {
+func (c *ChatCacher) RemoveCurrentSong(chatID int64) *CachedTrack {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -89,11 +86,6 @@ func (c *ChatCacher) RemoveCurrentSong(chatID int64, diskClear bool) *CachedTrac
 
 	removed := data.Queue[0]
 	data.Queue = data.Queue[1:]
-
-	if diskClear && removed.FilePath != "" {
-		_ = os.Remove(removed.FilePath)
-		_ = os.Remove(filepath.Join("database", "photos", removed.TrackID+".png"))
-	}
 
 	return removed
 }
@@ -121,23 +113,16 @@ func (c *ChatCacher) SetActive(chatID int64, active bool) {
 	data.IsActive = active
 }
 
-// ClearChat removes all tracks from a chat's queue and optionally deletes the files from disk.
-func (c *ChatCacher) ClearChat(chatID int64, diskClear bool) {
+// ClearChat removes all tracks from a chat's queue.
+func (c *ChatCacher) ClearChat(chatID int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	data, ok := c.chatCache[chatID]
+	_, ok := c.chatCache[chatID]
 	if !ok {
 		return
 	}
 
-	if diskClear {
-		for _, track := range data.Queue {
-			if track.FilePath != "" {
-				_ = os.Remove(track.FilePath)
-			}
-		}
-	}
 	delete(c.chatCache, chatID)
 }
 

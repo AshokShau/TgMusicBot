@@ -10,8 +10,10 @@ package pkg
 
 import (
 	"ashokshau/tgmusic/src/config"
+	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/handlers"
 	"ashokshau/tgmusic/src/vc"
+	"context"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
@@ -26,5 +28,10 @@ func Init(client *tg.Client) error {
 
 	vc.Calls.RegisterHandlers(client)
 	handlers.LoadModules(client)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := db.InitDatabase(ctx); err != nil {
+		return err
+	}
 	return nil
 }
