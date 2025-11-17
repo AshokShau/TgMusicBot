@@ -218,5 +218,7 @@
   "playlist_fetch_error": "Ocurrió un error al obtener tus listas de reproducción: %s",
   "playlist_no_playlists": "❌ No tienes ninguna lista de reproducción.",
   "playlist_my_playlists": "<b>🎵 Mis listas de reproducción</b>\n\n%s",
-  "playlist_song_added_default": "✅ '%s' ha sido agregada a tu lista de reproducción predeterminada."
+  "playlist_song_added_default": "✅ '%s' ha sido agregada a tu lista de reproducción predeterminada.",
+  "play_song_too_long": "Lo sentimos, esta canción es más larga que la duración máxima permitida de %d minutos.",
+  "play_skipped_tracks": "\n\n<b>Se omitieron %d pistas</b> debido al límite de duración."
 }

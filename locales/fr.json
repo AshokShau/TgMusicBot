@@ -218,5 +218,7 @@
   "playlist_fetch_error": "Une erreur est survenue lors de la récupération de vos playlists: %s",
   "playlist_no_playlists": "❌ Vous n'avez aucune playlist.",
   "playlist_my_playlists": "<b>🎵 Mes playlists</b>\n\n%s",
-  "playlist_song_added_default": "✅ '%s' a été ajouté à votre playlist par défaut."
+  "playlist_song_added_default": "✅ '%s' a été ajouté à votre playlist par défaut.",
+  "play_song_too_long": "Désolé, cette chanson est plus longue que la durée maximale autorisée de %d minutes.",
+  "play_skipped_tracks": "\n\n<b>%d pistes ignorées</b> en raison de la limite de durée."
 }

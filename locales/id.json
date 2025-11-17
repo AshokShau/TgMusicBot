@@ -196,5 +196,7 @@
   "watcher_assistant_banned": "🚫 Asisten saya telah diblokir dari obrolan ini.\n\nSemua pemutaran musik yang sedang berlangsung dan data terkait telah dihentikan dan dihapus.\n\nJika ini adalah kesalahan, harap buka blokir <code>%d</code> untuk terus menggunakan fitur musik. 🎶",
   "watcher_not_supergroup": "Obrolan ini (%d) belum menjadi supergrup.\n<b>⚠️ Harap ubah obrolan ini menjadi supergrup dan tambahkan saya sebagai admin.</b>\n\nJika Anda tidak tahu cara mengubahnya, gunakan panduan ini:\n🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\nJika Anda memiliki pertanyaan, bergabunglah dengan grup dukungan kami:",
   "watcher_vc_ended": "🎧 Obrolan video berakhir!\nSemua antrian dihapus.",
-  "watcher_vc_started": "🎙️ Obrolan video dimulai!\nGunakan /play <nama lagu> untuk memutar musik."
+  "watcher_vc_started": "🎙️ Obrolan video dimulai!\nGunakan /play <nama lagu> untuk memutar musik.",
+  "play_song_too_long": "Maaf, lagu ini lebih panjang dari durasi maksimum yang diizinkan yaitu %d menit.",
+  "play_skipped_tracks": "\n\n<b>%d lagu dilewati</b> karena batas durasi."
 }

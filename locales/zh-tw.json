@@ -194,5 +194,7 @@
   "watcher_assistant_banned": "🚫 我的助理已被此聊天封禁。\n\n所有正在進行的音樂播放和相關資料都已停止並清除。\n\n如果這是個錯誤，請解封 <code>%d</code> 以繼續使用音樂功能。 🎶",
   "watcher_not_supergroup": "此聊天 (%d) 還不是超級群組。\n<b>⚠️ 請將此聊天轉換為超級群組並將我新增為管理員。</b>\n\n如果您不知道如何轉換，請使用此指南：\n🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\n如果您有任何疑問，請加入我們的支援小組：",
   "watcher_vc_ended": "🎧 視訊聊天已結束！\n所有隊列已清除。",
-  "watcher_vc_started": "🎙️ 視訊聊天已開始！\n使用 /play <歌曲名稱> 播放音樂。"
+  "watcher_vc_started": "🎙️ 視訊聊天已開始！\n使用 /play <歌曲名稱> 播放音樂。",
+  "play_song_too_long": "抱歉，這首歌的長度超過了允許的最大長度 %d 分鐘。",
+  "play_skipped_tracks": "\n\n<b>因時長限制，已跳過 %d 首歌曲。</b>"
 }

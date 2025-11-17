@@ -196,5 +196,7 @@
   "watcher_assistant_banned": "🚫 제 어시스턴트가 이 채팅에서 차단되었습니다.\n\n진행 중인 모든 음악 재생 및 관련 데이터가 중지되고 지워졌습니다.\n\n실수였다면 음악 기능을 계속 사용하려면 <code>%d</code>을(를) 차단 해제해 주세요. 🎶",
   "watcher_not_supergroup": "이 채팅(%d)은 아직 슈퍼그룹이 아닙니다.\n<b>⚠️ 이 채팅을 슈퍼그룹으로 전환하고 저를 관리자로 추가해 주세요.</b>\n\n전환 방법을 모르는 경우 이 가이드를 사용하세요:\n🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\n궁금한 점이 있으면 지원 그룹에 참여하세요:",
   "watcher_vc_ended": "🎧 영상 채팅이 종료되었습니다!\n모든 대기열이 비워졌습니다.",
-  "watcher_vc_started": "🎙️ 영상 채팅이 시작되었습니다!\n음악을 재생하려면 /play <노래 제목>을 사용하세요."
+  "watcher_vc_started": "🎙️ 영상 채팅이 시작되었습니다!\n음악을 재생하려면 /play <노래 제목>을 사용하세요.",
+  "play_song_too_long": "죄송합니다. 이 노래는 허용된 최대 재생 시간인 %d분을 초과합니다.",
+  "play_skipped_tracks": "\n\n<b>재생 시간 제한으로 인해 %d개의 트랙을 건너뛰었습니다.</b>"
 }

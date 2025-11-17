@@ -196,5 +196,7 @@
   "watcher_assistant_banned": "🚫 Meu assistente foi banido deste chat.\n\nToda a reprodução de música em andamento e dados relacionados foram parados e limpos.\n\nSe isso foi um erro, por favor, desbane <code>%d</code> para continuar usando os recursos de música. 🎶",
   "watcher_not_supergroup": "Este chat (%d) ainda não é um supergrupo.\n<b>⚠️ Por favor, converta este chat para um supergrupo e me adicione como administrador.</b>\n\nSe você não sabe como converter, use este guia:\n🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\nSe você tiver alguma dúvida, junte-se ao nosso grupo de suporte:",
   "watcher_vc_ended": "🎧 O chat de vídeo terminou!\nTodas as filas foram limpas.",
-  "watcher_vc_started": "🎙️ O chat de vídeo começou!\nUse /play <nome da música> para tocar música."
+  "watcher_vc_started": "🎙️ O chat de vídeo começou!\nUse /play <nome da música> para tocar música.",
+  "play_song_too_long": "Desculpe, esta música é mais longa do que a duração máxima permitida de %d minutos.",
+  "play_skipped_tracks": "\n\n<b>%d faixas puladas</b> devido ao limite de duração."
 }

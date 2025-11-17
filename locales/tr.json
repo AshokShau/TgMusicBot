@@ -196,5 +196,7 @@
   "watcher_assistant_banned": "🚫 Yardımcım bu sohbetten yasaklandı.\n\nTüm devam eden müzik çalma ve ilgili veriler durduruldu ve temizlendi.\n\nMüzik özelliklerini kullanmaya devam etmek için bu bir hataysa, lütfen <code>%d</code> yasağını kaldırın. 🎶",
   "watcher_not_supergroup": "Bu sohbet (%d) henüz bir süper grup değil.\n<b>⚠️ Lütfen bu sohbeti bir süper gruba dönüştürün ve beni yönetici olarak ekleyin.</b>\n\nNasıl dönüştüreceğinizi bilmiyorsanız, bu kılavuzu kullanın:\n🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\nHerhangi bir sorunuz varsa, destek grubumuza katılın:",
   "watcher_vc_ended": "🎧 Görüntülü sohbet sona erdi!\nTüm sıralar temizlendi.",
-  "watcher_vc_started": "🎙️ Görüntülü sohbet başladı!\nMüzik çalmak için /play <şarkı adı> kullanın."
+  "watcher_vc_started": "🎙️ Görüntülü sohbet başladı!\nMüzik çalmak için /play <şarkı adı> kullanın.",
+  "play_song_too_long": "Üzgünüz, bu şarkı izin verilen maksimum süre olan %d dakikadan daha uzun.",
+  "play_skipped_tracks": "\n\n<b>Süre sınırı nedeniyle %d parça atlandı.</b>"
 }
