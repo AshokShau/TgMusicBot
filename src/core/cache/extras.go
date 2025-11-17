@@ -63,7 +63,7 @@ func getDocumentDuration(media *tg.MessageMediaDocument) int {
 	}
 
 	if len(doc.Attributes) > 0 {
-		log.Printf("No supported duration attributes found in: %+v", doc.Attributes)
+		log.Printf("No supported duration attributes found in (%T): %#v", media, doc.Attributes)
 	} else {
 		log.Print("No attributes found in the document.")
 	}
