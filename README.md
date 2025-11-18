@@ -122,7 +122,7 @@ TgMusicBot/
 │   ├── config/       # Configuration loading
 │   ├── core/         # Core logic: database, caching, etc.
 │   ├── handlers/     # Telegram command handlers
-│   └── vc/           # Voice chat management
+│   └── vc/           # Voice chat management (ntgcalls package)
 ├── sample.env        # Example environment config
 ├── Dockerfile        # Docker build configuration
 ├── go.mod            # Go module definition
