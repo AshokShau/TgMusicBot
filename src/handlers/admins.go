@@ -44,7 +44,11 @@ func reloadAdminCacheHandler(m *telegram.NewMessage) error {
 	}
 
 	reloadRateLimit.Set(reloadKey, time.Now())
-	reply, _ := m.Reply(lang.GetString(langCode, "reloading_admins"))
+	reply, err := m.Reply(lang.GetString(langCode, "reloading_admins"))
+	if err != nil {
+		logger.Warn("Failed to send reloading message for chat %d: %v", chatID, err)
+		return err
+	}
 
 	cache.ClearAdminCache(chatID)
 	admins, err := cache.GetAdmins(m.Client, chatID, true)
@@ -55,6 +59,8 @@ func reloadAdminCacheHandler(m *telegram.NewMessage) error {
 	}
 
 	logger.Info("Reloaded %d admins for chat %d", len(admins), chatID)
-	_, err = reply.Edit(lang.GetString(langCode, "reload_success"))
-	return err
+	if _, err = reply.Edit(lang.GetString(langCode, "reload_success")); err != nil {
+		_, _ = m.Reply(lang.GetString(langCode, "reload_success"))
+	}
+	return nil
 }
