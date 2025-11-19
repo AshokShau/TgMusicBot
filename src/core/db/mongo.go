@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sync"
 	"time"
 
 	"ashokshau/tgmusic/src/config"
@@ -25,15 +26,18 @@ import (
 
 // Database encapsulates the MongoDB connection, database, collections, and caches.
 type Database struct {
-	client     *mongo.Client
-	DB         *mongo.Database
-	chatDB     *mongo.Collection
-	userDB     *mongo.Collection
-	botDB      *mongo.Collection
-	playlistDB *mongo.Collection
-	chatCache  *cache.Cache[map[string]interface{}]
-	botCache   *cache.Cache[map[string]interface{}]
-	userCache  *cache.Cache[map[string]interface{}]
+	client       *mongo.Client
+	DB           *mongo.Database
+	chatDB       *mongo.Collection
+	userDB       *mongo.Collection
+	botDB        *mongo.Collection
+	playlistDB   *mongo.Collection
+	chatCache    *cache.Cache[map[string]interface{}]
+	botCache     *cache.Cache[map[string]interface{}]
+	userCache    *cache.Cache[map[string]interface{}]
+	chatCacheMux sync.RWMutex
+	botCacheMux  sync.RWMutex
+	userCacheMux sync.RWMutex
 }
 
 // Instance is the global singleton for the database.
@@ -76,9 +80,9 @@ func (db *Database) Ping(ctx context.Context) error {
 
 // ----------------- CHAT -----------------
 
-// GetChat retrieves a chat's data from the cache or database.
+// getChat retrieves a chat's data from the cache or database.
 // It returns a map representing the chat data, or nil if not found.
-func (db *Database) GetChat(ctx context.Context, chatID int64) (map[string]interface{}, error) {
+func (db *Database) getChat(ctx context.Context, chatID int64) (map[string]interface{}, error) {
 	key := toKey(chatID)
 	if cached, ok := db.chatCache.Get(key); ok {
 		return cached, nil
@@ -99,10 +103,11 @@ func (db *Database) GetChat(ctx context.Context, chatID int64) (map[string]inter
 
 // AddChat adds a new chat to the database if it does not already exist.
 func (db *Database) AddChat(ctx context.Context, chatID int64) error {
-	chat, _ := db.GetChat(ctx, chatID)
+	chat, _ := db.getChat(ctx, chatID)
 	if chat != nil {
 		return nil // Chat already exists.
 	}
+
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
 		log.Printf("[DB] A new chat has been added: %d", chatID)
@@ -116,12 +121,22 @@ func (db *Database) updateChatField(ctx context.Context, chatID int64, key strin
 	if err != nil {
 		return err
 	}
-	cached, _ := db.chatCache.Get(toKey(chatID))
-	if cached == nil {
-		cached = make(map[string]interface{})
+
+	db.chatCacheMux.Lock()
+	defer db.chatCacheMux.Unlock()
+
+	cacheKey := toKey(chatID)
+	cached, _ := db.chatCache.Get(cacheKey)
+	newCached := make(map[string]interface{})
+	if cached != nil {
+		for k, v := range cached {
+			newCached[k] = v
+		}
 	}
-	cached[key] = value
-	db.chatCache.Set(toKey(chatID), cached)
+
+	newCached[key] = value
+	db.chatCache.Set(cacheKey, newCached)
+
 	return nil
 }
 
@@ -131,19 +146,29 @@ func (db *Database) updateUserField(ctx context.Context, userID int64, key strin
 	if err != nil {
 		return err
 	}
-	cached, _ := db.userCache.Get(toKey(userID))
-	if cached == nil {
-		cached = make(map[string]interface{})
+
+	db.userCacheMux.Lock()
+	defer db.userCacheMux.Unlock()
+
+	cacheKey := toKey(userID)
+	cached, _ := db.userCache.Get(cacheKey)
+	newCached := make(map[string]interface{})
+	if cached != nil {
+		for k, v := range cached {
+			newCached[k] = v
+		}
 	}
-	cached[key] = value
-	db.userCache.Set(toKey(userID), cached)
+
+	newCached[key] = value
+	db.userCache.Set(cacheKey, newCached)
+
 	return nil
 }
 
 // GetPlayType retrieves the play type setting for a chat.
 // It returns 0 if no play type is set.
 func (db *Database) GetPlayType(ctx context.Context, chatID int64) int {
-	chat, _ := db.GetChat(ctx, chatID)
+	chat, _ := db.getChat(ctx, chatID)
 	if chat == nil {
 		return 0
 	}
@@ -161,7 +186,7 @@ func (db *Database) SetPlayType(ctx context.Context, chatID int64, playType int)
 // GetPlayMode retrieves the play mode for a chat.
 // It returns "everyone" by default.
 func (db *Database) GetPlayMode(ctx context.Context, chatID int64) string {
-	chat, _ := db.GetChat(ctx, chatID)
+	chat, _ := db.getChat(ctx, chatID)
 	if chat == nil {
 		return "everyone"
 	}
@@ -179,7 +204,7 @@ func (db *Database) SetPlayMode(ctx context.Context, chatID int64, playMode stri
 // GetAdminMode retrieves the admin mode for a chat.
 // It returns "everyone" by default.
 func (db *Database) GetAdminMode(ctx context.Context, chatID int64) string {
-	chat, _ := db.GetChat(ctx, chatID)
+	chat, _ := db.getChat(ctx, chatID)
 	if chat == nil {
 		return "everyone"
 	}
@@ -196,7 +221,7 @@ func (db *Database) SetAdminMode(ctx context.Context, chatID int64, adminMode st
 
 // GetAssistant retrieves the username of the assistant for a chat.
 func (db *Database) GetAssistant(ctx context.Context, chatID int64) (string, error) {
-	chat, _ := db.GetChat(ctx, chatID)
+	chat, _ := db.getChat(ctx, chatID)
 	if chat == nil {
 		return "", nil
 	}
@@ -288,7 +313,7 @@ func (db *Database) SetChatLang(ctx context.Context, chatID int64, lang string) 
 
 // getChatLang retrieves the language for a chat.
 func (db *Database) getChatLang(ctx context.Context, chatID int64) string {
-	chat, _ := db.GetChat(ctx, chatID)
+	chat, _ := db.getChat(ctx, chatID)
 	if chat == nil {
 		return "en"
 	}
@@ -318,7 +343,9 @@ func (db *Database) AddAuthUser(ctx context.Context, chatID, userID int64) error
 	if err != nil {
 		return err
 	}
-	chat, _ := db.GetChat(ctx, chatID)
+	db.chatCacheMux.Lock()
+	defer db.chatCacheMux.Unlock()
+	chat, _ := db.getChat(ctx, chatID)
 	authUsers, _ := getIntSlice(chat["auth_users"])
 	if !contains(authUsers, userID) {
 		authUsers = append(authUsers, userID)
@@ -337,7 +364,9 @@ func (db *Database) RemoveAuthUser(ctx context.Context, chatID, userID int64) er
 	if err != nil {
 		return err
 	}
-	chat, _ := db.GetChat(ctx, chatID)
+	db.chatCacheMux.Lock()
+	defer db.chatCacheMux.Unlock()
+	chat, _ := db.getChat(ctx, chatID)
 	authUsers, _ := getIntSlice(chat["auth_users"])
 	authUsers = remove(authUsers, userID)
 	chat["auth_users"] = authUsers
@@ -347,7 +376,7 @@ func (db *Database) RemoveAuthUser(ctx context.Context, chatID, userID int64) er
 
 // GetAuthUsers retrieves a list of all authorized users for a chat.
 func (db *Database) GetAuthUsers(ctx context.Context, chatID int64) []int64 {
-	chat, _ := db.GetChat(ctx, chatID)
+	chat, _ := db.getChat(ctx, chatID)
 	users, _ := getIntSlice(chat["auth_users"])
 	return users
 }
@@ -409,6 +438,8 @@ func (db *Database) SetLoggerStatus(ctx context.Context, botID int64, status boo
 		options.UpdateOne().SetUpsert(true),
 	)
 	if err == nil {
+		db.botCacheMux.Lock()
+		defer db.botCacheMux.Unlock()
 		cached, _ := db.botCache.Get(toKey(botID))
 		if cached == nil {
 			cached = map[string]interface{}{}
