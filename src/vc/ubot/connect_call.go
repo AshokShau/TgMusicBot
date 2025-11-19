@@ -19,7 +19,7 @@ func (ctx *Context) connectCall(chatId int64, mediaDescription ntgcalls.MediaDes
 		ctx.waitConnMutex.Unlock()
 	}()
 	ctx.waitConnMutex.Lock()
-	ctx.waitConnect[chatId] = make(chan error)
+	ctx.waitConnect[chatId] = make(chan error, 1)
 	ctx.waitConnMutex.Unlock()
 	if chatId >= 0 {
 		defer func() {
