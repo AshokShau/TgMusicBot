@@ -171,13 +171,11 @@ func handleJoin(client *telegram.Client, chatID, userID, ubID int64, channel *te
 				"📌 <b>Chat ID:</b> <code>%d</code>\n"+
 				"🏷️ <b>Title:</b> %s\n"+
 				"👥 <b>Type:</b> %s\n"+
-				"👤 <b>Username:</b> @%s\n"+
-				"🔢 <b>Members:</b> %d",
+				"👤 <b>Username:</b> @%s\n",
 			chatID,
 			channel.Title,
 			getChatType(channel),
 			channel.Username,
-			channel.ParticipantsCount,
 		)
 
 		_, err := client.SendMessage(config.Conf.LoggerId, text, &telegram.SendOptions{LinkPreview: false})
@@ -296,13 +294,11 @@ func sendAdminStatusLog(client *telegram.Client, chatID, userID int64, action st
 		"<b>⚠️ Admin Status Changed</b>\n"+
 			"📌 <b>Chat:</b> %s (<code>%d</code>)\n"+
 			"👤 <b>User:</b> <code>%d</code>\n"+
-			"🔧 <b>Action:</b> %s\n"+
-			"🔢 <b>Members:</b> %d",
+			"🔧 <b>Action:</b> %s\n",
 		ch.Title,
 		chatID,
 		userID,
 		strings.Title(action),
-		ch.ParticipantsCount,
 	)
 
 	_, err := client.SendMessage(config.Conf.LoggerId, text, &telegram.SendOptions{LinkPreview: false})
