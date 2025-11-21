@@ -9,14 +9,15 @@
 package handlers
 
 import (
-	"fmt"
-	"time"
-
+	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -35,47 +36,50 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 		langCode = db.Instance.GetLang(ctx, chatID)
 	}
 
-	if action, ok := m.Action.(*telegram.MessageActionGroupCall); ok {
-		message := ""
-		if action.Duration == 0 {
-			if cache.ChatCache != nil {
-				cache.ChatCache.ClearChat(chatID)
-			}
-			message = lang.GetString(langCode, "watcher_vc_started")
-		} else {
-			logger.Info("Voice chat ended. Duration: %d seconds", action.Duration)
-			if cache.ChatCache != nil {
-				cache.ChatCache.ClearChat(chatID)
-			}
-			message = lang.GetString(langCode, "watcher_vc_ended")
-		}
-
-		if message != "" {
-			_, _ = m.Client.SendMessage(chatID, message)
-		}
+	action, ok := m.Action.(*telegram.MessageActionGroupCall)
+	if !ok {
+		return telegram.EndGroup
 	}
+
+	var message string
+
+	if action.Duration == 0 {
+		cache.ChatCache.ClearChat(chatID)
+		message = lang.GetString(langCode, "watcher_vc_started")
+	} else {
+		cache.ChatCache.ClearChat(chatID)
+		logger.Info("Voice chat ended. Duration: %d seconds", action.Duration)
+		message = lang.GetString(langCode, "watcher_vc_ended")
+	}
+
+	if message != "" {
+		_, _ = m.Client.SendMessage(chatID, message)
+	}
+
 	return telegram.EndGroup
 }
 
 // handleParticipant handles participant updates.
-// It takes a telegram.ParticipantUpdate object as input.
-// It returns an error if any.
 func handleParticipant(pu *telegram.ParticipantUpdate) error {
 	if pu == nil || pu.Channel == nil {
-		logger.Error("[handleParticipant] Received nil participant update or nil channel")
+		logger.Error("[handleParticipant] nil participant update or nil channel")
 		return nil
 	}
 
 	client := pu.Client
 	chatID := pu.ChannelID()
-
 	userID := pu.UserID()
 	chat := pu.Channel
+
 	ctx, cancel := db.Ctx()
 	defer cancel()
+
 	langCode := db.Instance.GetLang(ctx, chatID)
+
+	// Chat is not a Supergroup
 	if chatID > 0 {
-		text := fmt.Sprintf(lang.GetString(langCode, "watcher_not_supergroup"),
+		text := fmt.Sprintf(
+			lang.GetString(langCode, "watcher_not_supergroup"),
 			chatID,
 		)
 
@@ -85,10 +89,11 @@ func handleParticipant(pu *telegram.ParticipantUpdate) error {
 		})
 
 		time.Sleep(1 * time.Second)
-		_ = client.LeaveChannel(pu.ChannelID())
+		_ = client.LeaveChannel(chatID)
 		return nil
 	}
 
+	// Store chat reference in DB
 	go func(chatID int64) {
 		ctx, cancel := db.Ctx()
 		defer cancel()
@@ -96,58 +101,93 @@ func handleParticipant(pu *telegram.ParticipantUpdate) error {
 	}(chatID)
 
 	if chat.Username != "" {
-		vc.Calls.UpdateInviteLink(chatID, fmt.Sprintf("https://t.me/%s", chat.Username))
+		vc.Calls.UpdateInviteLink(chatID, "https://t.me/"+chat.Username)
 	}
 
-	logger.Debug("[handleParticipant] Update: Old=%T New=%T ChatID=%d UserID=%d", pu.Old, pu.New, chatID, userID)
+	logger.Debug(
+		"[handleParticipant] Update: Old=%T New=%T ChatID=%d UserID=%d",
+		pu.Old, pu.New, chatID, userID,
+	)
 
 	oldStatus := getStatusFromParticipant(pu.Old)
 	newStatus := getStatusFromParticipant(pu.New)
 
-	logger.Debug("[handleParticipant] old=%s new=%s chat=%d user=%d", oldStatus, newStatus, chatID, userID)
+	logger.Debug(
+		"[handleParticipant] old=%s new=%s chat=%d user=%d",
+		oldStatus, newStatus, chatID, userID,
+	)
+
 	call, err := vc.Calls.GetGroupAssistant(chatID)
 	if err != nil {
-		logger.Error("[handleParticipant] Failed to get group assistant: %v", err)
+		logger.Error("[handleParticipant] get group assistant failed: %v", err)
 		return nil
 	}
 
 	ubID := call.App.Me().ID
+
+	// Only handle bot/self changes
 	if userID != ubID && userID != client.Me().ID {
-		logger.Debug("[handleParticipant] Ignoring non-self update for user %d", userID)
+		logger.Debug("[handleParticipant] ignoring update for %d", userID)
 		return nil
 	}
 
-	return handleParticipantStatusChange(client, chatID, userID, ubID, oldStatus, newStatus)
+	return handleParticipantStatusChange(client, chatID, userID, ubID, oldStatus, newStatus, chat)
 }
 
 // handleParticipantStatusChange handles participant status changes.
-// It takes a telegram client, a chat ID, a user ID, a userbot ID, the old status, and the new status as input.
-// It returns an error if any.
-func handleParticipantStatusChange(client *telegram.Client, chatID int64, userID, ubID int64, oldStatus, newStatus string) error {
+func handleParticipantStatusChange(
+	client *telegram.Client,
+	chatID int64,
+	userID, ubID int64,
+	oldStatus, newStatus string,
+	channel *telegram.Channel,
+) error {
+
 	switch {
 	case oldStatus == telegram.Left && (newStatus == telegram.Member || newStatus == telegram.Admin):
-		return handleJoin(client, chatID, userID, ubID)
+		return handleJoin(client, chatID, userID, ubID, channel)
+
 	case (oldStatus == telegram.Member || oldStatus == telegram.Admin) && newStatus == telegram.Left:
 		return handleLeaveOrKick(client, chatID, userID, ubID)
+
 	case newStatus == telegram.Kicked:
 		return handleBan(client, chatID, userID, ubID)
+
 	case oldStatus == telegram.Kicked && newStatus == telegram.Left:
 		return handleUnban(chatID, userID)
+
 	default:
-		return handlePromotionDemotion(client, chatID, userID, oldStatus, newStatus)
+		return handlePromotionDemotion(client, chatID, userID, oldStatus, newStatus, channel)
 	}
 }
 
-// handleJoin handles a user joining a chat.
-// It takes a telegram client, a chat ID, a user ID, and a userbot ID as input.
-// It returns an error if any.
-func handleJoin(client *telegram.Client, chatID, userID, ubID int64) error {
+// handleJoin handles join events.
+func handleJoin(client *telegram.Client, chatID, userID, ubID int64, channel *telegram.Channel) error {
 	if userID == client.Me().ID {
-		logger.Info("bot joined chat %d. Initializing...", chatID)
+		logger.Info("Bot joined chat %d. Initializing…", chatID)
+
+		text := fmt.Sprintf(
+			"<b>🤖 Bot Joined a New Chat</b>\n"+
+				"📌 <b>Chat ID:</b> <code>%d</code>\n"+
+				"🏷️ <b>Title:</b> %s\n"+
+				"👥 <b>Type:</b> %s\n"+
+				"👤 <b>Username:</b> @%s\n"+
+				"🔢 <b>Members:</b> %d",
+			chatID,
+			channel.Title,
+			getChatType(channel),
+			channel.Username,
+			channel.ParticipantsCount,
+		)
+
+		_, err := client.SendMessage(config.Conf.LoggerId, text, &telegram.SendOptions{LinkPreview: false})
+		if err != nil {
+			logger.Warn("Failed to send join log: %v", err)
+		}
 	}
 
 	if userID == ubID {
-		logger.Info("UB joined chat %d. Initializing...", chatID)
+		logger.Info("Assistant joined chat %d. Initializing…", chatID)
 	}
 
 	logger.Debug("User %d joined chat %d", userID, chatID)
@@ -155,18 +195,17 @@ func handleJoin(client *telegram.Client, chatID, userID, ubID int64) error {
 	return nil
 }
 
-// handleLeaveOrKick handles a user leaving or being kicked from a chat.
-// It takes a telegram client, a chat ID, a user ID, and a userbot ID as input.
-// It returns an error if any.
+// handleLeaveOrKick handles leave or kick events.
 func handleLeaveOrKick(client *telegram.Client, chatID, userID, ubId int64) error {
-	logger.Debug("User %d left or was kicked from %d", userID, chatID)
+	logger.Debug("User %d left/kicked in %d", userID, chatID)
+
 	if userID == ubId {
-		logger.Info("UB left chat %d. Stopping call...", chatID)
+		logger.Info("Assistant left %d. Clearing call/cache…", chatID)
 		cache.ChatCache.ClearChat(chatID)
 	}
 
 	if userID == client.Me().ID {
-		logger.Info("bot left chat %d. Stopping call...", chatID)
+		logger.Info("Bot left chat %d. Stopping call…", chatID)
 		_ = vc.Calls.Stop(chatID)
 	}
 
@@ -174,29 +213,31 @@ func handleLeaveOrKick(client *telegram.Client, chatID, userID, ubId int64) erro
 	return nil
 }
 
-// handleBan handles a user being banned from a chat.
-// It takes a telegram client, a chat ID, a user ID, and a userbot ID as input.
-// It returns an error if any.
+// handleBan handles ban events.
 func handleBan(client *telegram.Client, chatID, userID, ubId int64) error {
-	logger.Debug("User %d was banned in chat %d", userID, chatID)
+	logger.Debug("User %d was banned in %d", userID, chatID)
+
 	ctx, cancel := db.Ctx()
 	defer cancel()
+
 	langCode := db.Instance.GetLang(ctx, chatID)
+
 	if userID == ubId {
-		logger.Info("The bot (assistant) was banned in chat %d. Stopping any active calls and clearing cache...", chatID)
+		logger.Info("Assistant banned from chat %d. Cleaning up…", chatID)
+
 		cache.ChatCache.ClearChat(chatID)
 
-		_, err := client.SendMessage(chatID, fmt.Sprintf(lang.GetString(langCode, "watcher_assistant_banned"),
-			ubId,
-		))
+		_, err := client.SendMessage(chatID,
+			fmt.Sprintf(lang.GetString(langCode, "watcher_assistant_banned"), ubId),
+		)
 		if err != nil {
-			logger.Error("Failed to send ban message in chat %d: %v", chatID, err)
+			logger.Error("Failed to send assistant ban message: %v", err)
 			return err
 		}
 	}
 
 	if userID == client.Me().ID {
-		logger.Info("bot banned in chat %d. Stopping call...", chatID)
+		logger.Info("Bot was banned in chat %d. Stopping call…", chatID)
 		_ = vc.Calls.Stop(chatID)
 	}
 
@@ -204,34 +245,21 @@ func handleBan(client *telegram.Client, chatID, userID, ubId int64) error {
 	return nil
 }
 
-// handleUnban handles a user being unbanned from a chat.
-// It takes a chat ID and a user ID as input.
-// It returns an error if any.
+// handleUnban handles unban events.
 func handleUnban(chatID, userID int64) error {
 	logger.Debug("User %d was unbanned in chat %d", userID, chatID)
 	updateUbStatusCache(chatID, userID, telegram.Left)
 	return nil
 }
 
-// updateUbStatusCache updates the userbot status cache.
-// It takes a chat ID, a user ID, and a status as input.
-func updateUbStatusCache(chatId, userId int64, status string) {
-	call, err := vc.Calls.GetGroupAssistant(chatId)
-	if err != nil {
-		logger.Error("[updateUbStatusCache] Failed to get group assistant: %v", err)
-		return
-	}
+// handlePromotionDemotion handles promotion/demotion events.
+func handlePromotionDemotion(
+	client *telegram.Client,
+	chatID, userID int64,
+	oldStatus, newStatus string,
+	channel *telegram.Channel,
+) error {
 
-	ubId := call.App.Me().ID
-	if userId == ubId {
-		vc.Calls.UpdateMembership(chatId, userId, status)
-	}
-}
-
-// handlePromotionDemotion handles a user being promoted or demoted.
-// It takes a telegram client, a chat ID, a user ID, the old status, and the new status as input.
-// It returns an error if any.
-func handlePromotionDemotion(client *telegram.Client, chatID, userID int64, oldStatus, newStatus string) error {
 	isPromoted := oldStatus != telegram.Admin && newStatus == telegram.Admin
 	isDemoted := oldStatus == telegram.Admin && newStatus != telegram.Admin
 
@@ -246,23 +274,56 @@ func handlePromotionDemotion(client *telegram.Client, chatID, userID int64, oldS
 
 	if userID == client.Me().ID {
 		if isPromoted {
-			logger.Info("bot promoted in %d, reloading admin cache", chatID)
+			logger.Info("Bot promoted in %d → refreshing admin cache", chatID)
 			_, _ = cache.GetAdmins(client, chatID, true)
 		} else {
-			logger.Info("bot demoted in %d, clearing admin cache", chatID)
+			logger.Info("Bot demoted in %d → clearing admin cache", chatID)
 			cache.ClearAdminCache(chatID)
 		}
+
+		_ = sendAdminStatusLog(client, chatID, userID, action, channel)
 	} else {
-		logger.Debug("User %d was %s in %d", userID, action, chatID)
+		logger.Debug("User %d was %s in chat %d", userID, action, chatID)
 	}
 
 	vc.Calls.UpdateMembership(chatID, userID, newStatus)
 	return nil
 }
 
+// sendAdminStatusLog sends admin status change logs.
+func sendAdminStatusLog(client *telegram.Client, chatID, userID int64, action string, ch *telegram.Channel) error {
+	text := fmt.Sprintf(
+		"<b>⚠️ Admin Status Changed</b>\n"+
+			"📌 <b>Chat:</b> %s (<code>%d</code>)\n"+
+			"👤 <b>User:</b> <code>%d</code>\n"+
+			"🔧 <b>Action:</b> %s\n"+
+			"🔢 <b>Members:</b> %d",
+		ch.Title,
+		chatID,
+		userID,
+		strings.Title(action),
+		ch.ParticipantsCount,
+	)
+
+	_, err := client.SendMessage(config.Conf.LoggerId, text, &telegram.SendOptions{LinkPreview: false})
+	return err
+}
+
+// updateUbStatusCache updates the user status cache.
+func updateUbStatusCache(chatId, userId int64, status string) {
+	call, err := vc.Calls.GetGroupAssistant(chatId)
+	if err != nil {
+		logger.Error("[updateUbStatusCache] Failed: %v", err)
+		return
+	}
+
+	ubId := call.App.Me().ID
+	if userId == ubId {
+		vc.Calls.UpdateMembership(chatId, userId, status)
+	}
+}
+
 // getStatusFromParticipant gets the status from a participant.
-// It takes a telegram.ChannelParticipant object as input.
-// It returns the status of the participant as a string.
 func getStatusFromParticipant(p telegram.ChannelParticipant) string {
 	switch p.(type) {
 	case *telegram.ChannelParticipantCreator:
@@ -281,4 +342,18 @@ func getStatusFromParticipant(p telegram.ChannelParticipant) string {
 		logger.Warn("Unknown participant type: %T", p)
 		return telegram.Restricted
 	}
+}
+
+// getChatType gets the chat type from a channel.
+func getChatType(ch *telegram.Channel) string {
+	if ch.Broadcast {
+		return "Broadcast Channel"
+	}
+	if ch.Megagroup {
+		return "Supergroup"
+	}
+	if ch.Gigagroup {
+		return "Gigagroup"
+	}
+	return "Channel"
 }

@@ -58,6 +58,7 @@ func LoadModules(c *tg.Client) {
 	c.On("command:clear_assistants", clearAssistantsHandler, tg.FilterFunc(isDev))
 	c.On("command:clearAss", clearAssistantsHandler, tg.FilterFunc(isDev))
 	c.On("command:leaveAll", leaveAllHandler, tg.FilterFunc(isDev))
+	c.On("command:logger", loggerHandler, tg.FilterFunc(isDev))
 	c.On("command:broadcast", broadcastHandler, tg.FilterFunc(isDev))
 	c.On("command:gCast", broadcastHandler, tg.FilterFunc(isDev))
 	c.On("command:cancelBroadcast", cancelBroadcastHandler, tg.FilterFunc(isDev))

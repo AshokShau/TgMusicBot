@@ -37,6 +37,6 @@ func sendLogger(client *tg.Client, chatID int64, song *cache.CachedTrack) {
 
 	_, err := client.SendMessage(config.Conf.LoggerId, text, &tg.SendOptions{LinkPreview: false})
 	if err != nil {
-		logger.Warn("[sendLogger] Failed to send the message: %v", err)
+		logger.Warn("Failed to send the message: %v", err)
 	}
 }

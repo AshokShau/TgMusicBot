@@ -9,6 +9,7 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/config"
 	"fmt"
 	"strings"
 
@@ -111,4 +112,34 @@ func leaveAllHandler(m *telegram.NewMessage) error {
 
 	_, err = reply.Edit(fmt.Sprintf(lang.GetString(langCode, "leave_all_success"), leftCount))
 	return err
+}
+
+// Handles the /logger command to toggle logger status
+func loggerHandler(m *telegram.NewMessage) error {
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	if config.Conf.LoggerId == 0 {
+		_, _ = m.Reply("Please set LOGGER_ID in .env first.")
+		return telegram.EndGroup
+	}
+
+	loggerStatus := db.Instance.GetLoggerStatus(ctx, m.Client.Me().ID)
+	args := strings.ToLower(m.Args())
+	if len(args) == 0 {
+		_, _ = m.Reply(fmt.Sprintf("Usage: /logger [enable|disable|on|off]\nCurrent status: %t", loggerStatus))
+		return telegram.EndGroup
+	}
+
+	switch args {
+	case "enable", "on":
+		_ = db.Instance.SetLoggerStatus(ctx, m.Client.Me().ID, true)
+		_, _ = m.Reply("Logger Enabled")
+	case "disable", "off":
+		_ = db.Instance.SetLoggerStatus(ctx, m.Client.Me().ID, false)
+		_, _ = m.Reply("Logger disabled")
+	default:
+		_, _ = m.Reply("Invalid argument. Use 'enable', 'disable', 'on', or 'off'.")
+	}
+
+	return telegram.EndGroup
 }
