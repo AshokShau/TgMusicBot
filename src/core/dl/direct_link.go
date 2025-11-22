@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -67,10 +68,18 @@ func (d *DirectLink) GetInfo(ctx context.Context) (cache.PlatformTracks, error) 
 		parts := strings.Split(d.Query, "/")
 		if len(parts) > 0 {
 			title = parts[len(parts)-1]
+			title = strings.SplitN(title, "?", 2)[0]
+			title = strings.SplitN(title, "#", 2)[0]
+			title, _ = url.QueryUnescape(title)
 		}
 		if title == "" {
 			title = "Direct Link"
 		}
+	}
+
+	const maxTitleLength = 30
+	if len(title) > maxTitleLength {
+		title = title[:maxTitleLength-3] + "..."
 	}
 
 	track := cache.MusicTrack{
