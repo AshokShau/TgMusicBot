@@ -33,15 +33,6 @@ func (d *DirectLink) IsValid() bool {
 	return strings.HasPrefix(d.Query, "http://") || strings.HasPrefix(d.Query, "https://")
 }
 
-type ffprobeFormat struct {
-	Format struct {
-		Duration string `json:"duration"`
-		Tags     struct {
-			Title string `json:"title"`
-		} `json:"tags"`
-	} `json:"format"`
-}
-
 func (d *DirectLink) GetInfo(ctx context.Context) (cache.PlatformTracks, error) {
 	if !d.IsValid() {
 		return cache.PlatformTracks{}, errors.New("invalid url")
@@ -59,7 +50,7 @@ func (d *DirectLink) GetInfo(ctx context.Context) (cache.PlatformTracks, error) 
 		return cache.PlatformTracks{}, fmt.Errorf("invalid or unplayable link: %w", err)
 	}
 
-	var info ffprobeFormat
+	var info cache.FFProbeFormat
 	if err := json.Unmarshal(output, &info); err != nil {
 		return cache.PlatformTracks{}, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
@@ -117,6 +108,6 @@ func (d *DirectLink) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
 	}, nil
 }
 
-func (d *DirectLink) downloadTrack(ctx context.Context, trackInfo cache.TrackInfo, video bool) (string, error) {
+func (d *DirectLink) downloadTrack(_ context.Context, _ cache.TrackInfo, _ bool) (string, error) {
 	return d.Query, nil
 }

@@ -19,13 +19,6 @@ import (
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
-// fFProbeFormat defines the structure for parsing the format information from ffprobe's JSON output.
-type fFProbeFormat struct {
-	Format struct {
-		Duration string `json:"duration"`
-	} `json:"format"`
-}
-
 // GetFileDur extracts the duration of a media file from a Telegram message.
 // It returns the duration in seconds or 0 if the media type is unsupported or has no duration.
 func GetFileDur(m *tg.NewMessage) int {
@@ -91,7 +84,7 @@ func GetFileDuration(filePath string) int {
 		return 0
 	}
 
-	var info fFProbeFormat
+	var info FFProbeFormat
 	if err := json.Unmarshal(output, &info); err != nil {
 		log.Printf("Failed to parse ffprobe's JSON output: %v", err)
 		return 0

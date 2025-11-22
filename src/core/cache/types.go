@@ -67,3 +67,13 @@ const (
 	Everyone = "everyone"
 	Auth     = "auth"
 )
+
+// FFProbeFormat defines the structure for parsing the format information from ffprobe's JSON output.
+type FFProbeFormat struct {
+	Format struct {
+		Duration string `json:"duration"`
+		Tags     struct {
+			Title string `json:"title"`
+		} `json:"tags,omitempty"`
+	} `json:"format"`
+}
