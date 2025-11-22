@@ -169,6 +169,10 @@ func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Cl
 		return filePath, nil, err
 	}
 
+	if song.Platform == cache.DirectLink {
+		return song.URL, nil, nil
+	}
+
 	songUrl := song.URL
 	wrapper := dl.NewDownloaderWrapper(songUrl)
 

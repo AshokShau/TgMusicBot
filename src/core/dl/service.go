@@ -42,11 +42,14 @@ type DownloaderWrapper struct {
 func NewDownloaderWrapper(query string) *DownloaderWrapper {
 	yt := NewYouTubeData(query)
 	api := NewApiData(query)
+	direct := NewDirectLink(query)
 	var chosen MusicService
 	if yt.IsValid() {
 		chosen = yt
 	} else if api.IsValid() {
 		chosen = api
+	} else if direct.IsValid() {
+		chosen = direct
 	} else {
 		switch config.Conf.DefaultService {
 		case "spotify":

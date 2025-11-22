@@ -19,8 +19,8 @@ import (
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
-// FFProbeFormat defines the structure for parsing the format information from ffprobe's JSON output.
-type FFProbeFormat struct {
+// fFProbeFormat defines the structure for parsing the format information from ffprobe's JSON output.
+type fFProbeFormat struct {
 	Format struct {
 		Duration string `json:"duration"`
 	} `json:"format"`
@@ -91,7 +91,7 @@ func GetFileDuration(filePath string) int {
 		return 0
 	}
 
-	var info FFProbeFormat
+	var info fFProbeFormat
 	if err := json.Unmarshal(output, &info); err != nil {
 		log.Printf("Failed to parse ffprobe's JSON output: %v", err)
 		return 0

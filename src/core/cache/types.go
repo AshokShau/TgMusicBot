@@ -54,11 +54,12 @@ type PlatformTracks struct {
 }
 
 const (
-	Telegram = "telegram"
-	YouTube  = "youtube"
-	Spotify  = "spotify"
-	JioSaavn = "jiosaavn"
-	Apple    = "apple_music"
+	Telegram   = "telegram"
+	YouTube    = "youtube"
+	Spotify    = "spotify"
+	JioSaavn   = "jiosaavn"
+	Apple      = "apple_music"
+	DirectLink = "direct_link"
 )
 
 const (
