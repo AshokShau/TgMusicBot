@@ -52,7 +52,7 @@ func (d *DirectLink) GetInfo(ctx context.Context) (cache.PlatformTracks, error) 
 	}
 
 	var info cache.FFProbeFormat
-	if err := json.Unmarshal(output, &info); err != nil {
+	if err = json.Unmarshal(output, &info); err != nil {
 		return cache.PlatformTracks{}, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
 
