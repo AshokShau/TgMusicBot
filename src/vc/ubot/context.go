@@ -13,7 +13,7 @@ type Context struct {
 	App                   *tg.Client
 	mutedByAdmin          []int64
 	presentations         []int64
-	pendingPresentation   map[int64]bool
+	presentationsMutex    sync.RWMutex
 	p2pConfigs            map[int64]*types.P2PConfig
 	p2pMutex              sync.RWMutex
 	inputCalls            map[int64]*tg.InputPhoneCall
@@ -35,16 +35,15 @@ type Context struct {
 
 func NewInstance(app *tg.Client) (*Context, error) {
 	client := &Context{
-		binding:             ntgcalls.NTgCalls(),
-		App:                 app,
-		pendingPresentation: make(map[int64]bool),
-		p2pConfigs:          make(map[int64]*types.P2PConfig),
-		inputCalls:          make(map[int64]*tg.InputPhoneCall),
-		inputGroupCalls:     make(map[int64]tg.InputGroupCall),
-		pendingConnections:  make(map[int64]*types.PendingConnection),
-		callParticipants:    make(map[int64]*types.CallParticipantsCache),
-		callSources:         make(map[int64]*types.CallSources),
-		waitConnect:         make(map[int64]chan error),
+		binding:            ntgcalls.NTgCalls(),
+		App:                app,
+		p2pConfigs:         make(map[int64]*types.P2PConfig),
+		inputCalls:         make(map[int64]*tg.InputPhoneCall),
+		inputGroupCalls:    make(map[int64]tg.InputGroupCall),
+		pendingConnections: make(map[int64]*types.PendingConnection),
+		callParticipants:   make(map[int64]*types.CallParticipantsCache),
+		callSources:        make(map[int64]*types.CallSources),
+		waitConnect:        make(map[int64]chan error),
 	}
 
 	if app.IsConnected() {
