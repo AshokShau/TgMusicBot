@@ -34,6 +34,7 @@ WORKDIR /app
 
 COPY --from=builder /app/myapp /app/
 COPY --from=builder /app/locales /app/locales
+COPY --from=builder /app/assets /app/assets
 
 RUN groupadd -g 1000 myuser && \
     useradd -u 1000 -g myuser -s /bin/sh myuser && \

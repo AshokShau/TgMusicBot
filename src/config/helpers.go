@@ -142,5 +142,9 @@ func (c *BotConfig) validate() error {
 		return fmt.Errorf("failed to create downloads dir: %v", err)
 	}
 
+	if err := os.MkdirAll("cache", 0750); err != nil {
+		return fmt.Errorf("failed to create cache dir: %v", err)
+	}
+
 	return nil
 }

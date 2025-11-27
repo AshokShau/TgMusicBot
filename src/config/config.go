@@ -83,6 +83,7 @@ func LoadConfig() error {
 			}
 		}
 	}
+	
 	if Conf.OwnerId != 0 && !containsInt(Conf.DEVS, Conf.OwnerId) {
 		Conf.DEVS = append(Conf.DEVS, Conf.OwnerId)
 	}
