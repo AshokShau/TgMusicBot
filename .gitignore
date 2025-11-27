@@ -6,3 +6,4 @@
 ntgcalls.h
 libntgcalls.a
 libntgcalls.so
+/cache

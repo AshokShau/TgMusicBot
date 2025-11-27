@@ -82,6 +82,8 @@ func parseSearchResults(node interface{}, tracks *[]cache.MusicTrack) {
 			title := safeString(dig(vid, "title", "runs", 0, "text"))
 			thumb := safeString(dig(vid, "thumbnail", "thumbnails", 0, "url"))
 			durationText := safeString(dig(vid, "lengthText", "simpleText"))
+			views := safeString(dig(vid, "shortViewCountText", "simpleText"))
+			channel := safeString(dig(vid, "ownerText", "runs", 0, "text"))
 			duration := parseDuration(durationText)
 			*tracks = append(*tracks, cache.MusicTrack{
 				URL:      "https://www.youtube.com/watch?v=" + id,
@@ -89,6 +91,8 @@ func parseSearchResults(node interface{}, tracks *[]cache.MusicTrack) {
 				ID:       id,
 				Cover:    thumb,
 				Duration: duration,
+				Views:    views,
+				Channel:  channel,
 				Platform: "youtube",
 			})
 		} else {

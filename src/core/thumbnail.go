@@ -9,8 +9,11 @@
 package core
 
 import (
+	"bytes"
 	"fmt"
 	"image/color"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"net/http"
 	"os"
@@ -41,19 +44,47 @@ func clearTitle(text string) string {
 }
 
 func downloadImage(url, filepath string) error {
-	resp, err := http.Get(url)
+	if strings.Contains(url, "ytimg.com") {
+		url = strings.Replace(url, "hqdefault.jpg", "maxresdefault.jpg", 1)
+	}
+
+	client := &http.Client{
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return nil
+		},
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "image") {
+		return fmt.Errorf("not an image: %s", ct)
+	}
+
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
-	f, err := os.Create(filepath)
+	img, err := jpeg.Decode(bytes.NewReader(body))
+	if err != nil {
+		img, err = png.Decode(bytes.NewReader(body))
+		if err != nil {
+			return fmt.Errorf("decode failed (%s): %v - only JPEG and PNG supported", ct, err)
+		}
+	}
+
+	file, err := os.Create(filepath)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	_, err = io.Copy(f, resp.Body)
-	return err
+	defer file.Close()
+
+	return png.Encode(file, img)
 }
 
 func loadFont(path string, size float64) (font.Face, error) {
@@ -73,7 +104,23 @@ func loadFont(path string, size float64) (font.Face, error) {
 	return face, err
 }
 
-func GenThumb(song *cache.CachedTrack) (string, error) {
+func GenThumb(song cache.CachedTrack) (string, error) {
+	if song.Thumbnail == "" {
+		return "", nil
+	}
+
+	if song.Platform == cache.Telegram {
+		return "", nil
+	}
+
+	if song.Channel == "" {
+		song.Channel = "TgMusicBot"
+	}
+
+	if song.Views == "" {
+		song.Views = "699K"
+	}
+
 	vidID := song.TrackID
 	cacheFile := fmt.Sprintf("cache/%s.png", vidID)
 	if _, err := os.Stat(cacheFile); err == nil {
@@ -81,10 +128,9 @@ func GenThumb(song *cache.CachedTrack) (string, error) {
 	}
 
 	title := song.Name
-	channel := "TgMusic"
 	duration := cache.SecToMin(song.Duration)
-	views := "69K"
-
+	channel := song.Channel
+	views := song.Views
 	thumb := song.Thumbnail
 	tmpFile := fmt.Sprintf("cache/tmp_%s.png", vidID)
 

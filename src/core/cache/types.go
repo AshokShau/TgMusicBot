@@ -19,7 +19,8 @@ type CachedTrack struct {
 	Thumbnail string `json:"thumbnail"`
 	TrackID   string `json:"track_id"`
 	Duration  int    `json:"duration"`
-	Lyrics    string `json:"lyrics"`
+	Channel   string `json:"channel"`
+	Views     string `json:"views"`
 	IsVideo   bool   `json:"is_video"`
 	Platform  string `json:"platform"`
 }
@@ -34,6 +35,8 @@ type TrackInfo struct {
 	Cover    string `json:"cover"`
 	Duration int    `json:"duration"`
 	Lyrics   string `json:"lyrics"`
+	Channel  string `json:"channel"`
+	Views    string `json:"views"`
 	Platform string `json:"platform"`
 }
 
@@ -45,6 +48,8 @@ type MusicTrack struct {
 	ID       string `json:"id"`
 	Cover    string `json:"cover"`
 	Duration int    `json:"duration"`
+	Channel  string `json:"channel"`
+	Views    string `json:"views"`
 	Platform string `json:"platform"`
 }
 

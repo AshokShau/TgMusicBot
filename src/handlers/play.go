@@ -206,7 +206,7 @@ func handleMedia(m *telegram.NewMessage, updater *telegram.NewMessage, dlMsg *te
 
 	time.Sleep(200 * time.Millisecond)
 	track := cache.MusicTrack{
-		Name: fileName, Duration: dur, URL: dlMsg.Link(), ID: fileId, Platform: cache.Telegram,
+		Name: fileName, Duration: dur, URL: dlMsg.Link(), ID: fileId, Channel: "Telegram", Views: "69K", Platform: cache.Telegram,
 	}
 
 	return handleSingleTrack(m, updater, track, filePath, chatId, isVideo, langCode)
@@ -253,9 +253,10 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		_, err := updater.Edit(fmt.Sprintf(lang.GetString(langCode, "play_song_too_long"), config.Conf.SongDurationLimit/60))
 		return err
 	}
+
 	saveCache := cache.CachedTrack{
 		URL: song.URL, Name: song.Name, User: m.Sender.FirstName, FilePath: filePath,
-		Thumbnail: song.Cover, TrackID: song.ID, Duration: song.Duration,
+		Thumbnail: song.Cover, TrackID: song.ID, Duration: song.Duration, Channel: song.Channel, Views: song.Views,
 		IsVideo: isVideo, Platform: song.Platform,
 	}
 
@@ -288,7 +289,6 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 
 		saveCache.FilePath = dlResult
 		if trackInfo != nil {
-			saveCache.Lyrics = trackInfo.Lyrics
 			if song.Duration == 0 {
 				saveCache.Duration = trackInfo.Duration
 			}
@@ -308,8 +308,18 @@ func handleSingleTrack(m *telegram.NewMessage, updater *telegram.NewMessage, son
 		saveCache.URL, saveCache.Name, cache.SecToMin(song.Duration), saveCache.User,
 	)
 
-	_, err := updater.Edit(nowPlaying, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
-	return err
+	thumb, _ := core.GenThumb(saveCache)
+	_, err := updater.Edit(nowPlaying, &telegram.SendOptions{
+		ReplyMarkup: core.ControlButtons("play"),
+		Media:       thumb,
+	})
+
+	if err != nil {
+		logger.Warn("[play.go - handleSingleTrack] Edit message failed: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 // handleMultipleTracks handles multiple tracks.
@@ -330,7 +340,7 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 		saveCache := cache.CachedTrack{
 			Name: track.Name, TrackID: track.ID, Duration: track.Duration,
 			Thumbnail: track.Cover, User: m.Sender.FirstName, Platform: track.Platform,
-			IsVideo: isVideo, URL: track.URL,
+			IsVideo: isVideo, URL: track.URL, Channel: track.Channel, Views: track.Views,
 		}
 		if !isActive && i == 0 {
 			saveCache.Loop = 1
@@ -357,6 +367,7 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 	if len(skippedTracks) > 0 {
 		fullMessage += fmt.Sprintf(lang.GetString(langCode, "play_skipped_tracks"), len(skippedTracks))
 	}
+
 	if len(fullMessage) > 4096 {
 		fullMessage = queueSummary
 	}
@@ -365,6 +376,8 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 		_ = vc.Calls.PlayNext(chatId)
 	}
 
-	_, err := updater.Edit(fullMessage, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
+	_, err := updater.Edit(fullMessage, &telegram.SendOptions{
+		ReplyMarkup: core.ControlButtons("play"),
+	})
 	return err
 }

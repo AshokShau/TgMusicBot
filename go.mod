@@ -30,3 +30,5 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 )
+
+replace github.com/amarnathcjd/gogram => github.com/AshokShau/gogram v1.6.9-0.20251127144110-221831cc2b33
