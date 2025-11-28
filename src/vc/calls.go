@@ -152,11 +152,13 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) 
 	}
 
 	if mtProto.Me().Bot {
+		_ = mtProto.Stop()
 		return nil, fmt.Errorf("the client %s is a bot", clientName)
 	}
 
 	call, err := ubot.NewInstance(mtProto)
 	if err != nil {
+		_ = mtProto.Stop()
 		return nil, fmt.Errorf("failed to create the ubot instance: %w", err)
 	}
 

@@ -49,6 +49,7 @@ func NewInstance(app *tg.Client) (*Context, error) {
 	if app.IsConnected() {
 		self, err := app.GetMe()
 		if err != nil {
+			client.Close()
 			return nil, err
 		}
 		client.self = self
