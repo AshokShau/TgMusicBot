@@ -218,6 +218,11 @@ func (ctx *Context) handleUpdates() {
 
 	ctx.App.AddRawHandler(&tg.UpdateGroupCall{}, func(m tg.Update, c *tg.Client) error {
 		updateGroupCall := m.(*tg.UpdateGroupCall)
+		if updateGroupCall.Peer == nil {
+			ctx.App.Log.Warn("Received UpdateGroupCall with nil Peer")
+			return nil
+		}
+
 		if groupCallRaw := updateGroupCall.Call; groupCallRaw != nil {
 			chatID, err := ctx.parseChatId(updateGroupCall.Peer)
 			if err != nil {

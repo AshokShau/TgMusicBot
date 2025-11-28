@@ -58,7 +58,9 @@ func downloadImage(url, filepath string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	ct := resp.Header.Get("Content-Type")
 	if !strings.Contains(ct, "image") {
@@ -82,7 +84,9 @@ func downloadImage(url, filepath string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	return png.Encode(file, img)
 }
