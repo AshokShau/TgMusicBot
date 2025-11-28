@@ -226,6 +226,7 @@ func (ctx *Context) handleUpdates() {
 		if groupCallRaw := updateGroupCall.Call; groupCallRaw != nil {
 			chatID, err := ctx.parseChatId(updateGroupCall.Peer)
 			if err != nil {
+				ctx.App.Log.Errorf("Failed to parse chat ID: %v (type: %T)", err, updateGroupCall.Peer)
 				return err
 			}
 
