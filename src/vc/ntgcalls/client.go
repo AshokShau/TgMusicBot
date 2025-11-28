@@ -1,7 +1,10 @@
 package ntgcalls
 
+import "runtime/cgo"
+
 type Client struct {
 	ptr                         uintptr
+	handle                      cgo.Handle
 	connectionChangeCallbacks   []ConnectionChangeCallback
 	streamEndCallbacks          []StreamEndCallback
 	upgradeCallbacks            []UpgradeCallback

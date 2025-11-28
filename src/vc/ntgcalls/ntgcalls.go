@@ -14,6 +14,7 @@ package ntgcalls
 import "C"
 import (
 	"fmt"
+	"runtime/cgo"
 	"unsafe"
 )
 
@@ -25,7 +26,9 @@ func NTgCalls() *Client {
 	instance := &Client{
 		ptr: uintptr(C.ntg_init()),
 	}
-	selfPointer := unsafe.Pointer(instance)
+	h := cgo.NewHandle(instance)
+	instance.handle = h
+	selfPointer := unsafe.Pointer(h)
 	C.ntg_on_stream_end(C.uintptr_t(instance.ptr), (C.ntg_stream_callback)(unsafe.Pointer(C.handleStreamEnd)), selfPointer)
 	C.ntg_on_upgrade(C.uintptr_t(instance.ptr), (C.ntg_upgrade_callback)(unsafe.Pointer(C.handleUpgrade)), selfPointer)
 	C.ntg_on_signaling_data(C.uintptr_t(instance.ptr), (C.ntg_signaling_callback)(unsafe.Pointer(C.handleSignal)), selfPointer)
@@ -72,7 +75,7 @@ func handleLogs(logMessage C.ntg_log_message_struct) {
 
 //export handleStreamEnd
 func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_type_enum, streamDevice C.ntg_stream_device_enum, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	var goStreamType StreamType
 	if streamType == C.NTG_STREAM_AUDIO {
@@ -87,7 +90,7 @@ func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_ty
 
 //export handleUpgrade
 func handleUpgrade(_ C.uintptr_t, chatID C.int64_t, state C.ntg_media_state_struct, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	goState := MediaState{
 		Muted:              bool(state.muted),
@@ -102,7 +105,7 @@ func handleUpgrade(_ C.uintptr_t, chatID C.int64_t, state C.ntg_media_state_stru
 
 //export handleSignal
 func handleSignal(_ C.uintptr_t, chatID C.int64_t, data *C.uint8_t, size C.int, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	for _, x0 := range self.signalCallbacks {
 		go x0(goChatID, C.GoBytes(unsafe.Pointer(data), size))
@@ -111,7 +114,7 @@ func handleSignal(_ C.uintptr_t, chatID C.int64_t, data *C.uint8_t, size C.int, 
 
 //export handleConnectionChange
 func handleConnectionChange(_ C.uintptr_t, chatID C.int64_t, networkInfo C.ntg_network_info_struct, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	var goCallState NetworkInfo
 	switch networkInfo.kind {
@@ -128,7 +131,7 @@ func handleConnectionChange(_ C.uintptr_t, chatID C.int64_t, networkInfo C.ntg_n
 
 //export handleFrames
 func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_enum, streamDevice C.ntg_stream_device_enum, frames *C.ntg_frame_struct, size C.int, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	var goStreamMode StreamMode
 	switch streamMode {
@@ -158,7 +161,7 @@ func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_
 
 //export handleRemoteSourceChange
 func handleRemoteSourceChange(_ C.uintptr_t, chatID C.int64_t, remoteSource C.ntg_remote_source_struct, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	goRemoteSource := RemoteSource{
 		Ssrc:   uint32(remoteSource.ssrc),
@@ -172,7 +175,7 @@ func handleRemoteSourceChange(_ C.uintptr_t, chatID C.int64_t, remoteSource C.nt
 
 //export handleRequestBroadcastTimestamp
 func handleRequestBroadcastTimestamp(_ C.uintptr_t, chatID C.int64_t, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	for _, x0 := range self.broadcastTimestampCallbacks {
 		go x0(goChatID)
@@ -181,7 +184,7 @@ func handleRequestBroadcastTimestamp(_ C.uintptr_t, chatID C.int64_t, ptr unsafe
 
 //export handleRequestBroadcastPart
 func handleRequestBroadcastPart(_ C.uintptr_t, chatID C.int64_t, segmentPartRequest C.ntg_segment_part_request_struct, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
+	self := cgo.Handle(uintptr(ptr)).Value().(*Client)
 	goChatID := int64(chatID)
 	var goSegmentQuality MediaSegmentQuality
 	switch segmentPartRequest.quality {
@@ -518,4 +521,5 @@ func Version() string {
 
 func (ctx *Client) Free() {
 	C.ntg_destroy(C.uintptr_t(ctx.ptr))
+	ctx.handle.Delete()
 }
