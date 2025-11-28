@@ -3,6 +3,7 @@ package ubot
 import (
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 	"ashokshau/tgmusic/src/vc/ubot/types"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -219,14 +220,16 @@ func (ctx *Context) handleUpdates() {
 	ctx.App.AddRawHandler(&tg.UpdateGroupCall{}, func(m tg.Update, c *tg.Client) error {
 		updateGroupCall := m.(*tg.UpdateGroupCall)
 		if updateGroupCall.Peer == nil {
-			ctx.App.Log.Warn("Received UpdateGroupCall with nil Peer")
+			raw, _ := json.MarshalIndent(m, "", "  ")
+			ctx.App.Log.Errorf("Received UpdateGroupCall with nil Peer: \n%s", string(raw))
 			return nil
 		}
 
 		if groupCallRaw := updateGroupCall.Call; groupCallRaw != nil {
 			chatID, err := ctx.parseChatId(updateGroupCall.Peer)
 			if err != nil {
-				ctx.App.Log.Errorf("Failed to parse chat ID: %v (type: %T)", err, updateGroupCall.Peer)
+				raw, _ := json.MarshalIndent(m, "", "  ")
+				ctx.App.Log.Errorf("Failed to parse chat ID: %v (type: %T)\n%s", err, updateGroupCall.Peer, string(raw))
 				return err
 			}
 
