@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -29,8 +30,11 @@ import (
 )
 
 const (
-	Font1 = "assets/font.ttf"
-	Font2 = "assets/font2.ttf"
+	Font1         = "assets/font.ttf"
+	Font2         = "assets/font2.ttf"
+	maxBlurRadius = 10
+	targetWidth   = 1280
+	targetHeight  = 720
 )
 
 func clearTitle(text string) string {
@@ -109,13 +113,29 @@ func loadFont(path string, size float64) (font.Face, error) {
 	return face, err
 }
 
+// toRGBA converts any image to *image.RGBA for efficient pixel access
+func toRGBA(img image.Image) *image.RGBA {
+	if rgba, ok := img.(*image.RGBA); ok {
+		return rgba
+	}
+
+	bounds := img.Bounds()
+	rgba := image.NewRGBA(bounds)
+	draw.Draw(rgba, bounds, img, bounds.Min, draw.Src)
+	return rgba
+}
+
 // resizeImage resizes an image to the specified width and height using bilinear interpolation
-func resizeImage(img image.Image, width, height int) image.Image {
-	srcBounds := img.Bounds()
+func resizeImage(img image.Image, width, height int) *image.RGBA {
+	src := toRGBA(img)
+	srcBounds := src.Bounds()
 	srcW := srcBounds.Dx()
 	srcH := srcBounds.Dy()
 
 	dst := image.NewRGBA(image.Rect(0, 0, width, height))
+	dstPix := dst.Pix
+	srcPix := src.Pix
+	srcStride := src.Stride
 
 	xRatio := float64(srcW) / float64(width)
 	yRatio := float64(srcH) / float64(height)
@@ -138,27 +158,29 @@ func resizeImage(img image.Image, width, height int) image.Image {
 				y2 = srcH - 1
 			}
 
-			// Get surrounding pixels
-			q11 := img.At(x1, y1)
-			q12 := img.At(x1, y2)
-			q21 := img.At(x2, y1)
-			q22 := img.At(x2, y2)
+			i11 := (y1-srcBounds.Min.Y)*srcStride + (x1-srcBounds.Min.X)*4
+			i12 := (y2-srcBounds.Min.Y)*srcStride + (x1-srcBounds.Min.X)*4
+			i21 := (y1-srcBounds.Min.Y)*srcStride + (x2-srcBounds.Min.X)*4
+			i22 := (y2-srcBounds.Min.Y)*srcStride + (x2-srcBounds.Min.X)*4
 
-			// Interpolate
+			r11, g11, b11, a11 := srcPix[i11], srcPix[i11+1], srcPix[i11+2], srcPix[i11+3]
+			r12, g12, b12, a12 := srcPix[i12], srcPix[i12+1], srcPix[i12+2], srcPix[i12+3]
+			r21, g21, b21, a21 := srcPix[i21], srcPix[i21+1], srcPix[i21+2], srcPix[i21+3]
+			r22, g22, b22, a22 := srcPix[i22], srcPix[i22+1], srcPix[i22+2], srcPix[i22+3]
+
 			dx := srcX - float64(x1)
 			dy := srcY - float64(y1)
 
-			c11 := color.RGBAModel.Convert(q11).(color.RGBA)
-			c12 := color.RGBAModel.Convert(q12).(color.RGBA)
-			c21 := color.RGBAModel.Convert(q21).(color.RGBA)
-			c22 := color.RGBAModel.Convert(q22).(color.RGBA)
+			r := bilinearInterpolate(r11, r12, r21, r22, dx, dy)
+			g := bilinearInterpolate(g11, g12, g21, g22, dx, dy)
+			b := bilinearInterpolate(b11, b12, b21, b22, dx, dy)
+			a := bilinearInterpolate(a11, a12, a21, a22, dx, dy)
 
-			r := bilinearInterpolate(c11.R, c12.R, c21.R, c22.R, dx, dy)
-			g := bilinearInterpolate(c11.G, c12.G, c21.G, c22.G, dx, dy)
-			b := bilinearInterpolate(c11.B, c12.B, c21.B, c22.B, dx, dy)
-			a := bilinearInterpolate(c11.A, c12.A, c21.A, c22.A, dx, dy)
-
-			dst.Set(x, y, color.RGBA{R: r, G: g, B: b, A: a})
+			idx := y*dst.Stride + x*4
+			dstPix[idx] = r
+			dstPix[idx+1] = g
+			dstPix[idx+2] = b
+			dstPix[idx+3] = a
 		}
 	}
 	return dst
@@ -172,83 +194,96 @@ func bilinearInterpolate(q11, q12, q21, q22 uint8, dx, dy float64) uint8 {
 }
 
 // applyBlur applies a simple box blur to the image
-func applyBlur(img image.Image, radius int) image.Image {
+func applyBlur(img image.Image, radius int) *image.RGBA {
 	if radius <= 0 {
-		return img
+		return toRGBA(img)
 	}
 
-	bounds := img.Bounds()
-	dst := image.NewRGBA(bounds)
+	if radius > maxBlurRadius {
+		radius = maxBlurRadius
+	}
 
-	// Simple box blur
+	src := toRGBA(img)
+	bounds := src.Bounds()
+	dst := image.NewRGBA(bounds)
+	srcPix := src.Pix
+	dstPix := dst.Pix
+	stride := src.Stride
+
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			var r, g, b, a, count uint32
+			var r, g, b, a uint32
 
-			for dy := -radius; dy <= radius; dy++ {
-				for dx := -radius; dx <= radius; dx++ {
-					xx := x + dx
-					yy := y + dy
-					if xx >= bounds.Min.X && xx < bounds.Max.X && yy >= bounds.Min.Y && yy < bounds.Max.Y {
-						c := color.RGBAModel.Convert(img.At(xx, yy)).(color.RGBA)
-						r += uint32(c.R)
-						g += uint32(c.G)
-						b += uint32(c.B)
-						a += uint32(c.A)
-						count++
-					}
+			yStart := m(y-radius, bounds.Min.Y)
+			yEnd := i(y+radius, bounds.Max.Y-1)
+			xStart := m(x-radius, bounds.Min.X)
+			xEnd := i(x+radius, bounds.Max.X-1)
+
+			actualArea := (yEnd - yStart + 1) * (xEnd - xStart + 1)
+
+			for ky := yStart; ky <= yEnd; ky++ {
+				for kx := xStart; kx <= xEnd; kx++ {
+					idx := (ky-bounds.Min.Y)*stride + (kx-bounds.Min.X)*4
+					r += uint32(srcPix[idx])
+					g += uint32(srcPix[idx+1])
+					b += uint32(srcPix[idx+2])
+					a += uint32(srcPix[idx+3])
 				}
 			}
 
-			if count > 0 {
-				dst.Set(x, y, color.RGBA{
-					R: uint8(r / count),
-					G: uint8(g / count),
-					B: uint8(b / count),
-					A: uint8(a / count),
-				})
-			}
+			dstIdx := (y-bounds.Min.Y)*stride + (x-bounds.Min.X)*4
+			dstPix[dstIdx] = uint8(r / uint32(actualArea))
+			dstPix[dstIdx+1] = uint8(g / uint32(actualArea))
+			dstPix[dstIdx+2] = uint8(b / uint32(actualArea))
+			dstPix[dstIdx+3] = uint8(a / uint32(actualArea))
 		}
 	}
 	return dst
 }
 
 // adjustBrightness adjusts the brightness of an image
-func adjustBrightness(img image.Image, factor float64) image.Image {
-	bounds := img.Bounds()
+func adjustBrightness(img image.Image, factor float64) *image.RGBA {
+	src := toRGBA(img)
+	bounds := src.Bounds()
 	dst := image.NewRGBA(bounds)
+	srcPix := src.Pix
+	dstPix := dst.Pix
 
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			c := color.RGBAModel.Convert(img.At(x, y)).(color.RGBA)
+	for i := 0; i < len(srcPix); i += 4 {
+		r := float64(srcPix[i]) * (1 + factor)
+		g := float64(srcPix[i+1]) * (1 + factor)
+		b := float64(srcPix[i+2]) * (1 + factor)
 
-			r := float64(c.R) * (1 + factor)
-			g := float64(c.G) * (1 + factor)
-			b := float64(c.B) * (1 + factor)
-
-			r = clamp(r, 0, 255)
-			g = clamp(g, 0, 255)
-			b = clamp(b, 0, 255)
-
-			dst.Set(x, y, color.RGBA{
-				R: uint8(r),
-				G: uint8(g),
-				B: uint8(b),
-				A: c.A,
-			})
-		}
+		dstPix[i] = clampUint8(r)
+		dstPix[i+1] = clampUint8(g)
+		dstPix[i+2] = clampUint8(b)
+		dstPix[i+3] = srcPix[i+3]
 	}
 	return dst
 }
 
-func clamp(value, min, max float64) float64 {
-	if value < min {
-		return min
+func clampUint8(value float64) uint8 {
+	if value < 0 {
+		return 0
 	}
-	if value > max {
-		return max
+	if value > 255 {
+		return 255
 	}
-	return value
+	return uint8(math.Round(value))
+}
+
+func i(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func m(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func GenThumb(song cache.CachedTrack) (string, error) {
@@ -299,7 +334,7 @@ func GenThumb(song cache.CachedTrack) (string, error) {
 
 	_ = os.Remove(tmpFile)
 
-	bg := resizeImage(img, 1280, 720)
+	bg := resizeImage(img, targetWidth, targetHeight)
 	bg = applyBlur(bg, 7)
 	bg = adjustBrightness(bg, -0.5)
 
