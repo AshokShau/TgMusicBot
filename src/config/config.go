@@ -67,7 +67,7 @@ func LoadConfig() error {
 		DefaultService:    strings.ToLower(getEnvStr("DEFAULT_SERVICE", "youtube")),
 		MaxFileSize:       getEnvInt64("MAX_FILE_SIZE", 500*1024*1024),
 		SongDurationLimit: getEnvInt64("SONG_DURATION_LIMIT", 3600),
-		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "downloads"),
+		DownloadsDir: getEnvStr("DOWNLOADS_DIR", "/tmp/downloads"),
 		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
 		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
