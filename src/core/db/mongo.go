@@ -331,6 +331,23 @@ func (db *Database) GetLang(ctx context.Context, chatID int64) string {
 	return db.getChatLang(ctx, chatID)
 }
 
+// GetRtmpUrl retrieves the rtmp_url for a chat.
+func (db *Database) GetRtmpUrl(ctx context.Context, chatID int64) (string, error) {
+	chat, _ := db.getChat(ctx, chatID)
+	if chat == nil {
+		return "", nil
+	}
+	if val, ok := chat["rtmp_url"].(string); ok {
+		return val, nil
+	}
+	return "", nil
+}
+
+// SetRtmpUrl sets the rtmp_url for a given chat.
+func (db *Database) SetRtmpUrl(ctx context.Context, chatID int64, url string) error {
+	return db.updateChatField(ctx, chatID, "rtmp_url", url)
+}
+
 // ----------------- AUTH USERS -----------------
 
 // AddAuthUser adds a user to the list of authorized users for a chat.

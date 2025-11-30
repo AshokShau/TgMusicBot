@@ -29,10 +29,13 @@ func LoadModules(c *tg.Client) {
 	c.On("command:lang", langHandler)
 	c.On("command:reload", reloadAdminCacheHandler)
 	c.On("command:privacy", privacyHandler)
+	c.On("command:setRtmp ", setRtmpHandler)
 
 	c.On("command:play", playHandler, tg.FilterFunc(playMode))
 	c.On("command:vPlay", vPlayHandler, tg.FilterFunc(playMode))
+	c.On("command:stream", streamHandler, tg.FilterFunc(playMode))
 
+	c.On("command:stopStream", stopStreamHandler, tg.FilterFunc(adminMode))
 	c.On("command:loop", loopHandler, tg.FilterFunc(adminMode))
 	c.On("command:remove", removeHandler, tg.FilterFunc(adminMode))
 	c.On("command:skip", skipHandler, tg.FilterFunc(adminMode))
@@ -55,6 +58,7 @@ func LoadModules(c *tg.Client) {
 	c.On("command:active_vc", activeVcHandler, tg.FilterFunc(isDev))
 	c.On("command:av", activeVcHandler, tg.FilterFunc(isDev))
 	c.On("command:stats", sysStatsHandler, tg.FilterFunc(isDev))
+	c.On("command:streams", listStreamsHandler, tg.FilterFunc(isDev))
 	c.On("command:clear_assistants", clearAssistantsHandler, tg.FilterFunc(isDev))
 	c.On("command:clearAss", clearAssistantsHandler, tg.FilterFunc(isDev))
 	c.On("command:leaveAll", leaveAllHandler, tg.FilterFunc(isDev))

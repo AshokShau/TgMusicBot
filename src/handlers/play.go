@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strconv"
+
 	"strings"
 	"time"
 
@@ -57,18 +57,6 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	args := m.Args()
 	rMsg := m
 	var err error
-
-	parseTelegramURL := func(input string) (string, int, bool) {
-		matches := telegramURLRegex.FindStringSubmatch(input)
-		if matches == nil {
-			return "", 0, false
-		}
-		id, err := strconv.Atoi(matches[2])
-		if err != nil {
-			return "", 0, false
-		}
-		return matches[1], id, true
-	}
 
 	input := coalesce(url, args)
 	if strings.HasPrefix(input, "tgpl_") {
