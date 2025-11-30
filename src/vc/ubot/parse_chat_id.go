@@ -10,7 +10,7 @@ func (ctx *Context) parseChatId(chatId any) (int64, error) {
 	if chatId == nil {
 		return 0, fmt.Errorf("chatId cannot be nil")
 	}
-	
+
 	var parsedChatId int64
 	switch v := chatId.(type) {
 	case tg.Peer:
