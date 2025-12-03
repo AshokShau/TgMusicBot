@@ -105,7 +105,8 @@ func HelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 // BackHelpMenuKeyboard creates and returns an inline keyboard with buttons to return to the main help menu.
 func BackHelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 	keyboard := telegram.NewKeyboard().
-		AddRow(HelpBtn, HomeBtn)
+		AddRow(HelpBtn, HomeBtn).
+		AddRow(CloseBtn)
 
 	return keyboard.Build()
 }
@@ -113,13 +114,13 @@ func BackHelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 // ControlButtons creates and returns an inline keyboard with playback control buttons, customized based on the current mode.
 // The 'mode' parameter can be "play", "pause", "resume", "mute", or "unmute" to display the relevant controls.
 func ControlButtons(mode string) *telegram.ReplyInlineMarkup {
-	skipBtn := telegram.Button.Data("‣‣I", "play_skip")
-	stopBtn := telegram.Button.Data("▢", "play_stop")
-	pauseBtn := telegram.Button.Data("II", "play_pause")
-	resumeBtn := telegram.Button.Data("▷", "play_resume")
-	muteBtn := telegram.Button.Data("🔇", "play_mute")
-	unmuteBtn := telegram.Button.Data("🔊", "play_unmute")
-	addToPlaylistBtn := telegram.Button.Data("➕ Playlist", "play_add_to_list")
+	skipBtn := telegram.Button.Data("Skip", "play_skip")
+	stopBtn := telegram.Button.Data("Stop", "play_stop")
+	pauseBtn := telegram.Button.Data("Pause", "play_pause")
+	resumeBtn := telegram.Button.Data("Resume", "play_resume")
+	muteBtn := telegram.Button.Data("Mute", "play_mute")
+	unmuteBtn := telegram.Button.Data("Unmute", "play_unmute")
+	addToPlaylistBtn := telegram.Button.Data("Add Playlist", "play_add_to_list")
 
 	var keyboard *telegram.KeyboardBuilder
 
@@ -161,11 +162,13 @@ func LanguageKeyboard() *telegram.ReplyInlineMarkup {
 // AddMeMarkup creates and returns an inline keyboard with a button that allows users to add the bot to their group.
 // It requires the bot's username to generate the correct link.
 func AddMeMarkup(username string) *telegram.ReplyInlineMarkup {
-	addMeBtn := telegram.Button.URL(fmt.Sprintf("Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ"), fmt.Sprintf("https://t.me/%s?startgroup=true", username))
-	channelBtn := telegram.Button.URL("ᴜᴘᴅᴀᴛᴇꜱ", config.Conf.SupportChannel)
-	groupBtn := telegram.Button.URL("ꜱᴜᴘᴘᴏʀᴛ", config.Conf.SupportGroup)
+	addMeBtn := telegram.Button.URL(fmt.Sprintf("Add me to your group"), fmt.Sprintf("https://t.me/%s?startgroup=true", username))
+	channelBtn := telegram.Button.URL("Updates", config.Conf.SupportChannel)
+	groupBtn := telegram.Button.URL("Support", config.Conf.SupportGroup)
+	ownerBtn := telegram.Button.URL("Owner", config.Conf.OwnerChannel)
 	keyboard := telegram.NewKeyboard().
 		AddRow(addMeBtn).
+		AddRow(HelpBtn, OwnerBtn).
 		AddRow(channelBtn, groupBtn)
 
 	return keyboard.Build()

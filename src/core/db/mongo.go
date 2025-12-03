@@ -115,6 +115,22 @@ func (db *Database) AddChat(ctx context.Context, chatID int64) error {
 	return err
 }
 
+// RemoveChat removes a chat from the database and cache.
+func (db *Database) RemoveChat(ctx context.Context, chatID int64) error {
+	key := toKey(chatID)
+
+	// Delete from the database.
+	_, err := db.chatDB.DeleteOne(ctx, bson.M{"_id": chatID})
+	if err != nil {
+		return err
+	}
+
+	// Delete from the cache.
+	db.chatCache.Delete(key)
+	log.Printf("[DB] Chat has been removed: %d", chatID)
+	return nil
+}
+
 // updateChatField updates a specific field in a chat's document.
 func (db *Database) updateChatField(ctx context.Context, chatID int64, key string, value interface{}) error {
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{key: value}}, options.UpdateOne().SetUpsert(true))

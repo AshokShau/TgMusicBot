@@ -115,10 +115,76 @@ func broadcastHandler(m *tg.NewMessage) error {
 
 	var success int32
 	var failed int32
+	var removed int32
 
 	workers := 20
 	jobs := make(chan int64, workers)
 	wg := sync.WaitGroup{}
+
+	// shouldRemoveFromDB checks if the error indicates the user/chat should be removed
+	shouldRemoveFromDB := func(err error) bool {
+		if err == nil {
+			return false
+		}
+		errStr := strings.ToLower(err.Error())
+		// User blocked the bot
+		if strings.Contains(errStr, "user_is_blocked") {
+			return true
+		}
+		// User deleted their account
+		if strings.Contains(errStr, "user_is_deleted") {
+			return true
+		}
+		// User deactivated
+		if strings.Contains(errStr, "user_deactivated") {
+			return true
+		}
+		// Invalid peer ID (user/chat doesn't exist)
+		if strings.Contains(errStr, "peer_id_invalid") {
+			return true
+		}
+		// Chat not found / no channel with id
+		if strings.Contains(errStr, "no channel with id") {
+			return true
+		}
+		// Chat was deleted
+		if strings.Contains(errStr, "chat_write_forbidden") {
+			return true
+		}
+		// Bot was kicked from the chat
+		if strings.Contains(errStr, "bot_kicked") {
+			return true
+		}
+		// Chat not found
+		if strings.Contains(errStr, "chat_not_found") {
+			return true
+		}
+		// Input user deactivated
+		if strings.Contains(errStr, "input_user_deactivated") {
+			return true
+		}
+		return false
+	}
+
+	// removeFromDB removes the ID from the appropriate collection
+	removeFromDB := func(id int64) {
+		dbCtx, dbCancel := db.Ctx()
+		defer dbCancel()
+
+		if id > 0 {
+			// It's a user
+			if err := db.Instance.RemoveUser(dbCtx, id); err == nil {
+				atomic.AddInt32(&removed, 1)
+				logger.Info("[Broadcast] Removed user %d from database", id)
+			}
+		} else {
+			// It's a chat/channel
+			if err := db.Instance.RemoveChat(dbCtx, id); err == nil {
+				atomic.AddInt32(&removed, 1)
+				logger.Info("[Broadcast] Removed chat %d from database", id)
+			}
+		}
+	}
 
 	worker := func() {
 		for id := range jobs {
@@ -145,6 +211,11 @@ func broadcastHandler(m *tg.NewMessage) error {
 
 				atomic.AddInt32(&failed, 1)
 				logger.Warn("[Broadcast] chatID: %d error: %v", id, errSend)
+
+				// Check if we should remove this ID from database
+				if shouldRemoveFromDB(errSend) {
+					removeFromDB(id)
+				}
 				break
 			}
 		}
@@ -169,11 +240,13 @@ func broadcastHandler(m *tg.NewMessage) error {
 			"👥 Total: %d\n"+
 			"✅ Success: %d\n"+
 			"❌ Failed: %d\n"+
+			"🗑 Removed: %d\n"+
 			"⚙ Mode: %s\n"+
 			"🛑 Cancelled: %v\n",
 		total,
 		success,
 		failed,
+		removed,
 		map[bool]string{true: "Copy", false: "Forward"}[copyMode],
 		broadcastCancelFlag.Load(),
 	)

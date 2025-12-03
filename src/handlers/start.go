@@ -39,6 +39,10 @@ func pingHandler(m *telegram.NewMessage) error {
 	return err
 }
 
+// StartImageURL is the URL of the image to send with the /start command.
+// Change this to your desired image URL.
+const StartImageURL = "https://files.catbox.moe/svrc2j.jpg"
+
 // startHandler handles the /start command.
 func startHandler(m *telegram.NewMessage) error {
 	bot := m.Client.Me()
@@ -62,8 +66,18 @@ func startHandler(m *telegram.NewMessage) error {
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
 
+	// Get connected groups and users count
+	chats, _ := db.Instance.GetAllChats(ctx)
+	users, _ := db.Instance.GetAllUsers(ctx)
+	groupCount := len(chats)
+	userCount := len(users)
+
 	response := fmt.Sprintf(lang.GetString(langCode, "start_text"), m.Sender.FirstName, bot.FirstName)
-	_, err := m.Reply(response, &telegram.SendOptions{
+	response += fmt.Sprintf("\n\n<b>📊 Stats:</b>\n├ 👥 Users: <code>%d</code>\n└ 💬 Groups: <code>%d</code>", userCount, groupCount)
+
+	// Send photo with caption
+	_, err := m.Client.SendPhoto(chatID, StartImageURL, &telegram.PhotoOptions{
+		Caption:     response,
 		ReplyMarkup: core.AddMeMarkup(m.Client.Me().Username),
 	})
 
