@@ -47,6 +47,17 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
 
+	// Save chat/user to database for broadcast support
+	go func() {
+		dbCtx, dbCancel := db.Ctx()
+		defer dbCancel()
+		if chatID > 0 {
+			_ = db.Instance.AddUser(dbCtx, chatID)
+		} else {
+			_ = db.Instance.AddChat(dbCtx, chatID)
+		}
+	}()
+
 	if queue := cache.ChatCache.GetQueue(chatID); len(queue) > 10 {
 		_, _ = m.Reply(lang.GetString(langCode, "play_queue_full"))
 		return telegram.ErrEndGroup

@@ -43,7 +43,7 @@ var DevsBtn = telegram.Button.Data("Dᴇᴠꜱ Cᴏᴍᴍᴀɴᴅꜱ", "help_dev
 var PlaylistBtn = telegram.Button.Data("Pʟᴀʏʟɪsᴛ Cᴏᴍᴍᴀɴᴅꜱ", "help_playlist")
 
 // SourceCodeBtn is a button that links to the source code.
-var SourceCodeBtn = telegram.Button.URL("Sᴏᴜʀᴄᴇ Cᴏᴅᴇ", "https://github.com/AshokShau/TgMusicBot")
+var SourceCodeBtn = telegram.Button.URL("Sᴏᴜʀᴄᴇ Cᴏᴅᴇ", "")
 
 // SupportKeyboard creates and returns an inline keyboard with buttons for support and updates.
 func SupportKeyboard() *telegram.ReplyInlineMarkup {
@@ -105,8 +105,7 @@ func HelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 // BackHelpMenuKeyboard creates and returns an inline keyboard with buttons to return to the main help menu.
 func BackHelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 	keyboard := telegram.NewKeyboard().
-		AddRow(HelpBtn, HomeBtn).
-		AddRow(CloseBtn, SourceCodeBtn)
+		AddRow(HelpBtn, HomeBtn)
 
 	return keyboard.Build()
 }
@@ -167,7 +166,6 @@ func AddMeMarkup(username string) *telegram.ReplyInlineMarkup {
 	groupBtn := telegram.Button.URL("ꜱᴜᴘᴘᴏʀᴛ", config.Conf.SupportGroup)
 	keyboard := telegram.NewKeyboard().
 		AddRow(addMeBtn).
-		AddRow(HelpBtn, SourceCodeBtn).
 		AddRow(channelBtn, groupBtn)
 
 	return keyboard.Build()

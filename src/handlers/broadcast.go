@@ -11,7 +11,6 @@ package handlers
 import (
 	"ashokshau/tgmusic/src/core/db"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,21 +44,16 @@ func broadcastHandler(m *tg.NewMessage) error {
 
 	reply, err := m.GetReplyMessage()
 	if err != nil {
-		_, _ = m.Reply("❗ Reply to a message to broadcast.\nExample:\n`/broadcast -copy -limit 100 -delay 2s optional preview text`")
+		_, _ = m.Reply("❗ Reply to a message to broadcast.\n\nFlags:\n<code>-copy</code> - Send as copy (hide forward tag)\n<code>-nochats</code> - Skip groups\n<code>-nousers</code> - Skip users\n<code>-nochannels</code> - Skip channels\n\nExample: <code>/broadcast -copy</code>")
 		return tg.ErrEndGroup
 	}
 
 	args := strings.Fields(m.Args())
-	if len(args) == 0 {
-		_, _ = m.Reply("Provide flags.\nExample: `/broadcast -copy -limit 50 -delay 1s`")
-		return tg.ErrEndGroup
-	}
 
 	copyMode := false
 	noChats := false
 	noUsers := false
-	limit := 0
-	delay := time.Duration(0)
+	noChannels := false
 
 	for _, a := range args {
 		switch {
@@ -69,26 +63,8 @@ func broadcastHandler(m *tg.NewMessage) error {
 			noChats = true
 		case a == "-nouser" || a == "-nousers":
 			noUsers = true
-
-		case strings.HasPrefix(a, "-limit"):
-			val := strings.TrimPrefix(a, "-limit")
-			val = strings.TrimSpace(val)
-			n, err := strconv.Atoi(val)
-			if err != nil || n <= 0 {
-				_, _ = m.Reply("❗ Invalid limit value. Example: `-limit 100`")
-				return tg.ErrEndGroup
-			}
-			limit = n
-
-		case strings.HasPrefix(a, "-delay"):
-			val := strings.TrimPrefix(a, "-delay")
-			val = strings.TrimSpace(val)
-			d, err := time.ParseDuration(val)
-			if err != nil {
-				_, _ = m.Reply("❗ Invalid delay. Example: `-delay 2s`")
-				return tg.ErrEndGroup
-			}
-			delay = d
+		case a == "-nochannel" || a == "-nochannels":
+			noChannels = true
 		}
 	}
 
@@ -97,8 +73,27 @@ func broadcastHandler(m *tg.NewMessage) error {
 	users, _ := db.Instance.GetAllUsers(ctx)
 
 	var targets []int64
+	var groups []int64
+	var channels []int64
+
+	// Separate groups and channels from chats
+	// Channels have IDs starting with -100 and are typically < -1000000000000
+	// Groups also start with -100 but we need to check via API or assume all negative IDs in chats are groups/channels
+	for _, chatID := range chats {
+		if chatID < -1000000000000 {
+			// This is likely a channel (supergroup/channel format)
+			channels = append(channels, chatID)
+		} else if chatID < 0 {
+			// This is a group
+			groups = append(groups, chatID)
+		}
+	}
+
 	if !noChats {
-		targets = append(targets, chats...)
+		targets = append(targets, groups...)
+	}
+	if !noChannels {
+		targets = append(targets, channels...)
 	}
 	if !noUsers {
 		targets = append(targets, users...)
@@ -109,15 +104,13 @@ func broadcastHandler(m *tg.NewMessage) error {
 		return tg.ErrEndGroup
 	}
 
-	if limit > 0 && limit < len(targets) {
-		targets = targets[:limit]
-	}
-
 	sentMsg, _ := m.Reply(fmt.Sprintf(
-		"🚀 <b>Broadcast Started</b>\nTargets: %d\nMode: %s\nDelay: %v\n\nSend <code>/cancelbroadcast</code> to stop.",
+		"🚀 <b>Broadcast Started</b>\n\n👥 Users: %d\n💬 Groups: %d\n📢 Channels: %d\n📊 Total: %d\n⚙ Mode: %s\n\nSend <code>/cancelbroadcast</code> to stop.",
+		len(users),
+		len(groups),
+		len(channels),
 		len(targets),
 		map[bool]string{true: "Copy", false: "Forward"}[copyMode],
-		delay,
 	))
 
 	var success int32
@@ -154,10 +147,6 @@ func broadcastHandler(m *tg.NewMessage) error {
 				logger.Warn("[Broadcast] chatID: %d error: %v", id, errSend)
 				break
 			}
-
-			if delay > 0 {
-				time.Sleep(delay)
-			}
 		}
 		wg.Done()
 	}
@@ -181,13 +170,11 @@ func broadcastHandler(m *tg.NewMessage) error {
 			"✅ Success: %d\n"+
 			"❌ Failed: %d\n"+
 			"⚙ Mode: %s\n"+
-			"⏱ Delay: %v\n"+
 			"🛑 Cancelled: %v\n",
 		total,
 		success,
 		failed,
 		map[bool]string{true: "Copy", false: "Forward"}[copyMode],
-		delay,
 		broadcastCancelFlag.Load(),
 	)
 
