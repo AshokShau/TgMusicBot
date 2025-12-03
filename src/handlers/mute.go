@@ -25,7 +25,7 @@ func muteHandler(m *telegram.NewMessage) error {
 	if args := m.Args(); args != "" {
 		return telegram.ErrEndGroup
 	}
-	
+
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
