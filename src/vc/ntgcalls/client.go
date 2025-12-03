@@ -1,10 +1,14 @@
 package ntgcalls
 
-import "runtime/cgo"
+import (
+	"runtime/cgo"
+	"unsafe"
+)
 
 type Client struct {
 	ptr                         uintptr
 	handle                      cgo.Handle
+	handlePtr                   unsafe.Pointer
 	connectionChangeCallbacks   []ConnectionChangeCallback
 	streamEndCallbacks          []StreamEndCallback
 	upgradeCallbacks            []UpgradeCallback
