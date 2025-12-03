@@ -76,7 +76,7 @@ func startHandler(m *telegram.NewMessage) error {
 	response += fmt.Sprintf("\n\n<b>📊 Stats:</b>\n├ 👥 Users: <code>%d</code>\n└ 💬 Groups: <code>%d</code>", userCount, groupCount)
 
 	// Send photo with caption
-	_, err := m.Client.SendPhoto(chatID, StartImageURL, &telegram.PhotoOptions{
+	_, err := m.Client.SendMedia(chatID, StartImageURL, &telegram.MediaOptions{
 		Caption:     response,
 		ReplyMarkup: core.AddMeMarkup(m.Client.Me().Username),
 	})
