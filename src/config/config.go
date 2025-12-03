@@ -37,6 +37,7 @@ type BotConfig struct {
 	DownloadsDir      string   // DownloadsDir is the directory where downloads are stored.
 	SupportGroup      string   // SupportGroup is the Telegram group link.
 	SupportChannel    string   // SupportChannel is the Telegram channel link.
+	OwnerUsername     string   // OwnerUsername is the bot owner's Telegram username.
 	DEVS              []int64  // DEVS is a list of developer user IDs.
 	CookiesPath       []string // CookiesPath is a list of paths to cookies files.
 	cookiesUrl        []string // cookiesUrl is a list of URLs to cookies files.
@@ -70,6 +71,7 @@ func LoadConfig() error {
 		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "downloads"),
 		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
 		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
+		OwnerUsername:     getEnvStr("OWNER_USERNAME", "ursweetbae"),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
 		Port:              getEnvStr("PORT", "6060"),
 	}

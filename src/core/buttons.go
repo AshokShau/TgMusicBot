@@ -165,10 +165,10 @@ func AddMeMarkup(username string) *telegram.ReplyInlineMarkup {
 	addMeBtn := telegram.Button.URL(fmt.Sprintf("Add me to your group"), fmt.Sprintf("https://t.me/%s?startgroup=true", username))
 	channelBtn := telegram.Button.URL("Updates", config.Conf.SupportChannel)
 	groupBtn := telegram.Button.URL("Support", config.Conf.SupportGroup)
-	ownerBtn := telegram.Button.URL("Owner", config.Conf.OwnerChannel)
+	ownerBtn := telegram.Button.URL("Owner", fmt.Sprintf("https://t.me/%s", config.Conf.OwnerUsername))
 	keyboard := telegram.NewKeyboard().
 		AddRow(addMeBtn).
-		AddRow(HelpBtn, OwnerBtn).
+		AddRow(HelpBtn, ownerBtn).
 		AddRow(channelBtn, groupBtn)
 
 	return keyboard.Build()
