@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-var tmpDir = "src/cookies"
+const cookiesDr = "src/cookies"
 
 // fetchContent downloads content from Pastebin or Batbin.
 // It takes a URL as input.
@@ -66,7 +66,7 @@ func saveContent(url, content string) (string, error) {
 	}
 	filename += ".txt"
 
-	filePath := filepath.Join(tmpDir, filename)
+	filePath := filepath.Join(cookiesDr, filename)
 	// #nosec G304
 	f, err := os.Create(filePath)
 	if err != nil {
