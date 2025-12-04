@@ -35,16 +35,18 @@ RUN wget -q -O /usr/local/bin/yt-dlp \
 RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
     ln -s /usr/local/bin/deno /usr/bin/deno
 
-RUN useradd -m -u 1000 app && chown -R app:app /app
+RUN useradd -m -u 1000 app
+
+COPY --from=builder /src/app /app/app
+COPY --from=builder /src/assets /app/assets
+COPY --from=builder /src/locales /app/locales
+
+RUN chmod +x /app/app && \
+    chown -R app:app /app
 
 USER app
 
-COPY --from=builder /src/app ./app
-COPY --from=builder /src/assets ./assets
-COPY --from=builder /src/locales ./locales
-
-RUN chmod +x ./app
-
 ENV GOTRACEBACK=crash
 
-ENTRYPOINT ["./app"]
+WORKDIR /app
+ENTRYPOINT ["/app/app"]
