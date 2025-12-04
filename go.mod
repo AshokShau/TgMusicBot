@@ -3,7 +3,7 @@ module ashokshau/tgmusic
 go 1.25.0
 
 require (
-	github.com/amarnathcjd/gogram v1.6.10-0.20251203131628-2a9719822b22
+	github.com/amarnathcjd/gogram v1.6.10-0.20251204201611-c5cf21fdb85c
 	github.com/fogleman/gg v1.3.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	go.mongodb.org/mongo-driver/v2 v2.4.0
@@ -14,7 +14,7 @@ require (
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
