@@ -1,10 +1,12 @@
 package ntgcalls
 
 import (
+	"runtime/cgo"
 	"sync"
 )
 
 // #include "ntgcalls.h"
+// #include <stdlib.h>
 // extern void unlockMutex(void*);
 import "C"
 import (
@@ -18,10 +20,13 @@ type Future struct {
 }
 
 func CreateFuture() *Future {
+	errCodePtr := (*C.int)(C.malloc(C.size_t(unsafe.Sizeof(C.int(0)))))
+	errMessagePtr := (**C.char)(C.malloc(C.size_t(unsafe.Sizeof((*C.char)(nil)))))
+
 	res := &Future{
 		mutex:      &sync.Mutex{},
-		errCode:    new(C.int),
-		errMessage: new(*C.char),
+		errCode:    errCodePtr,
+		errMessage: errMessagePtr,
 	}
 	res.mutex.Lock()
 	return res
@@ -29,7 +34,8 @@ func CreateFuture() *Future {
 
 func (ctx *Future) ParseToC() C.ntg_async_struct {
 	var x C.ntg_async_struct
-	x.userData = unsafe.Pointer(ctx.mutex)
+	h := cgo.NewHandle(ctx.mutex)
+	x.userData = unsafe.Pointer(uintptr(h))
 	x.promise = (C.ntg_async_callback)(unsafe.Pointer(C.unlockMutex))
 	x.errorCode = (*C.int)(unsafe.Pointer(ctx.errCode))
 	x.errorMessage = ctx.errMessage
@@ -40,8 +46,21 @@ func (ctx *Future) wait() {
 	ctx.mutex.Lock()
 }
 
+func (ctx *Future) Free() {
+	if ctx.errCode != nil {
+		C.free(unsafe.Pointer(ctx.errCode))
+		ctx.errCode = nil
+	}
+	if ctx.errMessage != nil {
+		C.free(unsafe.Pointer(ctx.errMessage))
+		ctx.errMessage = nil
+	}
+}
+
 //export unlockMutex
 func unlockMutex(p unsafe.Pointer) {
-	m := (*sync.Mutex)(p)
+	h := cgo.Handle(uintptr(p))
+	m := h.Value().(*sync.Mutex)
 	m.Unlock()
+	h.Delete()
 }

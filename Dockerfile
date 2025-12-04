@@ -45,4 +45,6 @@ COPY --from=builder /src/locales ./locales
 
 RUN chmod +x ./app
 
+ENV GOTRACEBACK=crash
+
 ENTRYPOINT ["./app"]

@@ -259,6 +259,7 @@ func (ctx *Client) OnRequestBroadcastPart(callback BroadcastPartCallback) {
 
 func (ctx *Client) GetState(chatId int64) (MediaState, error) {
 	f := CreateFuture()
+	defer f.Free()
 	var buffer C.ntg_media_state_struct
 	C.ntg_get_state(C.uintptr_t(ctx.ptr), C.int64_t(chatId), &buffer, f.ParseToC())
 	f.wait()
@@ -276,6 +277,7 @@ func (ctx *Client) GetState(chatId int64) (MediaState, error) {
 
 func (ctx *Client) GetConnectionMode(chatId int64) (ConnectionMode, error) {
 	f := CreateFuture()
+	defer f.Free()
 	var buffer C.ntg_connection_mode_enum
 	C.ntg_get_connection_mode(C.uintptr_t(ctx.ptr), C.int64_t(chatId), &buffer, f.ParseToC())
 	f.wait()
@@ -298,6 +300,7 @@ func (ctx *Client) GetConnectionMode(chatId int64) (ConnectionMode, error) {
 func (ctx *Client) CreateCall(chatId int64) (string, error) {
 	var buffer *C.char
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_create(C.uintptr_t(ctx.ptr), C.int64_t(chatId), &buffer, f.ParseToC())
 	f.wait()
 	defer C.free(unsafe.Pointer(buffer))
@@ -307,6 +310,7 @@ func (ctx *Client) CreateCall(chatId int64) (string, error) {
 func (ctx *Client) InitPresentation(chatId int64) (string, error) {
 	var buffer *C.char
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_init_presentation(C.uintptr_t(ctx.ptr), C.int64_t(chatId), &buffer, f.ParseToC())
 	f.wait()
 	defer C.free(unsafe.Pointer(buffer))
@@ -315,6 +319,7 @@ func (ctx *Client) InitPresentation(chatId int64) (string, error) {
 
 func (ctx *Client) StopPresentation(chatId int64) error {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_stop_presentation(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -323,6 +328,7 @@ func (ctx *Client) StopPresentation(chatId int64) error {
 func (ctx *Client) AddIncomingVideo(chatId int64, endpoint string, ssrcGroups []SsrcGroup) (uint32, error) {
 	buffer := new(C.uint32_t)
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_add_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(endpoint), parseSsrcGroups(ssrcGroups), C.int(len(ssrcGroups)), buffer, f.ParseToC())
 	f.wait()
 	return uint32(*buffer), parseErrorCode(f)
@@ -330,6 +336,7 @@ func (ctx *Client) AddIncomingVideo(chatId int64, endpoint string, ssrcGroups []
 
 func (ctx *Client) RemoveIncomingVideo(chatId int64, endpoint string) error {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_remove_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(endpoint), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -337,6 +344,7 @@ func (ctx *Client) RemoveIncomingVideo(chatId int64, endpoint string) error {
 
 func (ctx *Client) CreateP2PCall(chatId int64) error {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_create_p2p(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -348,6 +356,7 @@ func (ctx *Client) InitExchange(chatId int64, dhConfig DhConfig, gAHash []byte) 
 	gAHashC, gAHashSize := parseBytes(gAHash)
 	dhConfigC := dhConfig.ParseToC()
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_init_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), &dhConfigC, gAHashC, gAHashSize, &buffer, &size, f.ParseToC())
 	f.wait()
 	defer C.free(unsafe.Pointer(buffer))
@@ -356,6 +365,7 @@ func (ctx *Client) InitExchange(chatId int64, dhConfig DhConfig, gAHash []byte) 
 
 func (ctx *Client) ExchangeKeys(chatId int64, gAB []byte, fingerprint int64) (AuthParams, error) {
 	f := CreateFuture()
+	defer f.Free()
 	var buffer C.ntg_auth_params_struct
 	gABC, gABSize := parseBytes(gAB)
 	C.ntg_exchange_keys(C.uintptr_t(ctx.ptr), C.int64_t(chatId), gABC, gABSize, C.int64_t(fingerprint), &buffer, f.ParseToC())
@@ -368,6 +378,7 @@ func (ctx *Client) ExchangeKeys(chatId int64, gAB []byte, fingerprint int64) (Au
 
 func (ctx *Client) SkipExchange(chatId int64, encryptionKey []byte, isOutgoing bool) error {
 	f := CreateFuture()
+	defer f.Free()
 	encryptionKeyC, encryptionKeySize := parseBytes(encryptionKey)
 	C.ntg_skip_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), encryptionKeyC, encryptionKeySize, C.bool(isOutgoing), f.ParseToC())
 	f.wait()
@@ -376,6 +387,7 @@ func (ctx *Client) SkipExchange(chatId int64, encryptionKey []byte, isOutgoing b
 
 func (ctx *Client) ConnectP2P(chatId int64, rtcServers []RTCServer, versions []string, P2PAllowed bool) error {
 	f := CreateFuture()
+	defer f.Free()
 	versionsC, sizeVersions := parseStringVectorC(versions)
 	C.ntg_connect_p2p(C.uintptr_t(ctx.ptr), C.int64_t(chatId), parseRtcServers(rtcServers), C.int(len(rtcServers)), versionsC, C.int(sizeVersions), C.bool(P2PAllowed), f.ParseToC())
 	f.wait()
@@ -384,6 +396,7 @@ func (ctx *Client) ConnectP2P(chatId int64, rtcServers []RTCServer, versions []s
 
 func (ctx *Client) SendSignalingData(chatId int64, data []byte) error {
 	f := CreateFuture()
+	defer f.Free()
 	dataC, dataSize := parseBytes(data)
 	C.ntg_send_signaling_data(C.uintptr_t(ctx.ptr), C.int64_t(chatId), dataC, dataSize, f.ParseToC())
 	f.wait()
@@ -405,6 +418,7 @@ func GetProtocol() Protocol {
 
 func (ctx *Client) Connect(chatId int64, params string, isPresentation bool) error {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_connect(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(params), C.bool(isPresentation), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -412,6 +426,7 @@ func (ctx *Client) Connect(chatId int64, params string, isPresentation bool) err
 
 func (ctx *Client) SetStreamSources(chatId int64, streamMode StreamMode, desc MediaDescription) error {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), desc.ParseToC(), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -419,6 +434,7 @@ func (ctx *Client) SetStreamSources(chatId int64, streamMode StreamMode, desc Me
 
 func (ctx *Client) SendExternalFrame(chatId int64, streamDevice StreamDevice, data []byte, frameData FrameData) error {
 	f := CreateFuture()
+	defer f.Free()
 	dataC, dataSize := parseBytes(data)
 	C.ntg_send_external_frame(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamDevice.ParseToC(), dataC, dataSize, frameData.ParseToC(), f.ParseToC())
 	f.wait()
@@ -427,6 +443,7 @@ func (ctx *Client) SendExternalFrame(chatId int64, streamDevice StreamDevice, da
 
 func (ctx *Client) SendBroadcastTimestamp(chatId int64, timestamp int64) error {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_send_broadcast_timestamp(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.int64_t(timestamp), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -434,6 +451,7 @@ func (ctx *Client) SendBroadcastTimestamp(chatId int64, timestamp int64) error {
 
 func (ctx *Client) SendBroadcastPart(chatId int64, segmentID int64, partID int32, status MediaSegmentStatus, qualityUpdate bool, data []byte) error {
 	f := CreateFuture()
+	defer f.Free()
 	dataC, dataSize := parseBytes(data)
 	C.ntg_send_broadcast_part(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.int64_t(segmentID), C.int32_t(partID), status.ParseToC(), C.bool(qualityUpdate), dataC, dataSize, f.ParseToC())
 	f.wait()
@@ -442,6 +460,7 @@ func (ctx *Client) SendBroadcastPart(chatId int64, segmentID int64, partID int32
 
 func (ctx *Client) Pause(chatId int64) (bool, error) {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_pause(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
 	f.wait()
 	return parseBool(f)
@@ -449,6 +468,7 @@ func (ctx *Client) Pause(chatId int64) (bool, error) {
 
 func (ctx *Client) Resume(chatId int64) (bool, error) {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_resume(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
 	f.wait()
 	return parseBool(f)
@@ -456,6 +476,7 @@ func (ctx *Client) Resume(chatId int64) (bool, error) {
 
 func (ctx *Client) Mute(chatId int64) (bool, error) {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_mute(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
 	f.wait()
 	return parseBool(f)
@@ -463,6 +484,7 @@ func (ctx *Client) Mute(chatId int64) (bool, error) {
 
 func (ctx *Client) UnMute(chatId int64) (bool, error) {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_unmute(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
 	f.wait()
 	return parseBool(f)
@@ -470,6 +492,7 @@ func (ctx *Client) UnMute(chatId int64) (bool, error) {
 
 func (ctx *Client) Stop(chatId int64) error {
 	f := CreateFuture()
+	defer f.Free()
 	C.ntg_stop(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -477,6 +500,7 @@ func (ctx *Client) Stop(chatId int64) error {
 
 func (ctx *Client) Time(chatId int64, streamMode StreamMode) (uint64, error) {
 	f := CreateFuture()
+	defer f.Free()
 	var buffer C.int64_t
 	C.ntg_time(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), &buffer, f.ParseToC())
 	f.wait()
@@ -497,6 +521,7 @@ func GetMediaDevices() MediaDevices {
 
 func (ctx *Client) CpuUsage() (float64, error) {
 	f := CreateFuture()
+	defer f.Free()
 	var buffer C.double
 	C.ntg_cpu_usage(C.uintptr_t(ctx.ptr), &buffer, f.ParseToC())
 	f.wait()
@@ -510,6 +535,7 @@ func (ctx *Client) EnableGLibLoop(enable bool) {
 func (ctx *Client) Calls() map[int64]*CallInfo {
 	mapReturn := make(map[int64]*CallInfo)
 	f := CreateFuture()
+	defer f.Free()
 	var buffer *C.ntg_call_info_struct
 	var size C.int
 	C.ntg_calls(C.uintptr_t(ctx.ptr), &buffer, &size, f.ParseToC())
