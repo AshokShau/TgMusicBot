@@ -123,16 +123,18 @@ func (c *BotConfig) validate() error {
 	required := []struct {
 		name  string
 		value string
+		check func() bool
 	}{
-		{"API_ID", fmt.Sprint(c.ApiId)},
-		{"API_HASH", c.ApiHash},
-		{"TOKEN", c.Token},
-		{"MONGO_URI", c.MongoUri},
+		{"API_ID", fmt.Sprintf("%d", c.ApiId), func() bool { return c.ApiId > 0 }},
+		{"API_HASH", c.ApiHash, func() bool { return c.ApiHash != "" }},
+		{"TOKEN", c.Token, func() bool { return c.Token != "" }},
+		{"MONGO_URI", c.MongoUri, func() bool { return c.MongoUri != "" }},
+		{"OWNER_ID", fmt.Sprintf("%d", c.OwnerId), func() bool { return c.OwnerId > 0 }},
 	}
 
 	var missing []string
 	for _, req := range required {
-		if strings.TrimSpace(req.value) == "" {
+		if !req.check() {
 			missing = append(missing, req.name)
 		}
 	}

@@ -66,14 +66,14 @@ func streamHandler(m *telegram.NewMessage) error {
 		return telegram.ErrEndGroup
 	}
 
-	statusMsg, _ := m.Reply("⏳ Preparing stream...")
+	statusMsg, _ := m.Reply(lang.GetString(langCode, "stream_preparing"))
 	if err := startStream(rMsg, rtmpURL, m.SenderID(), chatID); err != nil {
-		_, _ = statusMsg.Edit(fmt.Sprintf("❌ Failed: %v", err))
+		_, _ = statusMsg.Edit(fmt.Sprintf(lang.GetString(langCode, "stream_failed"), err))
 		return telegram.ErrEndGroup
 	}
 
 	_, _ = statusMsg.Edit(fmt.Sprintf(
-		"🔴 <b>Live Stream Started</b>\n📂 <b>%s</b>\n\nUse <code>/stopstream</code> to stop.",
+		lang.GetString(langCode, "stream_started"),
 		rMsg.File.Name,
 	))
 

@@ -11,6 +11,7 @@ RUN go mod download
 COPY . .
 
 RUN go generate
+
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o app .
 
 
@@ -25,21 +26,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     unzip && \
-    rm -rf /var/lib/apt/lists/* && \
-    \
-    curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
-    ln -s /usr/local/bin/deno /usr/bin/deno && \
-    \
-    wget -q -O /usr/local/bin/yt-dlp \
+    rm -rf /var/lib/apt/lists/*
+
+RUN wget -q -O /usr/local/bin/yt-dlp \
       https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux && \
     chmod +x /usr/local/bin/yt-dlp
 
-RUN useradd -m -u 1000 app && mkdir -p /app && chown -R app:app /app
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
+    ln -s /usr/local/bin/deno /usr/bin/deno
+
+RUN useradd -m -u 1000 app && chown -R app:app /app
 
 USER app
 
-COPY --from=builder /src/app /app/app
-COPY --from=builder /src/assets /app/assets
-COPY --from=builder /src/locales /app/locales
+COPY --from=builder /src/app ./app
+COPY --from=builder /src/assets ./assets
+COPY --from=builder /src/locales ./locales
 
-ENTRYPOINT ["/app/app"]
+RUN chmod +x ./app
+
+ENTRYPOINT ["./app"]
