@@ -15,7 +15,6 @@ import (
 	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 	"fmt"
-	"strings"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -306,7 +305,7 @@ func sendAdminStatusLog(client *telegram.Client, chatID, userID int64, action st
 		ch.Title,
 		chatID,
 		userID,
-		strings.Title(action),
+		action,
 	)
 
 	_, err := client.SendMessage(config.Conf.LoggerId, text, &telegram.SendOptions{
