@@ -71,7 +71,12 @@ func main() {
 		log.Fatalf("failed to init: %v", err)
 	}
 
-	client.Log.Info("The bot is running as @%s.", client.Me().Username)
+	userName := client.Me().Username
+	if userName == "" {
+		log.Fatalf("failed to get bot username")
+	}
+	
+	client.Log.Info("The bot is running as @%s.", userName)
 	_, _ = client.SendMessage(config.Conf.LoggerId, "The bot has started!")
 	client.Idle()
 	log.Println("The bot is shutting down...")
