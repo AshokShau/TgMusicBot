@@ -33,12 +33,12 @@ type ApiData struct {
 }
 
 var apiPatterns = map[string]*regexp.Regexp{
-	"apple_music": regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*music\.apple\.com/([a-z]{2}/)?(album|playlist|song)/[a-zA-Z0-9\-._]+/(pl\.[a-zA-Z0-9]+|\d+)(\?.*)?$`),
-	"spotify":     regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$`),
-	"yt_playlist": regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)/(?:playlist|watch)\?.*\blist=([\w-]+)`),
-	"yt_music":    regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/(?:watch|playlist)\?.*v=([\w-]+)`),
-	"jiosaavn":    regexp.MustCompile(`(?i)^(https?://)?(www\.)?jiosaavn\.com/(song|featured)/[\w-]+/[a-zA-Z0-9_-]+$`),
-	"soundcloud":  regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*soundcloud\.com/[a-zA-Z0-9_-]+(/(sets)?/[a-zA-Z0-9_-]+)?(\?.*)?$`),
+	cache.Apple:      regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*music\.apple\.com/([a-z]{2}/)?(album|playlist|song)/[a-zA-Z0-9\-._]+/(pl\.[a-zA-Z0-9]+|\d+)(\?.*)?$`),
+	cache.Spotify:    regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$`),
+	"yt_playlist":    regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)/(?:playlist|watch)\?.*\blist=([\w-]+)`),
+	"yt_music":       regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/(?:watch|playlist)\?.*v=([\w-]+)`),
+	cache.JioSaavn:   regexp.MustCompile(`(?i)^(https?://)?(www\.)?jiosaavn\.com/(song|featured)/[\w-]+/[a-zA-Z0-9_-]+$`),
+	cache.SoundCloud: regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*soundcloud\.com/[a-zA-Z0-9_-]+(/(sets)?/[a-zA-Z0-9_-]+)?(\?.*)?$`),
 }
 
 // NewApiData creates and initializes a new ApiData instance with the provided query.
@@ -159,7 +159,7 @@ func (a *ApiData) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
 // it delegates the download to the YouTube downloader.
 // It returns the file path of the downloaded track or an error if the download fails.
 func (a *ApiData) downloadTrack(ctx context.Context, info cache.TrackInfo, video bool) (string, error) {
-	if info.Platform == "youtube" && video {
+	if info.Platform == cache.YouTube && video {
 		yt := NewYouTubeData(a.Query)
 		return yt.downloadTrack(ctx, info, video)
 	}

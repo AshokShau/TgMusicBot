@@ -325,7 +325,9 @@ func GenThumb(song cache.CachedTrack) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	img, _, err := image.Decode(file)
 	if err != nil {

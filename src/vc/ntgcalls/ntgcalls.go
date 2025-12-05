@@ -54,7 +54,7 @@ var (
 //export handleLogs
 func handleLogs(logMessage C.ntg_log_message_struct) {
 	message := fmt.Sprintf(
-		"(%s:%d) %s",
+		"(%v:%v) %v",
 		C.GoString(logMessage.file),
 		uint32(logMessage.line),
 		C.GoString(logMessage.message),

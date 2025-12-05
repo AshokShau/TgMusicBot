@@ -34,7 +34,9 @@ func loadSingleEnvFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open %s: %w", path, err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	scanner := bufio.NewScanner(file)
 	var currentKey string
@@ -53,7 +55,7 @@ func loadSingleEnvFile(path string) error {
 
 		if currentKey != "" {
 			value := strings.TrimSpace(currentValue.String())
-			os.Setenv(currentKey, unquoteValue(value))
+			_ = os.Setenv(currentKey, unquoteValue(value))
 			currentKey = ""
 			currentValue.Reset()
 		}
@@ -76,12 +78,12 @@ func loadSingleEnvFile(path string) error {
 			continue
 		}
 
-		os.Setenv(key, unquoteValue(valuePart))
+		_ = os.Setenv(key, unquoteValue(valuePart))
 	}
 
 	if currentKey != "" {
 		value := strings.TrimSpace(currentValue.String())
-		os.Setenv(currentKey, unquoteValue(value))
+		_ = os.Setenv(currentKey, unquoteValue(value))
 	}
 
 	return scanner.Err()

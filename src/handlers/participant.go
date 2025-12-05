@@ -31,10 +31,6 @@ const (
 
 	ActionPromoted = "promoted"
 	ActionDemoted  = "demoted"
-	ActionJoined   = "joined"
-	ActionLeft     = "left"
-	ActionBanned   = "banned"
-	ActionUnbanned = "unbanned"
 )
 
 // getStatusFromParticipant extracts status from participant object

@@ -5,6 +5,7 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/lang"
 	"fmt"
+	"io"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -130,7 +131,9 @@ func startStream(msg *telegram.NewMessage, rtmpURL string, userID, chatID int64)
 	streamsMu.Unlock()
 
 	go func() {
-		defer ffIn.Close()
+		defer func(ffIn io.WriteCloser) {
+			_ = ffIn.Close()
+		}(ffIn)
 
 		for offset := int64(0); offset < msg.File.Size; offset += maxChunkSizeBytes {
 			chunk, _, err := msg.Client.DownloadChunk(msg.Media(), int(offset), int(offset+maxChunkSizeBytes), int(maxChunkSizeBytes))
