@@ -73,9 +73,9 @@ func main() {
 
 	userName := client.Me().Username
 	if userName == "" {
-		log.Fatalf("failed to get bot username")
+		log.Fatal("failed to get bot username")
 	}
-	
+
 	client.Log.Info("The bot is running as @%s.", userName)
 	_, _ = client.SendMessage(config.Conf.LoggerId, "The bot has started!")
 	client.Idle()
