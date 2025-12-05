@@ -3,7 +3,7 @@ module ashokshau/tgmusic
 go 1.25.0
 
 require (
-	github.com/amarnathcjd/gogram v1.6.10-0.20251204201611-c5cf21fdb85c
+	github.com/amarnathcjd/gogram v1.6.10-0.20251205160646-45d24a1d936e
 	github.com/fogleman/gg v1.3.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	go.mongodb.org/mongo-driver/v2 v2.4.0
@@ -28,5 +28,3 @@ require (
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 )
-
-replace github.com/amarnathcjd/gogram => github.com/AshokShau/gogram v1.6.10-0.20251205081427-e4f330cbb827
