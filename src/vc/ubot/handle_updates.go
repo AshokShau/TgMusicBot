@@ -183,7 +183,7 @@ func (ctx *Context) handleUpdates() {
 			for _, participant := range participantsUpdate.Participants {
 				userPeer, ok := participant.Peer.(*tg.PeerUser)
 				if !ok {
-					ctx.App.Log.Warnf("Participant is not a user %T", participant.Peer)
+					ctx.App.Log.Debugf("Unexpected participant type: %T", participant.Peer)
 					continue
 				}
 

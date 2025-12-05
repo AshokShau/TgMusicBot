@@ -227,13 +227,14 @@ func handleBan(client *telegram.Client, chatID, userID, ubID int64) error {
 			logger.Errorf("Failed to send assistant ban notification: %v", err)
 			return err
 		}
+
 		logger.Infof("Assistant ban notification sent to chat %d", chatID)
 	}
 
 	if userID == client.Me().ID {
 		logger.Warnf("Bot was banned from chat %d. Stopping services...", chatID)
 		if err := vc.Calls.Stop(chatID); err != nil {
-			logger.Errorf("Failed to stop voice call after ban: %v", chatID, err)
+			logger.Errorf("Failed to stop voice call after ban: %d (%v)", chatID, err)
 		}
 	}
 

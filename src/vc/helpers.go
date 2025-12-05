@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core/cache"
@@ -24,6 +25,17 @@ import (
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
+
+// handleFlood manages flood wait errors by pausing execution for the specified duration.
+// It returns true if a flood wait error is handled, and false otherwise.
+func handleFlood(err error) bool {
+	if wait := telegram.GetFloodWait(err); wait > 0 {
+		logger.Warnf("A flood wait has been detected. Sleeping for %ds.", wait)
+		time.Sleep(time.Duration(wait) * time.Second)
+		return true
+	}
+	return false
+}
 
 func getVideoDimensions(filePath string) (int, int) {
 	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", filePath)
