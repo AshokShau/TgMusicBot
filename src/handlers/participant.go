@@ -54,11 +54,7 @@ func getStatusFromParticipant(p telegram.ChannelParticipant) string {
 		}
 
 		if v.BannedRights != nil {
-			if v.BannedRights.SendMessages {
-				return StatusRestricted
-			}
-
-			return StatusKicked
+			return StatusRestricted
 		}
 
 		return StatusKicked
