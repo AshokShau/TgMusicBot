@@ -34,22 +34,41 @@ const (
 
 // getStatusFromParticipant extracts status from participant object
 func getStatusFromParticipant(p telegram.ChannelParticipant) string {
-	switch p.(type) {
+	switch v := p.(type) {
+
 	case *telegram.ChannelParticipantCreator:
 		return StatusCreator
+
 	case *telegram.ChannelParticipantAdmin:
 		return StatusAdmin
+
 	case *telegram.ChannelParticipantSelf, *telegram.ChannelParticipantObj:
 		return StatusMember
+
 	case *telegram.ChannelParticipantLeft:
 		return StatusLeft
+
 	case *telegram.ChannelParticipantBanned:
+		if v.Left {
+			return StatusLeft
+		}
+
+		if v.BannedRights != nil {
+			if v.BannedRights.SendMessages {
+				return StatusRestricted
+			}
+
+			return StatusKicked
+		}
+
 		return StatusKicked
+
 	case nil:
-		logger.Debugf("Participant is nil, defaulting to Left status")
+		logger.Debug("Participant is nil - default Left")
 		return StatusLeft
+
 	default:
-		logger.Warnf("Unknown participant type: %T", p)
+		logger.Warnf("Unknown participant: %T", p)
 		return StatusRestricted
 	}
 }
