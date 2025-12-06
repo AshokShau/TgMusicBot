@@ -10,6 +10,7 @@ package handlers
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"ashokshau/tgmusic/src/core"
@@ -22,19 +23,26 @@ import (
 // pingHandler handles the /ping command.
 func pingHandler(m *telegram.NewMessage) error {
 	start := time.Now()
+	updateLag := time.Since(time.Unix(int64(m.Date()), 0)).Milliseconds()
+
 	msg, err := m.Reply("⏱️ Pinging...")
 	if err != nil {
 		return err
 	}
+
 	latency := time.Since(start).Milliseconds()
 	uptime := time.Since(startTime).Truncate(time.Second)
+	senders := m.Client.GetExportedSendersStatus()
+	response := fmt.Sprintf(
+		"<b>📊 System Performance Metrics</b>\n\n"+
+			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
+			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
+			"📩 <b>Update Lag:</b> <code>%d ms</code>\n"+
+			"⚙️ <b>Go Routines:</b> <code>%d</code>\n"+
+			"📨 <b>Senders:</b> <code>%d</code>\n",
+		latency, uptime, updateLag, runtime.NumGoroutine(), senders,
+	)
 
-	ctx, cancel := db.Ctx()
-	defer cancel()
-
-	chatID := m.ChannelID()
-	langCode := db.Instance.GetLang(ctx, chatID)
-	response := fmt.Sprintf(lang.GetString(langCode, "ping_text"), latency, uptime)
 	_, err = msg.Edit(response)
 	return err
 }
