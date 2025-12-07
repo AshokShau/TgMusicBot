@@ -12,7 +12,7 @@ COPY . .
 
 RUN go generate
 
-RUN CGO_ENABLED=1 GOOS=linux go build -race -o app .
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o app .
 
 
 FROM debian:12-slim
@@ -45,8 +45,6 @@ RUN chmod +x /app/app && \
     chown -R app:app /app
 
 USER app
-
-ENV GOTRACEBACK=crash
 
 WORKDIR /app
 ENTRYPOINT ["/app/app"]
