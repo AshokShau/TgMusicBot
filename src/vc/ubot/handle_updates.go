@@ -171,6 +171,7 @@ func (ctx *Context) handleUpdates() {
 					}
 				}
 			}
+
 			ctx.callParticipants[chatId].LastMtprotoUpdate = time.Now()
 			ctx.participantsMutex.Unlock()
 			for endpoint, sources := range addVideo {
@@ -181,13 +182,8 @@ func (ctx *Context) handleUpdates() {
 			}
 
 			for _, participant := range participantsUpdate.Participants {
-				userPeer, ok := participant.Peer.(*tg.PeerUser)
-				if !ok {
-					ctx.App.Log.Debugf("Unexpected participant type: %T", participant.Peer)
-					continue
-				}
-
-				if userPeer.UserID == ctx.self.ID {
+				participantId := getParticipantId(participant.Peer)
+				if participantId == ctx.self.ID {
 					connectionMode, err := ctx.binding.GetConnectionMode(chatId)
 					if err == nil && connectionMode == ntgcalls.StreamConnection && participant.CanSelfUnmute {
 						ctx.pendingConnMutex.RLock()
