@@ -74,7 +74,6 @@
   "pause_success": "⏸️ Playback has been paused by %s.",
   "paused": "Paused",
   "paused_by": "\n\n⏸ <i>Paused by %s</i>",
-  "ping_text": "<b>📊 System Performance Metrics</b>\n\n⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n🕒 <b>Uptime:</b> <code>%s</code>",
   "play_added_to_queue": "<b>🎧 Added to Queue (#%d)</b>\n\n▫ <b>Track:</b> <a href='%s'>%s</a>\n▫ <b>Duration:</b> %s\n▫ <b>Requested by:</b> %s",
   "play_added_to_queue_header": "<b>📥 Added to Queue:</b>\n<blockquote collapsed='true'>\n",
   "play_download_failed": "❌ Failed to download the media: %s",
