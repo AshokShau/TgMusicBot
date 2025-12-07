@@ -9,6 +9,7 @@
 package dl
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
@@ -190,9 +191,12 @@ func rebuildOGG(filename string) error {
 // fixOGG uses ffmpeg to correct any remaining issues in the OGG file, ensuring it is playable.
 // It takes the input file path and track information, and returns the final output file path or an error.
 func fixOGG(inputFile string, track cache.TrackInfo) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
 	sanitizedTrackID := filepath.Base(track.TC)
 	outputFile := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
-	cmd := exec.Command("ffmpeg", "-i", inputFile, "-c", "copy", outputFile)
+	cmd := exec.CommandContext(ctx, "ffmpeg", "-i", inputFile, "-c", "copy", outputFile)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("ffmpeg failed with error: %w\nOutput: %s", err, string(output))
 	}

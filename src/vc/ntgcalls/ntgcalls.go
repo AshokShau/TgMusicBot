@@ -329,7 +329,14 @@ func (ctx *Client) AddIncomingVideo(chatId int64, endpoint string, ssrcGroups []
 	buffer := new(C.uint32_t)
 	f := CreateFuture()
 	defer f.Free()
-	C.ntg_add_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(endpoint), parseSsrcGroups(ssrcGroups), C.int(len(ssrcGroups)), buffer, f.ParseToC())
+
+	endpointC := C.CString(endpoint)
+	defer C.free(unsafe.Pointer(endpointC))
+
+	groupsC, cleanup := parseSsrcGroups(ssrcGroups)
+	defer cleanup()
+
+	C.ntg_add_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), endpointC, groupsC, C.int(len(ssrcGroups)), buffer, f.ParseToC())
 	f.wait()
 	return uint32(*buffer), parseErrorCode(f)
 }
@@ -337,7 +344,11 @@ func (ctx *Client) AddIncomingVideo(chatId int64, endpoint string, ssrcGroups []
 func (ctx *Client) RemoveIncomingVideo(chatId int64, endpoint string) error {
 	f := CreateFuture()
 	defer f.Free()
-	C.ntg_remove_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(endpoint), f.ParseToC())
+
+	endpointC := C.CString(endpoint)
+	defer C.free(unsafe.Pointer(endpointC))
+
+	C.ntg_remove_incoming_video(C.uintptr_t(ctx.ptr), C.int64_t(chatId), endpointC, f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
 }
@@ -353,8 +364,12 @@ func (ctx *Client) CreateP2PCall(chatId int64) error {
 func (ctx *Client) InitExchange(chatId int64, dhConfig DhConfig, gAHash []byte) ([]byte, error) {
 	var buffer *C.uint8_t
 	var size C.int
-	gAHashC, gAHashSize := parseBytes(gAHash)
-	dhConfigC := dhConfig.ParseToC()
+	gAHashC, gAHashSize, cleanup := parseBytes(gAHash)
+	defer cleanup()
+
+	dhConfigC, cleanupDh := dhConfig.ParseToC()
+	defer cleanupDh()
+
 	f := CreateFuture()
 	defer f.Free()
 	C.ntg_init_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), &dhConfigC, gAHashC, gAHashSize, &buffer, &size, f.ParseToC())
@@ -367,7 +382,9 @@ func (ctx *Client) ExchangeKeys(chatId int64, gAB []byte, fingerprint int64) (Au
 	f := CreateFuture()
 	defer f.Free()
 	var buffer C.ntg_auth_params_struct
-	gABC, gABSize := parseBytes(gAB)
+	gABC, gABSize, cleanup := parseBytes(gAB)
+	defer cleanup()
+
 	C.ntg_exchange_keys(C.uintptr_t(ctx.ptr), C.int64_t(chatId), gABC, gABSize, C.int64_t(fingerprint), &buffer, f.ParseToC())
 	f.wait()
 	return AuthParams{
@@ -379,7 +396,9 @@ func (ctx *Client) ExchangeKeys(chatId int64, gAB []byte, fingerprint int64) (Au
 func (ctx *Client) SkipExchange(chatId int64, encryptionKey []byte, isOutgoing bool) error {
 	f := CreateFuture()
 	defer f.Free()
-	encryptionKeyC, encryptionKeySize := parseBytes(encryptionKey)
+	encryptionKeyC, encryptionKeySize, cleanup := parseBytes(encryptionKey)
+	defer cleanup()
+
 	C.ntg_skip_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), encryptionKeyC, encryptionKeySize, C.bool(isOutgoing), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -388,8 +407,13 @@ func (ctx *Client) SkipExchange(chatId int64, encryptionKey []byte, isOutgoing b
 func (ctx *Client) ConnectP2P(chatId int64, rtcServers []RTCServer, versions []string, P2PAllowed bool) error {
 	f := CreateFuture()
 	defer f.Free()
-	versionsC, sizeVersions := parseStringVectorC(versions)
-	C.ntg_connect_p2p(C.uintptr_t(ctx.ptr), C.int64_t(chatId), parseRtcServers(rtcServers), C.int(len(rtcServers)), versionsC, C.int(sizeVersions), C.bool(P2PAllowed), f.ParseToC())
+	versionsC, sizeVersions, cleanupVersions := parseStringVectorC(versions)
+	defer cleanupVersions()
+
+	serversC, cleanupServers := parseRtcServers(rtcServers)
+	defer cleanupServers()
+
+	C.ntg_connect_p2p(C.uintptr_t(ctx.ptr), C.int64_t(chatId), serversC, C.int(len(rtcServers)), versionsC, C.int(sizeVersions), C.bool(P2PAllowed), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
 }
@@ -397,7 +421,9 @@ func (ctx *Client) ConnectP2P(chatId int64, rtcServers []RTCServer, versions []s
 func (ctx *Client) SendSignalingData(chatId int64, data []byte) error {
 	f := CreateFuture()
 	defer f.Free()
-	dataC, dataSize := parseBytes(data)
+	dataC, dataSize, cleanup := parseBytes(data)
+	defer cleanup()
+
 	C.ntg_send_signaling_data(C.uintptr_t(ctx.ptr), C.int64_t(chatId), dataC, dataSize, f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -419,7 +445,11 @@ func GetProtocol() Protocol {
 func (ctx *Client) Connect(chatId int64, params string, isPresentation bool) error {
 	f := CreateFuture()
 	defer f.Free()
-	C.ntg_connect(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.CString(params), C.bool(isPresentation), f.ParseToC())
+
+	paramsC := C.CString(params)
+	defer C.free(unsafe.Pointer(paramsC))
+
+	C.ntg_connect(C.uintptr_t(ctx.ptr), C.int64_t(chatId), paramsC, C.bool(isPresentation), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
 }
@@ -427,7 +457,9 @@ func (ctx *Client) Connect(chatId int64, params string, isPresentation bool) err
 func (ctx *Client) SetStreamSources(chatId int64, streamMode StreamMode, desc MediaDescription) error {
 	f := CreateFuture()
 	defer f.Free()
-	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), desc.ParseToC(), f.ParseToC())
+	descC, cleanup := desc.ParseToC()
+	defer cleanup()
+	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), descC, f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
 }
@@ -435,7 +467,9 @@ func (ctx *Client) SetStreamSources(chatId int64, streamMode StreamMode, desc Me
 func (ctx *Client) SendExternalFrame(chatId int64, streamDevice StreamDevice, data []byte, frameData FrameData) error {
 	f := CreateFuture()
 	defer f.Free()
-	dataC, dataSize := parseBytes(data)
+	dataC, dataSize, cleanup := parseBytes(data)
+	defer cleanup()
+
 	C.ntg_send_external_frame(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamDevice.ParseToC(), dataC, dataSize, frameData.ParseToC(), f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
@@ -452,7 +486,9 @@ func (ctx *Client) SendBroadcastTimestamp(chatId int64, timestamp int64) error {
 func (ctx *Client) SendBroadcastPart(chatId int64, segmentID int64, partID int32, status MediaSegmentStatus, qualityUpdate bool, data []byte) error {
 	f := CreateFuture()
 	defer f.Free()
-	dataC, dataSize := parseBytes(data)
+	dataC, dataSize, cleanup := parseBytes(data)
+	defer cleanup()
+
 	C.ntg_send_broadcast_part(C.uintptr_t(ctx.ptr), C.int64_t(chatId), C.int64_t(segmentID), C.int32_t(partID), status.ParseToC(), C.bool(qualityUpdate), dataC, dataSize, f.ParseToC())
 	f.wait()
 	return parseErrorCode(f)
