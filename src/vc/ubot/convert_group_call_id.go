@@ -9,6 +9,11 @@ import (
 func (ctx *Context) convertGroupCallId(callId int64) (int64, error) {
 	ctx.groupCallsMutex.RLock()
 	defer ctx.groupCallsMutex.RUnlock()
+
+	if chatId, ok := ctx.groupCallIds[callId]; ok {
+		return chatId, nil
+	}
+
 	for chatId, inputCallInterface := range ctx.inputGroupCalls {
 		if inputCall, ok := inputCallInterface.(*tg.InputGroupCallObj); ok {
 			if inputCall.ID == callId {

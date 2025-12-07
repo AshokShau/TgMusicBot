@@ -50,7 +50,7 @@ It supports streaming from popular sources like YouTube, making it a complete so
 
 ### 🔧 Manual Setup
 
-For manual setup instructions for Linux, macOS, and Windows, please see the **[Installation Guide](docs/installation.md)**.
+For manual setup instructions for Linux, macOS, and Windows, please see the **[Installation Guide](.github/installation.md)**.
 
 The guide provides comprehensive instructions for deploying the bot using:
 - **🐳 Docker (Recommended)**

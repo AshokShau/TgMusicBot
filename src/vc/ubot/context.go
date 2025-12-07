@@ -19,6 +19,7 @@ type Context struct {
 	inputCalls            map[int64]*tg.InputPhoneCall
 	inputCallsMutex       sync.RWMutex
 	inputGroupCalls       map[int64]tg.InputGroupCall
+	groupCallIds          map[int64]int64
 	groupCallsMutex       sync.RWMutex
 	participantsMutex     sync.Mutex
 	callParticipants      map[int64]*types.CallParticipantsCache
@@ -40,6 +41,7 @@ func NewInstance(app *tg.Client) (*Context, error) {
 		p2pConfigs:         make(map[int64]*types.P2PConfig),
 		inputCalls:         make(map[int64]*tg.InputPhoneCall),
 		inputGroupCalls:    make(map[int64]tg.InputGroupCall),
+		groupCallIds:       make(map[int64]int64),
 		pendingConnections: make(map[int64]*types.PendingConnection),
 		callParticipants:   make(map[int64]*types.CallParticipantsCache),
 		callSources:        make(map[int64]*types.CallSources),

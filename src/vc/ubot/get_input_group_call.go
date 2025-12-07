@@ -43,6 +43,9 @@ func (ctx *Context) getInputGroupCall(chatId int64) (tg.InputGroupCall, error) {
 
 	ctx.groupCallsMutex.Lock()
 	ctx.inputGroupCalls[chatId] = newCall
+	if callObj, ok := newCall.(*tg.InputGroupCallObj); ok {
+		ctx.groupCallIds[callObj.ID] = chatId
+	}
 	ctx.groupCallsMutex.Unlock()
 
 	if newCall == nil {

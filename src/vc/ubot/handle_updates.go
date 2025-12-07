@@ -215,20 +215,35 @@ func (ctx *Context) handleUpdates() {
 
 	ctx.App.AddRawHandler(&tg.UpdateGroupCall{}, func(m tg.Update, c *tg.Client) error {
 		updateGroupCall := m.(*tg.UpdateGroupCall)
-		if updateGroupCall.Peer == nil {
-			raw, _ := json.MarshalIndent(m, "", "  ")
-			ctx.App.Log.Errorf("Received UpdateGroupCall with nil Peer: \n%s", string(raw))
-			return nil
-		}
+		var chatID int64
+		var err error
 
-		if groupCallRaw := updateGroupCall.Call; groupCallRaw != nil {
-			chatID, err := ctx.parseChatId(updateGroupCall.Peer)
+		if updateGroupCall.Peer == nil {
+			if groupCallRaw := updateGroupCall.Call; groupCallRaw != nil {
+				if call, ok := groupCallRaw.(*tg.GroupCallObj); ok {
+					id, err := ctx.convertGroupCallId(call.ID)
+					if err == nil {
+						ctx.App.Log.Infof("Received UpdateGroupCall with nil Peer: %d", id)
+						chatID = id
+					}
+				}
+			}
+
+			if chatID == 0 {
+				raw, _ := json.MarshalIndent(m, "", "  ")
+				ctx.App.Log.Errorf("Received UpdateGroupCall with nil Peer: \n%s", string(raw))
+				return nil
+			}
+		} else {
+			chatID, err = ctx.parseChatId(updateGroupCall.Peer)
 			if err != nil {
 				raw, _ := json.MarshalIndent(m, "", "  ")
 				ctx.App.Log.Errorf("Failed to parse chat ID: %v (type: %T)\n%s", err, updateGroupCall.Peer, string(raw))
 				return err
 			}
+		}
 
+		if groupCallRaw := updateGroupCall.Call; groupCallRaw != nil {
 			switch groupCallRaw.(type) {
 			case *tg.GroupCallObj:
 				groupCall := groupCallRaw.(*tg.GroupCallObj)
@@ -237,6 +252,7 @@ func (ctx *Context) handleUpdates() {
 					ID:         groupCall.ID,
 					AccessHash: groupCall.AccessHash,
 				}
+				ctx.groupCallIds[groupCall.ID] = chatID
 				ctx.groupCallsMutex.Unlock()
 				return nil
 			case *tg.GroupCallDiscarded:
