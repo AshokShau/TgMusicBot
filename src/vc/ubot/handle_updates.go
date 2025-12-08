@@ -114,9 +114,11 @@ func (ctx *Context) handleUpdates() {
 					ctx.p2pConfigs[userId] = p2pConfigs
 				}
 				ctx.p2pMutex.Unlock()
+				ctx.callbacksMutex.RLock()
 				for _, callback := range ctx.incomingCallCallbacks {
 					go callback(ctx, userId)
 				}
+				ctx.callbacksMutex.RUnlock()
 			}
 		}
 		return nil
@@ -193,19 +195,28 @@ func (ctx *Context) handleUpdates() {
 							_ = ctx.connectCall(chatId, pc.MediaDescription, pc.Payload)
 						}
 					} else if !participant.CanSelfUnmute {
+						ctx.participantsMutex.Lock()
 						if !slices.Contains(ctx.mutedByAdmin, chatId) {
 							ctx.mutedByAdmin = append(ctx.mutedByAdmin, chatId)
 						}
-					} else if slices.Contains(ctx.mutedByAdmin, chatId) {
-						state, err := ctx.binding.GetState(chatId)
-						if err != nil {
-							panic(err)
+						ctx.participantsMutex.Unlock()
+					} else {
+						ctx.participantsMutex.Lock()
+						contains := slices.Contains(ctx.mutedByAdmin, chatId)
+						ctx.participantsMutex.Unlock()
+						if contains {
+							state, err := ctx.binding.GetState(chatId)
+							if err != nil {
+								panic(err)
+							}
+							err = ctx.setCallStatus(participantsUpdate.Call, state)
+							if err != nil {
+								panic(err)
+							}
+							ctx.participantsMutex.Lock()
+							ctx.mutedByAdmin = stdRemove(ctx.mutedByAdmin, chatId)
+							ctx.participantsMutex.Unlock()
 						}
-						err = ctx.setCallStatus(participantsUpdate.Call, state)
-						if err != nil {
-							panic(err)
-						}
-						ctx.mutedByAdmin = stdRemove(ctx.mutedByAdmin, chatId)
 					}
 				}
 			}
@@ -216,8 +227,7 @@ func (ctx *Context) handleUpdates() {
 	ctx.App.AddRawHandler(&tg.UpdateGroupCall{}, func(m tg.Update, c *tg.Client) error {
 		updateGroupCall := m.(*tg.UpdateGroupCall)
 		if updateGroupCall.Peer == nil {
-			raw, _ := json.MarshalIndent(m, "", "  ")
-			ctx.App.Log.Errorf("Received UpdateGroupCall with nil Peer: \n%s", string(raw))
+			// just ignore
 			return nil
 		}
 
@@ -343,14 +353,18 @@ func (ctx *Context) handleUpdates() {
 	})
 
 	ctx.binding.OnStreamEnd(func(chatId int64, streamType ntgcalls.StreamType, streamDevice ntgcalls.StreamDevice) {
+		ctx.callbacksMutex.RLock()
 		for _, callback := range ctx.streamEndCallbacks {
 			go callback(chatId, streamType, streamDevice)
 		}
+		ctx.callbacksMutex.RUnlock()
 	})
 
 	ctx.binding.OnFrame(func(chatId int64, mode ntgcalls.StreamMode, device ntgcalls.StreamDevice, frames []ntgcalls.Frame) {
+		ctx.callbacksMutex.RLock()
 		for _, callback := range ctx.frameCallbacks {
 			go callback(chatId, mode, device, frames)
 		}
+		ctx.callbacksMutex.RUnlock()
 	})
 }

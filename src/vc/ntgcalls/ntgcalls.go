@@ -90,9 +90,11 @@ func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_ty
 	} else {
 		goStreamType = VideoStream
 	}
+	self.mu.RLock()
 	for _, x0 := range self.streamEndCallbacks {
 		go x0(goChatID, goStreamType, parseStreamDevice(streamDevice))
 	}
+	self.mu.RUnlock()
 }
 
 //export handleUpgrade
@@ -106,9 +108,11 @@ func handleUpgrade(_ C.uintptr_t, chatID C.int64_t, state C.ntg_media_state_stru
 		VideoStopped:       bool(state.videoStopped),
 		PresentationPaused: bool(state.presentationPaused),
 	}
+	self.mu.RLock()
 	for _, x0 := range self.upgradeCallbacks {
 		go x0(goChatID, goState)
 	}
+	self.mu.RUnlock()
 }
 
 //export handleSignal
@@ -116,9 +120,11 @@ func handleSignal(_ C.uintptr_t, chatID C.int64_t, data *C.uint8_t, size C.int, 
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
+	self.mu.RLock()
 	for _, x0 := range self.signalCallbacks {
 		go x0(goChatID, C.GoBytes(unsafe.Pointer(data), size))
 	}
+	self.mu.RUnlock()
 }
 
 //export handleConnectionChange
@@ -134,9 +140,11 @@ func handleConnectionChange(_ C.uintptr_t, chatID C.int64_t, networkInfo C.ntg_n
 		goCallState.Kind = PresentationConnection
 	}
 	goCallState.State = parseConnectionState(networkInfo.state)
+	self.mu.RLock()
 	for _, x0 := range self.connectionChangeCallbacks {
 		go x0(goChatID, goCallState)
 	}
+	self.mu.RUnlock()
 }
 
 //export handleFrames
@@ -165,9 +173,11 @@ func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_
 			},
 		}
 	}
+	self.mu.RLock()
 	for _, x0 := range self.frameCallbacks {
 		go x0(goChatID, goStreamMode, parseStreamDevice(streamDevice), rawFrames)
 	}
+	self.mu.RUnlock()
 }
 
 //export handleRemoteSourceChange
@@ -180,9 +190,11 @@ func handleRemoteSourceChange(_ C.uintptr_t, chatID C.int64_t, remoteSource C.nt
 		State:  parseStreamStatus(remoteSource.state),
 		Device: parseStreamDevice(remoteSource.device),
 	}
+	self.mu.RLock()
 	for _, x0 := range self.remoteSourceCallbacks {
 		go x0(goChatID, goRemoteSource)
 	}
+	self.mu.RUnlock()
 }
 
 //export handleRequestBroadcastTimestamp
@@ -190,9 +202,11 @@ func handleRequestBroadcastTimestamp(_ C.uintptr_t, chatID C.int64_t, ptr unsafe
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
+	self.mu.RLock()
 	for _, x0 := range self.broadcastTimestampCallbacks {
 		go x0(goChatID)
 	}
+	self.mu.RUnlock()
 }
 
 //export handleRequestBroadcastPart
@@ -220,40 +234,58 @@ func handleRequestBroadcastPart(_ C.uintptr_t, chatID C.int64_t, segmentPartRequ
 		ChannelID:     int32(segmentPartRequest.channelId),
 		Quality:       goSegmentQuality,
 	}
+	self.mu.RLock()
 	for _, x0 := range self.broadcastPartCallbacks {
 		go x0(goChatID, goSegmentPartRequest)
 	}
+	self.mu.RUnlock()
 }
 
 func (ctx *Client) OnStreamEnd(callback StreamEndCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.streamEndCallbacks = append(ctx.streamEndCallbacks, callback)
 }
 
 func (ctx *Client) OnUpgrade(callback UpgradeCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.upgradeCallbacks = append(ctx.upgradeCallbacks, callback)
 }
 
 func (ctx *Client) OnConnectionChange(callback ConnectionChangeCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.connectionChangeCallbacks = append(ctx.connectionChangeCallbacks, callback)
 }
 
 func (ctx *Client) OnSignal(callback SignalCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.signalCallbacks = append(ctx.signalCallbacks, callback)
 }
 
 func (ctx *Client) OnFrame(callback FrameCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.frameCallbacks = append(ctx.frameCallbacks, callback)
 }
 
 func (ctx *Client) OnRemoteSourceChange(callback RemoteSourceCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.remoteSourceCallbacks = append(ctx.remoteSourceCallbacks, callback)
 }
 
 func (ctx *Client) OnRequestBroadcastTimestamp(callback BroadcastTimestampCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.broadcastTimestampCallbacks = append(ctx.broadcastTimestampCallbacks, callback)
 }
 
 func (ctx *Client) OnRequestBroadcastPart(callback BroadcastPartCallback) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.broadcastPartCallbacks = append(ctx.broadcastPartCallbacks, callback)
 }
 

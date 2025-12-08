@@ -50,7 +50,7 @@ It supports streaming from popular sources like YouTube, making it a complete so
 
 ### 🔧 Manual Setup
 
-For manual setup instructions for Linux, macOS, and Windows, please see the **[Installation Guide](docs/installation.md)**.
+For manual setup instructions for Linux, macOS, and Windows, please see the **[Installation Guide](installation.md)**.
 
 The guide provides comprehensive instructions for deploying the bot using:
 - **🐳 Docker (Recommended)**
@@ -172,7 +172,7 @@ If you find this project useful, consider supporting its development with a dona
 </div>
 
 Licensed under the **GNU General Public License (GPL v3)**.  
-See the [LICENSE](LICENSE) file for details.
+See the [LICENSE](../LICENSE) file for details.
 
 ---
 
