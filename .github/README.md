@@ -1,152 +1,169 @@
-<div align="center">
+<h1 align="center">🎵 TGMusic Bot (Go)</h1>
 
-# 🎵 TgMusicBot — Telegram Music Bot
-
-**A high-performance, open-source Telegram Music Bot written in Go — stream music and video in Telegram voice chats effortlessly.**
-
-<p>
+<p align="center">
+  <a href="https://golang.org/">
+    <img src="https://img.shields.io/badge/Written%20in-Go-blue?style=for-the-badge&logo=go" alt="Written in Go">
+  </a>
+  <a href="https://docs.docker.com/">
+    <img src="https://img.shields.io/badge/Docker-Enabled-blue?style=for-the-badge&logo=docker" alt="Docker">
+  </a>
+  <a href="https://github.com/AshokShau/TgMusicBot/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge" alt="License">
+  </a>
   <a href="https://github.com/AshokShau/TgMusicBot/stargazers">
     <img src="https://img.shields.io/github/stars/AshokShau/TgMusicBot?style=for-the-badge&color=ffd700&logo=github" alt="Stars">
   </a>
-  <a href="https://github.com/AshokShau/TgMusicBot/network/members">
-    <img src="https://img.shields.io/github/forks/AshokShau/TgMusicBot?style=for-the-badge&color=8a2be2&logo=github" alt="Forks">
-  </a>
-  <a href="https://github.com/AshokShau/TgMusicBot/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/AshokShau/TgMusicBot?style=for-the-badge&color=4169e1" alt="License">
-  </a>
-  <a href="https://goreportcard.com/report/github.com/AshokShau/TgMusicBot">
-    <img src="https://goreportcard.com/badge/github.com/AshokShau/TgMusicBot?style=for-the-badge" alt="Go Report Card">
-  </a>
-  <a href="https://go.dev/">
-    <img src="https://img.shields.io/badge/Written%20in-Go-00ADD8?style=for-the-badge&logo=go" alt="Go">
-  </a>
 </p>
 
-TgMusicBot leverages a powerful combination of Go libraries — using `gogram` for efficient Telegram Bot API integration and `ntgcalls` for robust, low-latency audio and video playback.  
-It supports streaming from popular sources like YouTube, making it a complete solution for Telegram music lovers and communities.
+<p align="center">
+  A high-performance, feature-rich Telegram Music Bot written in <b>Go</b>. <br>
+  Built with <code>gogram</code>, <code>ntgcalls</code>, and <code>mongo-driver</code>.
+</p>
 
-</div>
-
----
-
-<div align="center">
-
-## ✨ Key Features
-
-| Feature                       | Description                                                             |
-|-------------------------------|-------------------------------------------------------------------------|
-| **🎧 Multi-Platform Support** | Stream directly from YouTube, Spotify, Apple Music, SoundCloud and more |
-| **📜 Playlist Management**    | Queue system with auto-play & next-track handling                       |
-| **🎛️ Advanced Controls**     | Volume, loop, seek, skip, pause/resume                                  |
-| **⚡ Low Latency**             | Optimized audio with `ntgcalls`                                         |
-| **🐳 Docker Ready**           | Deploy anywhere in one click                                            |
-| **🧠 Built with Go**          | Stable, concurrent, and memory-efficient                                |
-
-</div>
+<p align="center">
+    <a href="https://heroku.com/deploy?template=https://github.com/AshokShau/TgMusicBot">
+        <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
+    </a>
+</p>
 
 ---
 
-## 🚀 Getting Started
+## ✨ Features
 
-### 🔧 Manual Setup
-
-For manual setup instructions for Linux, macOS, and Windows, please see the **[Installation Guide](installation.md)**.
-
-The guide provides comprehensive instructions for deploying the bot using:
-- **🐳 Docker (Recommended)**
-- **🔧 Manual Installation (Linux, macOS, and Windows)**
-
-### 🚀 Deploy to Heroku
-
-You can also deploy this bot to Heroku.
-
-[![Deploy](https://img.shields.io/badge/Deploy%20On%20Heroku-black?style=for-the-badge&logo=heroku)](https://heroku.com/deploy?template=https://github.com/AshokShau/TgMusicBot)
+- 🚀 **High Performance**: Written in Go for efficiency and speed.
+- 📹 **Video & Audio**: Supports playing both video and audio streams.
+- 🔗 **Multi-Source**: YouTube, Direct Links, M3U8, etc.
+- 🎛 **Advanced Control**: Seek, Pause, Resume, Mute, Volume Control.
+- 📋 **Playlist Management**: Queue system with skip, loop, and shuffle.
+- 🌐 **Multi-Language**: Easy to localize for different regions.
+- 🐳 **Docker Ready**: Easy deployment with Docker.
 
 ---
 
-<div align="center">
+## 🛠️ Installation & Setup
+
+<details>
+<summary><b>Click to reveal Local Setup Instructions</b></summary>
+
+### Prerequisites
+- **Go 1.25+**
+- **FFmpeg** & **FFprobe**
+- **Python 3** (for some dependencies)
+- **MongoDB**
+
+### Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/AshokShau/TgMusicBot.git
+   cd TgMusicBot
+   ```
+
+2. **Setup `ntgcalls`**
+   Download the required C++ libraries.
+   ```bash
+   go run setup_ntgcalls.go
+   ```
+
+3. **Configure Environment**
+   Copy the sample file and edit it.
+   ```bash
+   cp sample.env .env
+   vi .env
+   ```
+
+4. **Build and Run**
+   ```bash
+   go build -o app .
+   ./app
+   ```
+
+For detailed instructions, see [installation.md](installation.md).
+
+</details>
+
+<details>
+<summary><b>Click to reveal Docker Setup Instructions</b></summary>
+
+1. **Clone and Config**
+   ```bash
+   git clone https://github.com/AshokShau/TgMusicBot.git
+   cd TgMusicBot
+   cp sample.env .env
+   # Edit .env with your credentials
+   ```
+
+2. **Run with Docker Compose**
+   ```bash
+   docker-compose up -d --build
+   ```
+
+</details>
+
+<details>
+<summary><b>Click to reveal Heroku Setup Instructions</b></summary>
+
+1. Click the **Deploy to Heroku** button above.
+2. Fill in the required environment variables (`API_ID`, `API_HASH`, `STRING1`, etc.).
+3. Deploy the app.
+4. **Important**: Enable the `worker` dyno and disable the `web` dyno in the Resources tab.
+
+</details>
+
+---
 
 ## ⚙️ Configuration
 
-</div>
+The bot is configured via environment variables. See `sample.env` for all options.
 
-Copy `sample.env` → `.env` and fill the required values:
+<details>
+<summary><b>Click to view Environment Variables</b></summary>
 
-| Variable       | Description                  | How to Get                                                                                                                                                              |
-|----------------|------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `API_ID`       | Your Telegram app’s API ID   | [my.telegram.org](https://my.telegram.org/apps)                                                                                                                         |
-| `API_HASH`     | Your Telegram app’s API hash | [my.telegram.org](https://my.telegram.org/apps)                                                                                                                         |
-| `TOKEN`        | Your bot token               | [@BotFather](https://t.me/BotFather)                                                                                                                                    |
-| `STRING1`      | Your user session string     | Your 2nd acc. string session                                                                                                                                            |
-| `MONGO_URI`    | MongoDB connection string    | [MongoDB Atlas](https://cloud.mongodb.com)                                                                                                                              |
-| `OWNER_ID`     | Your Telegram user ID        | [@GuardXRobot](https://t.me/GuardxRobot)  > /id                                                                                                                         |
-| `LOGGER_ID`    | Group chat ID for logs       | Add bot to group & check `chat_id`                                                                                                                                      |
-| `SESSION_TYPE` | Type of session string       | `pyrogram` (default), `telethon`, or `gogram`                                                                                                                           |
-| `API_KEY`      | Your API key                 | [@FallenApiBot](https://t.me/FallenApiBot) > /apikey                                                                                                                    |
-| `COOKIES_URL`  | Cookies URL for the bot      | [![Cookie Guide](https://img.shields.io/badge/Guide-Read%20Here-blue?style=flat-square)](https://github.com/AshokShau/TgMusicBot/blob/python/TgMusic/cookies/README.md) |
+| Variable | Description | Required |
+| :--- | :--- | :---: |
+| `API_ID` | Telegram API ID | ✅ |
+| `API_HASH` | Telegram API Hash | ✅ |
+| `TOKEN` | Bot Token from @BotFather | ✅ |
+| `STRING1` | Pyrogram V2 Session String | ✅ |
+| `MONGO_URI` | MongoDB Connection URI | ✅ |
+| `OWNER_ID` | Telegram User ID of the owner | ✅ |
+| `LOGGER_ID` | Group chat ID for logs | ❌ |
+| `SONG_DURATION_LIMIT` | Max song duration in seconds | ❌ |
+| `API_KEY` | Your API key | ❌ |
+| `COOKIES_URL` | Cookies URL for the bot | ❌ |
 
+</details>
 
 ---
-
-<div align="center">
 
 ## 🤖 Commands
 
-</div>
+<details>
+<summary><b>Click to view Admin Commands</b></summary>
 
-| Command              | Description                         |
-|----------------------|-------------------------------------|
-| `/play [song/url]`   | Play audio from YouTube or a URL    |
-| `/vplay [video/url]` | Play video in the voice chat        |
-| `/skip`              | Skip the current track              |
-| `/pause`             | Pause playback                      |
-| `/resume`            | Resume playback                     |
-| `/stop` or `/end`    | Stop and clear queue                |
-| `/queue`             | Show the active queue               |
-| `/loop [on/off]`     | Loop the current track              |
-| `/auth [reply]`      | Authorize a user for admin commands |
-| `/unauth [reply]`    | Remove user authorization           |
-| `/authlist`          | List authorized users               |
+- `/play <query|url>` - Play a song or video.
+- `/vplay <query|url>` - Force video play.
+- `/skip` - Skip the current track.
+- `/pause` - Pause playback.
+- `/resume` - Resume playback.
+- `/end` - Stop playback and clear queue.
+- `/mute` - Mute the assistant.
+- `/unmute` - Unmute the assistant.
+- `/auth` - Authorize a user to use the bot.
+- `/unauth` - Revoke authorization.
+- `/restart` - Restart the bot.
 
----
+</details>
 
-<div align="center">
+<details>
+<summary><b>Click to view User Commands</b></summary>
 
-## 🧩 Project Structure
+- `/start` - Check if bot is alive.
+- `/ping` - Check latency.
+- `/help` - Show help menu.
+- `/settings` - Configure bot settings.
 
-</div>
-
-```
-TgMusicBot/
-├── src/
-│   ├── config/       # Configuration loading
-│   ├── core/         # Core logic: database, caching, etc.
-│   ├── handlers/     # Telegram command handlers
-│   └── vc/           # Voice chat management (ntgcalls package)
-├── sample.env        # Example environment config
-├── Dockerfile        # Docker build configuration
-├── go.mod            # Go module definition
-└── main.go           # Application entry point
-```
-
----
-
-<div align="center">
-
-## 🤝 Contributing
-
-</div>
-
-Contributions are **welcome**!  
-To contribute:
-
-1. **Fork** the repo  
-2. **Create** your feature branch → `git checkout -b feature/AmazingFeature`  
-3. **Commit** changes → `git commit -m 'Add some AmazingFeature'`  
-4. **Push** → `git push origin feature/AmazingFeature`  
-5. **Open a pull request**
-
-⭐ If you like this project, please **star** it — it helps others find it!
+</details>
 
 ---
 
@@ -167,17 +184,6 @@ If you find this project useful, consider supporting its development with a dona
 
 <div align="center">
 
-## 📜 License
-
-</div>
-
-Licensed under the **GNU General Public License (GPL v3)**.  
-See the [LICENSE](../LICENSE) file for details.
-
----
-
-<div align="center">
-
 ### 💬 Links
 
 </div>
@@ -185,3 +191,9 @@ See the [LICENSE](../LICENSE) file for details.
 - 📦 Repo: [TgMusicBot on GitHub](https://github.com/AshokShau/TgMusicBot)
 - 💬 Support: [Telegram Group](https://t.me/FallenProjects)
 - 🐍 Old version: [TgMusicBot (Python)](https://github.com/AshokShau/TgMusicBot/tree/python)
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/ashokshau">Ashok Shau</a>
+</p>
