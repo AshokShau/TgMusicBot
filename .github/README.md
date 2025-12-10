@@ -47,9 +47,7 @@
 
 ### Prerequisites
 - **Go 1.25+**
-- **FFmpeg** & **FFprobe**
-- **Python 3** (for some dependencies)
-- **MongoDB**
+- **FFmpeg**
 
 ### Steps
 
@@ -119,18 +117,18 @@ The bot is configured via environment variables. See `sample.env` for all option
 <details>
 <summary><b>Click to view Environment Variables</b></summary>
 
-| Variable | Description | Required |
-| :--- | :--- | :---: |
-| `API_ID` | Telegram API ID | ✅ |
-| `API_HASH` | Telegram API Hash | ✅ |
-| `TOKEN` | Bot Token from @BotFather | ✅ |
-| `STRING1` | Pyrogram V2 Session String | ✅ |
-| `MONGO_URI` | MongoDB Connection URI | ✅ |
-| `OWNER_ID` | Telegram User ID of the owner | ✅ |
-| `LOGGER_ID` | Group chat ID for logs | ❌ |
-| `SONG_DURATION_LIMIT` | Max song duration in seconds | ❌ |
-| `API_KEY` | Your API key | ❌ |
-| `COOKIES_URL` | Cookies URL for the bot | ❌ |
+| Variable              | Description                   | Required |
+|:----------------------|:------------------------------|:--------:|
+| `API_ID`              | Telegram API ID               |    ✅     |
+| `API_HASH`            | Telegram API Hash             |    ✅     |
+| `TOKEN`               | Bot Token from @BotFather     |    ✅     |
+| `STRING1`             | Pyrogram V2 Session String    |    ✅     |
+| `MONGO_URI`           | MongoDB Connection URI        |    ✅     |
+| `OWNER_ID`            | Telegram User ID of the owner |    ✅     |
+| `LOGGER_ID`           | Group chat ID for logs        |    ❌     |
+| `SONG_DURATION_LIMIT` | Max song duration in seconds  |    ❌     |
+| `API_KEY`             | Your API key                  |    ❌     |
+| `COOKIES_URL`         | Cookies URL for the bot       |    ❌     |
 
 </details>
 
@@ -151,8 +149,7 @@ The bot is configured via environment variables. See `sample.env` for all option
 - `/unmute` - Unmute the assistant.
 - `/auth` - Authorize a user to use the bot.
 - `/unauth` - Revoke authorization.
-- `/restart` - Restart the bot.
-
+- `/settings` - Configure bot settings.
 </details>
 
 <details>
@@ -161,7 +158,6 @@ The bot is configured via environment variables. See `sample.env` for all option
 - `/start` - Check if bot is alive.
 - `/ping` - Check latency.
 - `/help` - Show help menu.
-- `/settings` - Configure bot settings.
 
 </details>
 
