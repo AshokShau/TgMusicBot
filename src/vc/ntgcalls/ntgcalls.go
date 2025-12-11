@@ -15,6 +15,7 @@ import "C"
 import (
 	"fmt"
 	"runtime/cgo"
+	"runtime/debug"
 	"unsafe"
 )
 
@@ -51,8 +52,15 @@ var (
 	loggerWebRTC   = NewLogger("webrtc", LevelFatal)
 )
 
+func recoverPanic() {
+	if r := recover(); r != nil {
+		loggerNTGCalls.Error(fmt.Sprintf("Panic in ntgcalls callback: %v\nStack: %s", r, debug.Stack()))
+	}
+}
+
 //export handleLogs
 func handleLogs(logMessage C.ntg_log_message_struct) {
+	defer recoverPanic()
 	message := fmt.Sprintf(
 		"(%v:%v) %v",
 		C.GoString(logMessage.file),
@@ -81,6 +89,7 @@ func handleLogs(logMessage C.ntg_log_message_struct) {
 
 //export handleStreamEnd
 func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_type_enum, streamDevice C.ntg_stream_device_enum, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
@@ -92,13 +101,17 @@ func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_ty
 	}
 	self.mu.RLock()
 	for _, x0 := range self.streamEndCallbacks {
-		go x0(goChatID, goStreamType, parseStreamDevice(streamDevice))
+		go func(cb StreamEndCallback) {
+			defer recoverPanic()
+			cb(goChatID, goStreamType, parseStreamDevice(streamDevice))
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
 
 //export handleUpgrade
 func handleUpgrade(_ C.uintptr_t, chatID C.int64_t, state C.ntg_media_state_struct, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
@@ -110,25 +123,33 @@ func handleUpgrade(_ C.uintptr_t, chatID C.int64_t, state C.ntg_media_state_stru
 	}
 	self.mu.RLock()
 	for _, x0 := range self.upgradeCallbacks {
-		go x0(goChatID, goState)
+		go func(cb UpgradeCallback) {
+			defer recoverPanic()
+			cb(goChatID, goState)
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
 
 //export handleSignal
 func handleSignal(_ C.uintptr_t, chatID C.int64_t, data *C.uint8_t, size C.int, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
 	self.mu.RLock()
 	for _, x0 := range self.signalCallbacks {
-		go x0(goChatID, C.GoBytes(unsafe.Pointer(data), size))
+		go func(cb SignalCallback) {
+			defer recoverPanic()
+			cb(goChatID, C.GoBytes(unsafe.Pointer(data), size))
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
 
 //export handleConnectionChange
 func handleConnectionChange(_ C.uintptr_t, chatID C.int64_t, networkInfo C.ntg_network_info_struct, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
@@ -142,13 +163,17 @@ func handleConnectionChange(_ C.uintptr_t, chatID C.int64_t, networkInfo C.ntg_n
 	goCallState.State = parseConnectionState(networkInfo.state)
 	self.mu.RLock()
 	for _, x0 := range self.connectionChangeCallbacks {
-		go x0(goChatID, goCallState)
+		go func(cb ConnectionChangeCallback) {
+			defer recoverPanic()
+			cb(goChatID, goCallState)
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
 
 //export handleFrames
 func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_enum, streamDevice C.ntg_stream_device_enum, frames *C.ntg_frame_struct, size C.int, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
@@ -175,13 +200,17 @@ func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_
 	}
 	self.mu.RLock()
 	for _, x0 := range self.frameCallbacks {
-		go x0(goChatID, goStreamMode, parseStreamDevice(streamDevice), rawFrames)
+		go func(cb FrameCallback) {
+			defer recoverPanic()
+			cb(goChatID, goStreamMode, parseStreamDevice(streamDevice), rawFrames)
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
 
 //export handleRemoteSourceChange
 func handleRemoteSourceChange(_ C.uintptr_t, chatID C.int64_t, remoteSource C.ntg_remote_source_struct, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
@@ -192,25 +221,33 @@ func handleRemoteSourceChange(_ C.uintptr_t, chatID C.int64_t, remoteSource C.nt
 	}
 	self.mu.RLock()
 	for _, x0 := range self.remoteSourceCallbacks {
-		go x0(goChatID, goRemoteSource)
+		go func(cb RemoteSourceCallback) {
+			defer recoverPanic()
+			cb(goChatID, goRemoteSource)
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
 
 //export handleRequestBroadcastTimestamp
 func handleRequestBroadcastTimestamp(_ C.uintptr_t, chatID C.int64_t, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
 	self.mu.RLock()
 	for _, x0 := range self.broadcastTimestampCallbacks {
-		go x0(goChatID)
+		go func(cb BroadcastTimestampCallback) {
+			defer recoverPanic()
+			cb(goChatID)
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
 
 //export handleRequestBroadcastPart
 func handleRequestBroadcastPart(_ C.uintptr_t, chatID C.int64_t, segmentPartRequest C.ntg_segment_part_request_struct, ptr unsafe.Pointer) {
+	defer recoverPanic()
 	h := *(*cgo.Handle)(ptr)
 	self := h.Value().(*Client)
 	goChatID := int64(chatID)
@@ -236,7 +273,10 @@ func handleRequestBroadcastPart(_ C.uintptr_t, chatID C.int64_t, segmentPartRequ
 	}
 	self.mu.RLock()
 	for _, x0 := range self.broadcastPartCallbacks {
-		go x0(goChatID, goSegmentPartRequest)
+		go func(cb BroadcastPartCallback) {
+			defer recoverPanic()
+			cb(goChatID, goSegmentPartRequest)
+		}(x0)
 	}
 	self.mu.RUnlock()
 }
