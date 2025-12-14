@@ -79,3 +79,38 @@ func truncate(s string, max int) string {
 	}
 	return s[:max]
 }
+
+// getMemberCount gets the number of members in a chat.
+// It returns the count and any error encountered.
+func getMemberCount(client *telegram.Client, chatID int64) (int, error) {
+	// Get chat info
+	chat, err := client.GetChat(chatID)
+	if err != nil {
+		return 0, err
+	}
+
+	// For channels and groups
+	switch c := chat.(type) {
+	case *telegram.Channel:
+		if c.ParticipantsCount != nil {
+			return int(*c.ParticipantsCount), nil
+		}
+		// If participants count is not available, try to get it from full chat
+		fullChat, err := client.ChannelsGetFullChannel(&telegram.InputChannelObj{
+			ChannelID:  c.ID,
+			AccessHash: c.AccessHash,
+		})
+		if err != nil {
+			return 0, err
+		}
+		if fullChat.FullChat != nil {
+			if fc, ok := fullChat.FullChat.(*telegram.ChannelFull); ok {
+				return int(fc.ParticipantsCount), nil
+			}
+		}
+	case *telegram.Chat:
+		return int(c.ParticipantsCount), nil
+	}
+
+	return 0, nil
+}

@@ -32,11 +32,13 @@ type BotConfig struct {
 	Proxy             string   // Proxy is the proxy URL for the bot.
 	DefaultService    string   // DefaultService is the default search platform.
 	MaxFileSize       int64    // MaxFileSize is the maximum file size for downloads.
-	SongDurationLimit int64    // SongDurationLimit is the maximum duration of a song in seconds.
-	DownloadsDir      string   // DownloadsDir is the directory where downloads are stored.
+	SongDurationLimit int64    // SongDurationLimit is the maximum duration of a song in seconds.	DownloadsDir      string   // DownloadsDir is the directory where downloads are stored.
 	OwnerUsername     string   // OwnerUsername is the username of the bot owner.
 	SupportGroup      string   // SupportGroup is the Telegram group link.
 	SupportChannel    string   // SupportChannel is the Telegram channel link.
+	MaxQueue          int      // MaxQueue is the maximum number of songs in queue.
+	MinMembers        int      // MinMembers is the minimum number of members required in a chat.
+	AutoLeaveTime     int64    // AutoLeaveTime is the time in seconds before assistant auto leaves inactive chats.
 	DEVS              []int64  // DEVS is a list of developer user IDs.
 	CookiesPath       []string // CookiesPath is a list of paths to cookies files.
 	cookiesUrl        []string // cookiesUrl is a list of URLs to cookies files.
@@ -82,7 +84,7 @@ func getEnvInt32(key string, defaultValue int32) int32 {
 	return defaultValue
 }
 
-// getEnvInt64 gets environment variable as int64 with default value
+// getEnvInt64 gets environment variable as int64 (returns 0 if not set)
 func getEnvInt64(key string) int64 {
 	value := os.Getenv(key)
 	if value == "" {
@@ -92,6 +94,30 @@ func getEnvInt64(key string) int64 {
 		return val
 	}
 	return 0
+}
+
+// getEnvInt64WithDefault gets environment variable as int64 with default value
+func getEnvInt64WithDefault(key string, defaultValue int64) int64 {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	if val, err := strconv.ParseInt(value, 10, 64); err == nil {
+		return val
+	}
+	return defaultValue
+}
+
+// getEnvInt gets environment variable as int with default value
+func getEnvInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	if val, err := strconv.Atoi(value); err == nil {
+		return val
+	}
+	return defaultValue
 }
 
 // containsInt checks if a slice contains a specific int64 value

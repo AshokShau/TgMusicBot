@@ -25,7 +25,6 @@ func LoadConfig() error {
 	if err := loadEnvFiles(envFiles...); err != nil {
 		log.Printf("Warning loading env files: %v", err)
 	}
-
 	Conf = &BotConfig{
 		ApiId:             getEnvInt32("API_ID", 0),
 		ApiHash:           os.Getenv("API_HASH"),
@@ -44,8 +43,11 @@ func LoadConfig() error {
 		SongDurationLimit: getEnvInt64("SONG_DURATION_LIMIT"),
 		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "/tmp/downloads"),
 		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
-		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
+		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),		
 		OwnerUsername:     getEnvStr("OWNER_USERNAME", "ursweetbae"),
+		MaxQueue:          getEnvInt("MAX_QUEUE", 5),
+		MinMembers:        getEnvInt("MIN_MEMBERS", 50),
+		AutoLeaveTime:     getEnvInt64WithDefault("AUTO_LEAVE_TIME", 3600),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
 		Port:              getEnvStr("PORT", "6060"),
 	}

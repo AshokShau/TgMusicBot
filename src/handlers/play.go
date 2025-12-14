@@ -46,7 +46,6 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
-
 	// Save chat/user to database for broadcast support
 	go func() {
 		dbCtx, dbCancel := db.Ctx()
@@ -58,8 +57,29 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 		}
 	}()
 
-	if queue := cache.ChatCache.GetQueue(chatID); len(queue) > 10 {
-		_, _ = m.Reply(lang.GetString(langCode, "play_queue_full"))
+	// Check member count for groups/channels
+	if chatID < 0 {
+		memberCount, err := getMemberCount(m.Client, chatID)
+		if err != nil {
+			logger.Warnf("Failed to get member count for chat %d: %v", chatID, err)
+		} else if memberCount < config.Conf.MinMembers {
+			logger.Infof("Chat %d has only %d members (min required: %d). Leaving...", chatID, memberCount, config.Conf.MinMembers)
+			_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "play_min_members_required"), config.Conf.MinMembers, memberCount))
+			
+			// Leave the chat with both bot and assistant
+			go func() {
+				time.Sleep(2 * time.Second)
+				if call, err := vc.Calls.GetGroupAssistant(chatID); err == nil {
+					_ = call.App.LeaveChannel(chatID)
+				}
+				_ = m.Client.LeaveChannel(chatID)
+			}()
+			return telegram.ErrEndGroup
+		}
+	}
+
+	if queue := cache.ChatCache.GetQueue(chatID); len(queue) >= config.Conf.MaxQueue {
+		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "play_queue_full"), config.Conf.MaxQueue))
 		return telegram.ErrEndGroup
 	}
 

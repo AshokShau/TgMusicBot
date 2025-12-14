@@ -10,12 +10,14 @@ package cache
 
 import (
 	"sync"
+	"time"
 )
 
 // ChatData holds the state of a chat's music queue, including whether it is active and the list of tracks.
 type ChatData struct {
-	IsActive bool
-	Queue    []*CachedTrack
+	IsActive   bool
+	Queue      []*CachedTrack
+	LastActive time.Time
 }
 
 // ChatCacher is a thread-safe cache that manages music queues for multiple chats.
@@ -39,11 +41,12 @@ func (c *ChatCacher) AddSong(chatID int64, song *CachedTrack) *CachedTrack {
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		data = &ChatData{IsActive: true, Queue: []*CachedTrack{}}
+		data = &ChatData{IsActive: true, Queue: []*CachedTrack{}, LastActive: time.Now()}
 		c.chatCache[chatID] = data
 	}
 
 	data.Queue = append(data.Queue, song)
+	data.LastActive = time.Now()
 	return song
 }
 
@@ -107,10 +110,13 @@ func (c *ChatCacher) SetActive(chatID int64, active bool) {
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		data = &ChatData{Queue: []*CachedTrack{}}
+		data = &ChatData{Queue: []*CachedTrack{}, LastActive: time.Now()}
 		c.chatCache[chatID] = data
 	}
 	data.IsActive = active
+	if active {
+		data.LastActive = time.Now()
+	}
 }
 
 // ClearChat removes all tracks from a chat's queue.
@@ -222,6 +228,20 @@ func (c *ChatCacher) GetTrackIfExists(chatID int64, trackID string) *CachedTrack
 		}
 	}
 	return nil
+}
+
+// GetLastActiveTimes returns a map of chat IDs to their last active times.
+func (c *ChatCacher) GetLastActiveTimes() map[int64]time.Time {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	result := make(map[int64]time.Time)
+	for chatID, data := range c.chatCache {
+		if !data.LastActive.IsZero() {
+			result[chatID] = data.LastActive
+		}
+	}
+	return result
 }
 
 // ChatCache is the global chat cacher.
