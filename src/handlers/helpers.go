@@ -84,13 +84,13 @@ func truncate(s string, max int) string {
 // It returns the count and any error encountered.
 func getMemberCount(client *telegram.Client, chatID int64) (int, error) {
 	// Get chat info
-	chat, err := client.GetChat(chatID)
+	chatInterface, err := client.GetChat(chatID)
 	if err != nil {
 		return 0, err
 	}
 
 	// For channels and groups
-	switch c := chat.(type) {
+	switch c := chatInterface.(type) {
 	case *telegram.Channel:
 		// Try to get from full channel info
 		fullChat, err := client.ChannelsGetFullChannel(&telegram.InputChannelObj{
