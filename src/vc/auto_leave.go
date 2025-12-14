@@ -21,15 +21,16 @@ import (
 // StartAutoLeaveService starts the auto leave service for inactive chats
 func (c *TelegramCalls) StartAutoLeaveService() {
 	if config.Conf.AutoLeaveTime <= 0 {
-		logger.Info("Auto leave service is disabled (AUTO_LEAVE_TIME not set or <= 0)")
 		return
 	}
 
-	logger.Infof("Starting auto leave service with timeout: %d seconds", config.Conf.AutoLeaveTime)
-
 	go func() {
-		// Initial delay to ensure clients are fully initialized
+		// Initial delay to ensure clients and logger are fully initialized
 		time.Sleep(30 * time.Second)
+		
+		if logger != nil {
+			logger.Infof("Starting auto leave service with timeout: %d seconds", config.Conf.AutoLeaveTime)
+		}
 		
 		ticker := time.NewTicker(5 * time.Minute) // Check every 5 minutes
 		defer ticker.Stop()
@@ -45,7 +46,9 @@ func (c *TelegramCalls) checkInactiveChats() {
 	c.mu.RLock()
 	if len(c.uBContext) == 0 {
 		c.mu.RUnlock()
-		logger.Warn("No active userbot clients available for auto leave check")
+		if logger != nil {
+			logger.Warn("No active userbot clients available for auto leave check")
+		}
 		return
 	}
 	c.mu.RUnlock()
@@ -62,7 +65,9 @@ func (c *TelegramCalls) checkInactiveChats() {
 			SleepThresholdMs: 20,
 		})
 		if err != nil {
-			logger.Warn("Failed to get dialogs for auto leave: %v", err)
+			if logger != nil {
+				logger.Warn("Failed to get dialogs for auto leave: %v", err)
+			}
 			continue
 		}
 
@@ -99,12 +104,12 @@ func (c *TelegramCalls) checkInactiveChats() {
 			if !exists {
 				// Never been active, skip
 				continue
-			}
-
-			// Calculate inactive duration
+			}			// Calculate inactive duration
 			inactiveDuration := time.Since(lastActive)
 			if inactiveDuration.Seconds() >= float64(config.Conf.AutoLeaveTime) {
-				logger.Infof("Leaving inactive chat %d (inactive for %v)", chatID, inactiveDuration)
+				if logger != nil {
+					logger.Infof("Leaving inactive chat %d (inactive for %v)", chatID, inactiveDuration)
+				}
 
 				err = userBot.LeaveChannel(chatID)
 				if err != nil {
@@ -112,7 +117,9 @@ func (c *TelegramCalls) checkInactiveChats() {
 					   strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
 						continue
 					}
-					logger.Warn("Failed to leave inactive chat %d: %v", chatID, err)
+					if logger != nil {
+						logger.Warn("Failed to leave inactive chat %d: %v", chatID, err)
+					}
 					continue
 				}
 
