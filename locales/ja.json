@@ -74,7 +74,6 @@
   "pause_success": "⏸️ %s によって再生が一時停止されました。",
   "paused": "一時停止中",
   "paused_by": "\n\n⏸ <i>%s によって一時停止されました</i>",
-  "ping_text": "<b>📊 システムパフォーマンスメトリクス</b>\n\n⏱️ <b>ボットの遅延：</b> <code>%d ms</code>\n🕒 <b>稼働時間：</b> <code>%s</code>",
   "play_added_to_queue": "<b>🎧 キューに追加されました（#%d）</b>\n\n▫ <b>トラック：</b> <a href='%s'>%s</a>\n▫ <b>再生時間：</b> %s\n▫ <b>リクエスト者：</b> %s",
   "play_added_to_queue_header": "<b>📥 キューに追加されました：</b>\n<blockquote collapsed='true'>\n",
   "play_download_failed": "❌ メディアのダウンロードに失敗しました： %s",

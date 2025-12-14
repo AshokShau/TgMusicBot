@@ -74,7 +74,6 @@
   "pause_success": "⏸️ Oynatma %s tarafından duraklatıldı.",
   "paused": "Duraklatıldı",
   "paused_by": "\n\n⏸ <i>%s tarafından duraklatıldı</i>",
-  "ping_text": "<b>📊 Sistem Performans Metrikleri</b>\n\n⏱️ <b>Bot Gecikmesi:</b> <code>%d ms</code>\n🕒 <b>Çalışma Süresi:</b> <code>%s</code>",
   "play_added_to_queue": "<b>🎧 Sıraya Eklendi (#%d)</b>\n\n▫ <b>Parça:</b> <a href='%s'>%s</a>\n▫ <b>Süre:</b> %s\n▫ <b>İsteyen:</b> %s",
   "play_added_to_queue_header": "<b>📥 Sıraya Eklendi:</b>\n<blockquote collapsed='true'>\n",
   "play_download_failed": "❌ Medya indirilemedi: %s",

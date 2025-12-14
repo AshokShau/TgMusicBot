@@ -28,6 +28,7 @@ type Context struct {
 	waitConnect           map[int64]chan error
 	waitConnMutex         sync.RWMutex
 	self                  *tg.UserObj
+	callbacksMutex        sync.RWMutex
 	incomingCallCallbacks []func(client *Context, chatId int64)
 	streamEndCallbacks    []ntgcalls.StreamEndCallback
 	frameCallbacks        []ntgcalls.FrameCallback
@@ -60,14 +61,20 @@ func NewInstance(app *tg.Client) (*Context, error) {
 }
 
 func (ctx *Context) OnIncomingCall(callback func(client *Context, chatId int64)) {
+	ctx.callbacksMutex.Lock()
+	defer ctx.callbacksMutex.Unlock()
 	ctx.incomingCallCallbacks = append(ctx.incomingCallCallbacks, callback)
 }
 
 func (ctx *Context) OnStreamEnd(callback ntgcalls.StreamEndCallback) {
+	ctx.callbacksMutex.Lock()
+	defer ctx.callbacksMutex.Unlock()
 	ctx.streamEndCallbacks = append(ctx.streamEndCallbacks, callback)
 }
 
 func (ctx *Context) OnFrame(callback ntgcalls.FrameCallback) {
+	ctx.callbacksMutex.Lock()
+	defer ctx.callbacksMutex.Unlock()
 	ctx.frameCallbacks = append(ctx.frameCallbacks, callback)
 }
 

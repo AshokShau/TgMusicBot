@@ -11,11 +11,13 @@ package vc
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core/cache"
@@ -25,8 +27,21 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
+// handleFlood manages flood wait errors by pausing execution for the specified duration.
+// It returns true if a flood wait error is handled, and false otherwise.
+func handleFlood(err error) bool {
+	if wait := telegram.GetFloodWait(err); wait > 0 {
+		logger.Warnf("A flood wait has been detected. Sleeping for %ds.", wait)
+		time.Sleep(time.Duration(wait) * time.Second)
+		return true
+	}
+	return false
+}
+
 func getVideoDimensions(filePath string) (int, int) {
-	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", filePath)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", filePath)
 	out, err := cmd.Output()
 	if err != nil {
 		logger.Warnf("[getVideoDimensions] Failed to get video dimensions (%s): %v", filePath, err)
@@ -164,8 +179,13 @@ func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Cl
 		if err != nil {
 			return "", nil, err
 		}
+		
+		fileName := filepath.Join(config.Conf.DownloadsDir, song.Name)
+		if _, err := os.Stat(fileName); err == nil {
+			return fileName, nil, nil
+		}
 
-		filePath, err := bot.DownloadMedia(file, &telegram.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, song.Name), Ctx: ctx})
+		filePath, err := bot.DownloadMedia(file, &telegram.DownloadOptions{FileName: fileName, Ctx: ctx})
 		return filePath, nil, err
 	}
 

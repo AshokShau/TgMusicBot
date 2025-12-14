@@ -64,6 +64,7 @@ const (
 	Spotify    = "spotify"
 	JioSaavn   = "jiosaavn"
 	Apple      = "apple_music"
+	SoundCloud = "soundcloud"
 	DirectLink = "direct_link"
 )
 

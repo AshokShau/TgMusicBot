@@ -22,6 +22,10 @@ import (
 
 // muteHandler handles the /mute command.
 func muteHandler(m *telegram.NewMessage) error {
+	if args := m.Args(); args != "" {
+		return telegram.ErrEndGroup
+	}
+
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
@@ -42,6 +46,10 @@ func muteHandler(m *telegram.NewMessage) error {
 
 // unmuteHandler handles the /unmute command.
 func unmuteHandler(m *telegram.NewMessage) error {
+	if args := m.Args(); args != "" {
+		return telegram.ErrEndGroup
+	}
+
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()

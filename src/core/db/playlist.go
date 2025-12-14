@@ -14,6 +14,7 @@ import (
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 // Song represents a single song in a playlist.
@@ -36,7 +37,7 @@ type Playlist struct {
 // generateUniquePlaylistID generates a unique ID for a playlist.
 func generateUniquePlaylistID() string {
 	b := make([]byte, 5)
-	rand.Read(b)
+	_, _ = rand.Read(b)
 	return fmt.Sprintf("tgpl_%x", b)
 }
 
@@ -126,7 +127,10 @@ func (db *Database) GetUserPlaylists(ctx context.Context, userID int64) ([]Playl
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		_ = cursor.Close(ctx)
+	}(cursor, ctx)
+
 	for cursor.Next(ctx) {
 		var playlist Playlist
 		if err := cursor.Decode(&playlist); err != nil {

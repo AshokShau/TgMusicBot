@@ -74,7 +74,6 @@
   "pause_success": "⏸️ La lecture a été mise en pause par %s.",
   "paused": "En pause",
   "paused_by": "\n\n⏸ <i>Mis en pause par %s</i>",
-  "ping_text": "<b>📊 Métriques de performance du système</b>\n\n⏱️ <b>Latence du bot :</b> <code>%d ms</code>\n🕒 <b>Temps de disponibilité :</b> <code>%s</code>",
   "play_added_to_queue": "<b>🎧 Ajouté à la file d'attente (#%d)</b>\n\n▫ <b>Piste :</b> <a href='%s'>%s</a>\n▫ <b>Durée :</b> %s\n▫ <b>Demandé par :</b> %s",
   "play_added_to_queue_header": "<b>📥 Ajouté à la file d'attente :</b>\n<blockquote collapsed='true'>\n",
   "play_download_failed": "❌ Échec du téléchargement du média : %s",

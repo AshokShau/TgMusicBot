@@ -74,7 +74,6 @@
   "pause_success": "⏸️ Pemutaran telah dijeda oleh %s.",
   "paused": "Dijeda",
   "paused_by": "\n\n⏸ <i>Dijeda oleh %s</i>",
-  "ping_text": "<b>📊 Metrik Kinerja Sistem</b>\n\n⏱️ <b>Latensi Bot:</b> <code>%d ms</code>\n🕒 <b>Waktu Aktif:</b> <code>%s</code>",
   "play_added_to_queue": "<b>🎧 Ditambahkan ke Antrian (#%d)</b>\n\n▫ <b>Trek:</b> <a href='%s'>%s</a>\n▫ <b>Durasi:</b> %s\n▫ <b>Diminta oleh:</b> %s",
   "play_added_to_queue_header": "<b>📥 Ditambahkan ke Antrian:</b>\n<blockquote collapsed='true'>\n",
   "play_download_failed": "❌ Gagal mengunduh media: %s",

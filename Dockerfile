@@ -1,11 +1,9 @@
 FROM golang:1.25-bookworm AS builder
 
-WORKDIR /app
+WORKDIR /src
 
-RUN apt-get update && apt-get install -y \
-    gcc \
-    zlib1g-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends gcc zlib1g-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -13,33 +11,40 @@ RUN go mod download
 COPY . .
 
 RUN go generate
-RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o myapp .
+
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o app .
 
 
 FROM debian:12-slim
 
+WORKDIR /app
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     ca-certificates \
+    zlib1g \
     wget \
     curl \
-    zlib1g \
-    unzip \
-    && wget -O /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
-    && chmod +x /usr/local/bin/yt-dlp \
-    && curl -fsSL https://deno.land/install.sh | sh \
-    && rm -rf /var/lib/apt/lists/*
+    unzip && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN wget -q -O /usr/local/bin/yt-dlp \
+      https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux && \
+    chmod +x /usr/local/bin/yt-dlp
+
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
+    ln -s /usr/local/bin/deno /usr/bin/deno
+
+RUN useradd -m -u 1000 app
+
+COPY --from=builder /src/app /app/app
+COPY --from=builder /src/assets /app/assets
+COPY --from=builder /src/locales /app/locales
+
+RUN chmod +x /app/app && \
+    chown -R app:app /app
+
+USER app
 
 WORKDIR /app
-
-COPY --from=builder /app/myapp /app/
-COPY --from=builder /app/locales /app/locales
-COPY --from=builder /app/assets /app/assets
-
-RUN groupadd -g 1000 myuser && \
-    useradd -u 1000 -g myuser -s /bin/sh myuser && \
-    chown -R myuser:myuser /app
-
-USER myuser
-
-ENTRYPOINT ["/app/myapp"]
+ENTRYPOINT ["/app/app"]

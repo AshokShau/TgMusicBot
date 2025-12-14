@@ -72,7 +72,6 @@
   "pause_success": "⏸️ %s 已暫停播放。",
   "paused": "已暫停",
   "paused_by": "\n\n⏸ <i>由 %s 暫停</i>",
-  "ping_text": "<b>📊 系統性能指標</b>\n\n⏱️ <b>機器人延遲：</b> <code>%d ms</code>\n🕒 <b>正常運行時間：</b> <code>%s</code>",
   "play_added_to_queue": "<b>🎧 已新增到隊列 (#%d)</b>\n\n▫ <b>曲目：</b> <a href='%s'>%s</a>\n▫ <b>時長：</b> %s\n▫ <b>請求者：</b> %s",
   "play_added_to_queue_header": "<b>📥 已新增到隊列：</b>\n<blockquote collapsed='true'>\n",
   "play_download_failed": "❌ 下載媒體失敗：%s",
