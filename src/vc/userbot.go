@@ -70,6 +70,7 @@ func (c *TelegramCalls) joinAssistant(chatID, ubID int64) error {
 		if isBanned {
 			return c.joinUb(chatID)
 		}
+
 		return nil
 
 	default:
@@ -181,6 +182,12 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 
 		if strings.Contains(err.Error(), "INVITE_HASH_EXPIRED") {
 			return fmt.Errorf(lang.GetString(langCode, "invite_link_expired"), ub.Me().ID)
+		}
+
+		if strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
+			c.UpdateMembership(chatID, ub.Me().ID, tg.Left)
+			c.UpdateInviteLink(chatID, "")
+			return nil
 		}
 
 		logger.Info("Failed to join the channel: %v", err)
