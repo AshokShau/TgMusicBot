@@ -34,6 +34,7 @@ type BotConfig struct {
 	MaxFileSize       int64    // MaxFileSize is the maximum file size for downloads.
 	SongDurationLimit int64    // SongDurationLimit is the maximum duration of a song in seconds.
 	DownloadsDir      string   // DownloadsDir is the directory where downloads are stored.
+	OwnerUsername     string   // OwnerUsername is the username of the bot owner.
 	SupportGroup      string   // SupportGroup is the Telegram group link.
 	SupportChannel    string   // SupportChannel is the Telegram channel link.
 	DEVS              []int64  // DEVS is a list of developer user IDs.
