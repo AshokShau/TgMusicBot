@@ -92,10 +92,7 @@ func getMemberCount(client *telegram.Client, chatID int64) (int, error) {
 	// For channels and groups
 	switch c := chat.(type) {
 	case *telegram.Channel:
-		if c.ParticipantsCount != nil {
-			return int(*c.ParticipantsCount), nil
-		}
-		// If participants count is not available, try to get it from full chat
+		// Try to get from full channel info
 		fullChat, err := client.ChannelsGetFullChannel(&telegram.InputChannelObj{
 			ChannelID:  c.ID,
 			AccessHash: c.AccessHash,
@@ -103,12 +100,12 @@ func getMemberCount(client *telegram.Client, chatID int64) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		if fullChat.FullChat != nil {
+		if fullChat != nil && fullChat.FullChat != nil {
 			if fc, ok := fullChat.FullChat.(*telegram.ChannelFull); ok {
 				return int(fc.ParticipantsCount), nil
 			}
 		}
-	case *telegram.Chat:
+	case *telegram.ChatObj:
 		return int(c.ParticipantsCount), nil
 	}
 
