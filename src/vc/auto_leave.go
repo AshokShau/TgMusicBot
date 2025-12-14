@@ -25,7 +25,7 @@ func (c *TelegramCalls) StartAutoLeaveService() {
 		return
 	}
 
-	logger.Info("Starting auto leave service with timeout: %d seconds", config.Conf.AutoLeaveTime)
+	logger.Infof("Starting auto leave service with timeout: %d seconds", config.Conf.AutoLeaveTime)
 
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute) // Check every 5 minutes
@@ -89,7 +89,7 @@ func (c *TelegramCalls) checkInactiveChats() {
 			// Calculate inactive duration
 			inactiveDuration := time.Since(lastActive)
 			if inactiveDuration.Seconds() >= float64(config.Conf.AutoLeaveTime) {
-				logger.Info("Leaving inactive chat %d (inactive for %v)", chatID, inactiveDuration)
+				logger.Infof("Leaving inactive chat %d (inactive for %v)", chatID, inactiveDuration)
 
 				err = userBot.LeaveChannel(chatID)
 				if err != nil {
