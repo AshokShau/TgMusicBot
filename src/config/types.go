@@ -29,7 +29,8 @@ type BotConfig struct {
 	ApiKey            string   // ApiKey is the API key.
 	OwnerId           int64    // OwnerId is the user ID of the bot owner.
 	LoggerId          int64    // LoggerId is the group ID of the bot logger.
-	Proxy             string   // Proxy is the proxy URL for the bot.	DefaultService    string   // DefaultService is the default search platform.
+	Proxy             string   // Proxy is the proxy URL for the bot.
+	DefaultService    string   // DefaultService is the default search platform.
 	MaxFileSize       int64    // MaxFileSize is the maximum file size for downloads.
 	SongDurationLimit int64    // SongDurationLimit is the maximum duration of a song in seconds.
 	DownloadsDir      string   // DownloadsDir is the directory where downloads are stored.
