@@ -28,6 +28,9 @@ func (c *TelegramCalls) StartAutoLeaveService() {
 	logger.Infof("Starting auto leave service with timeout: %d seconds", config.Conf.AutoLeaveTime)
 
 	go func() {
+		// Initial delay to ensure clients are fully initialized
+		time.Sleep(30 * time.Second)
+		
 		ticker := time.NewTicker(5 * time.Minute) // Check every 5 minutes
 		defer ticker.Stop()
 
@@ -39,7 +42,19 @@ func (c *TelegramCalls) StartAutoLeaveService() {
 
 // checkInactiveChats checks for inactive chats and leaves them
 func (c *TelegramCalls) checkInactiveChats() {
+	c.mu.RLock()
+	if len(c.uBContext) == 0 {
+		c.mu.RUnlock()
+		logger.Warn("No active userbot clients available for auto leave check")
+		return
+	}
+	c.mu.RUnlock()
+
 	for _, call := range c.uBContext {
+		if call == nil || call.App == nil {
+			continue
+		}
+		
 		userBot := call.App
 
 		dialogs, err := userBot.GetDialogs(&telegram.DialogOptions{
