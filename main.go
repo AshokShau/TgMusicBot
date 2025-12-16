@@ -49,7 +49,7 @@ func main() {
 		AppHash:      config.Conf.ApiHash,
 		FloodHandler: handleFlood,
 		SessionName:  "bot",
-		LogLevel:     tg.DebugLevel,
+		LogLevel:     tg.InfoLevel,
 	}
 
 	client, err := tg.NewClient(clientConfig)
