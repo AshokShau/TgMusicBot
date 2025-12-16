@@ -111,8 +111,8 @@ func (c *TelegramCalls) checkUserStats(chatId int64) (string, error) {
 	return member.Status, nil
 }
 
-// joinUb handles the process of a userbot joining a chat via an invite link.
-// It returns an error if the userbot fails to join.
+// joinUb handles the process of a user-bot joining a chat via an invite link.
+// It returns an error if the user-bot fails to join.
 func (c *TelegramCalls) joinUb(chatID int64) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
@@ -143,8 +143,9 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 			}
 
 			raw, err = c.bot.MessagesExportChatInvite(&tg.MessagesExportChatInviteParams{
-				Peer:  peer,
-				Title: "for my ub",
+				Peer:          peer,
+				Title:         "TgMusicBot Assistant",
+				RequestNeeded: false,
 			})
 			if err != nil {
 				logger.Warnf("Failed to export invite link: %v", err)
