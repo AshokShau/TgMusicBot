@@ -3,7 +3,7 @@ module ashokshau/tgmusic
 go 1.25.0
 
 require (
-	github.com/amarnathcjd/gogram v1.6.11-0.20251215192356-e7cfc6f0abfa
+	github.com/amarnathcjd/gogram v1.6.11-0.20251216162056-dbfbd3e89b43
 	github.com/fogleman/gg v1.3.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	go.mongodb.org/mongo-driver/v2 v2.4.1

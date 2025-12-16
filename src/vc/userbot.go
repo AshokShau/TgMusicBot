@@ -123,7 +123,7 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 
 	cacheKey := fmt.Sprintf("%d", chatID)
 	var link string
-	if cached, ok := c.inviteCache.Get(cacheKey); ok {
+	if cached, ok := c.inviteCache.Get(cacheKey); ok && cached != "" {
 		link = cached
 	} else {
 		inviteLink, err := c.bot.GetChatInviteLink(chatID)
@@ -138,6 +138,12 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 
 		link = linkObj.Link
 		c.UpdateInviteLink(chatID, link)
+		logger.Infof("[TelegramCalls - joinUb] The invite link is: %s", link)
+	}
+
+	if link == "" {
+		logger.Warn("[TelegramCalls - joinUb] Failed to get/create invite link")
+		return errors.New("failed to get/create invite link")
 	}
 
 	logger.Info("[TelegramCalls - joinUb] The invite link is: %s", link)
