@@ -23,12 +23,11 @@ import (
 	"strings"
 )
 
-// Release represents a GitHub release.
 type Release struct {
-	TagName string `json:"tag_name"` // TagName is the name of the tag.
+	TagName string `json:"tag_name"`
 	Assets  []struct {
-		Name               string `json:"name"`                 // Name is the name of the asset.
-		BrowserDownloadURL string `json:"browser_download_url"` // BrowserDownloadURL is the URL to download the asset.
+		Name               string `json:"name"`
+		BrowserDownloadURL string `json:"browser_download_url"`
 	} `json:"assets"`
 }
 
@@ -73,7 +72,7 @@ func main() {
 		return nil
 	})
 
-	fmt.Println("✅ Done!")
+	fmt.Println("Done!")
 	os.RemoveAll("ntgcalls_tmp")
 	os.Remove(tmpZip)
 }
@@ -81,7 +80,7 @@ func main() {
 // getLatestRelease fetches the latest release information from the ntgcalls GitHub repository.
 // It returns a Release object.
 func getLatestRelease() Release {
-	resp, err := http.Get("https://api.github.com/repos/pytgcalls/ntgcalls/releases/latest")
+	resp, err := http.Get("https://api.github.com/repos/AshokShau/ntgcalls/releases/latest")
 	if err != nil {
 		panic(err)
 	}

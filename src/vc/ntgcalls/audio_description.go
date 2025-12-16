@@ -10,6 +10,7 @@ type AudioDescription struct {
 	Input        string
 	SampleRate   uint32
 	ChannelCount uint8
+	KeepOpen     bool
 }
 
 func (ctx *AudioDescription) ParseToC() (C.ntg_audio_description_struct, func()) {
@@ -18,6 +19,7 @@ func (ctx *AudioDescription) ParseToC() (C.ntg_audio_description_struct, func())
 	x.input = C.CString(ctx.Input)
 	x.sampleRate = C.uint32_t(ctx.SampleRate)
 	x.channelCount = C.uint8_t(ctx.ChannelCount)
+	x.keepOpen = C.bool(ctx.KeepOpen)
 	return x, func() {
 		C.free(unsafe.Pointer(x.input))
 	}
