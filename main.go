@@ -38,10 +38,11 @@ func main() {
 		}
 	}()
 
-	err := lang.LoadTranslations()
+	translations, err := lang.LoadTranslations()
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("Loaded %d languages", translations)
 
 	clientConfig := tg.ClientConfig{
 		AppID:        config.Conf.ApiId,
