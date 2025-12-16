@@ -163,13 +163,13 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 			}
 
 			var inputUser *tg.InputUserObj
-			if inpUser, ok := user.(*tg.InputPeerUser); !ok {
-				return errors.New(lang.GetString(langCode, "invalid_user_peer"))
-			} else {
+			if inpUser, ok := user.(*tg.InputPeerUser); ok {
 				inputUser = &tg.InputUserObj{
 					UserID:     inpUser.UserID,
 					AccessHash: inpUser.AccessHash,
 				}
+			} else {
+				return errors.New(lang.GetString(langCode, "invalid_user_peer"))
 			}
 
 			_, err = c.bot.MessagesHideChatJoinRequest(true, peer, inputUser)
