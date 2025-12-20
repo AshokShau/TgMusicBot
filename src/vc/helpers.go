@@ -212,9 +212,9 @@ func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Cl
 
 			fileName := msg.File.Name
 			file := filepath.Join(config.Conf.DownloadsDir, fileName)
-			if _, err := os.Stat(file); err == nil {
-				return fileName, &trackInfo, nil
-			}
+			//if _, err := os.Stat(file); err == nil {
+			//	return fileName, &trackInfo, nil
+			//}
 
 			download, err := msg.Download(&telegram.DownloadOptions{FileName: file})
 			if err != nil {
