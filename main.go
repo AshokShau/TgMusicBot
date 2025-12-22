@@ -38,17 +38,18 @@ func main() {
 		}
 	}()
 
-	err := lang.LoadTranslations()
+	translations, err := lang.LoadTranslations()
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("Loaded %d languages", translations)
 
 	clientConfig := tg.ClientConfig{
 		AppID:        config.Conf.ApiId,
 		AppHash:      config.Conf.ApiHash,
 		FloodHandler: handleFlood,
 		SessionName:  "bot",
-		LogLevel:     tg.DebugLevel,
+		LogLevel:     tg.InfoLevel,
 	}
 
 	client, err := tg.NewClient(clientConfig)

@@ -11,6 +11,7 @@ package vc
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"ashokshau/tgmusic/src/core/cache"
@@ -70,6 +71,7 @@ func (c *TelegramCalls) joinAssistant(chatID, ubID int64) error {
 		if isBanned {
 			return c.joinUb(chatID)
 		}
+
 		return nil
 
 	default:
@@ -109,81 +111,118 @@ func (c *TelegramCalls) checkUserStats(chatId int64) (string, error) {
 	return member.Status, nil
 }
 
-// joinUb handles the process of a userbot joining a chat via an invite link.
-// It returns an error if the userbot fails to join.
+// joinUb handles the process of a user-bot joining a chat via an invite link.
+// It returns an error if the user-bot fails to join.
 func (c *TelegramCalls) joinUb(chatID int64) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
+
 	langCode := db.Instance.GetLang(ctx, chatID)
 	call, err := c.GetGroupAssistant(chatID)
 	if err != nil {
 		return err
 	}
+	ub := call.App
+	cacheKey := strconv.FormatInt(chatID, 10)
+	link := ""
 
-	cacheKey := fmt.Sprintf("%d", chatID)
-	var link string
-	if cached, ok := c.inviteCache.Get(cacheKey); ok {
+	if cached, ok := c.inviteCache.Get(cacheKey); ok && cached != "" {
 		link = cached
 	} else {
-		inviteLink, err := c.bot.GetChatInviteLink(chatID)
-		if err != nil {
-			return fmt.Errorf(lang.GetString(langCode, "get_invite_link_fail"), err)
+		raw, err := c.bot.GetChatInviteLink(chatID)
+		if err == nil {
+			if exported, ok := raw.(*tg.ChatInviteExported); ok && exported.Link != "" {
+				link = exported.Link
+			}
 		}
 
-		linkObj, ok := inviteLink.(*tg.ChatInviteExported)
-		if !ok {
-			return fmt.Errorf(lang.GetString(langCode, "invalid_invite_link_type"), inviteLink)
+		if link == "" {
+			peer, err := c.bot.ResolvePeer(chatID)
+			if err != nil {
+				return errors.New("failed to resolve peer")
+			}
+
+			raw, err = c.bot.MessagesExportChatInvite(&tg.MessagesExportChatInviteParams{
+				Peer:          peer,
+				Title:         "TgMusicBot Assistant",
+				RequestNeeded: false,
+			})
+			if err != nil {
+				logger.Warnf("Failed to export invite link: %v", err)
+				return fmt.Errorf(lang.GetString(langCode, "get_invite_link_fail"), err)
+			}
+
+			exported, ok := raw.(*tg.ChatInviteExported)
+			if !ok || exported.Link == "" {
+				return fmt.Errorf(lang.GetString(langCode, "invalid_invite_link_type"), raw)
+			}
+
+			link = exported.Link
 		}
 
-		link = linkObj.Link
+		if link == "" {
+			logger.Warn("[joinUb] Failed to get or create invite link")
+			return errors.New("failed to get/create invite link")
+		}
+
 		c.UpdateInviteLink(chatID, link)
 	}
 
-	logger.Info("[TelegramCalls - joinUb] The invite link is: %s", link)
-
-	ub := call.App
+	logger.Infof("[joinUb] Using invite link: %s", link)
 	_, err = ub.JoinChannel(link)
 	if err != nil {
-		if strings.Contains(err.Error(), "INVITE_REQUEST_SENT") {
+		errStr := err.Error()
+		userID := ub.Me().ID
+
+		switch {
+		case strings.Contains(errStr, "INVITE_REQUEST_SENT"):
 			peer, err := c.bot.ResolvePeer(chatID)
 			if err != nil {
 				return err
 			}
 
-			user, err := c.bot.ResolvePeer(ub.Me().ID)
+			userPeer, err := c.bot.ResolvePeer(userID)
 			if err != nil {
 				return err
 			}
 
-			var inputUser *tg.InputUserObj
-			if inpUser, ok := user.(*tg.InputPeerUser); !ok {
+			inpUser, ok := userPeer.(*tg.InputPeerUser)
+			if !ok {
 				return errors.New(lang.GetString(langCode, "invalid_user_peer"))
-			} else {
-				inputUser = &tg.InputUserObj{
-					UserID:     inpUser.UserID,
-					AccessHash: inpUser.AccessHash,
-				}
 			}
 
-			_, err = c.bot.MessagesHideChatJoinRequest(true, peer, inputUser)
-			if err != nil {
-				logger.Warn("Failed to hide the chat join request: %v", err)
-				return fmt.Errorf(lang.GetString(langCode, "join_request_already_sent"), ub.Me().ID)
+			inputUser := &tg.InputUserObj{
+				UserID:     inpUser.UserID,
+				AccessHash: inpUser.AccessHash,
+			}
+
+			if _, err := c.bot.MessagesHideChatJoinRequest(true, peer, inputUser); err != nil {
+				logger.Warnf("Failed to hide chat join request: %v", err)
+				return fmt.Errorf(
+					lang.GetString(langCode, "join_request_already_sent"),
+					userID,
+				)
 			}
 
 			return nil
-		}
 
-		if strings.Contains(err.Error(), "USER_ALREADY_PARTICIPANT") {
-			c.UpdateMembership(chatID, ub.Me().ID, tg.Member)
+		case strings.Contains(errStr, "USER_ALREADY_PARTICIPANT"):
+			c.UpdateMembership(chatID, userID, tg.Member)
+			return nil
+
+		case strings.Contains(errStr, "INVITE_HASH_EXPIRED"):
+			return fmt.Errorf(
+				lang.GetString(langCode, "invite_link_expired"),
+				userID,
+			)
+
+		case strings.Contains(errStr, "CHANNEL_PRIVATE"):
+			c.UpdateMembership(chatID, userID, tg.Left)
+			c.UpdateInviteLink(chatID, "")
 			return nil
 		}
 
-		if strings.Contains(err.Error(), "INVITE_HASH_EXPIRED") {
-			return fmt.Errorf(lang.GetString(langCode, "invite_link_expired"), ub.Me().ID)
-		}
-
-		logger.Info("Failed to join the channel: %v", err)
+		logger.Infof("Failed to join channel: %v", err)
 		return err
 	}
 

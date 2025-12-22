@@ -21,158 +21,312 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 )
 
-// Release represents a GitHub release.
+const (
+	destHeader = "src/vc/ntgcalls"
+	destLib    = "src/vc"
+	releaseUrl = "https://api.github.com/repos/pytgcalls/ntgcalls/releases/latest"
+)
+
 type Release struct {
-	TagName string `json:"tag_name"` // TagName is the name of the tag.
+	TagName string `json:"tag_name"`
 	Assets  []struct {
-		Name               string `json:"name"`                 // Name is the name of the asset.
-		BrowserDownloadURL string `json:"browser_download_url"` // BrowserDownloadURL is the URL to download the asset.
+		Name               string `json:"name"`
+		BrowserDownloadURL string `json:"browser_download_url"`
 	} `json:"assets"`
 }
 
-// main is the entry point for the ntgcalls setup script.
-// It downloads and extracts the latest ntgcalls library from GitHub.
 func main() {
-	buildType := "shared"
-	if len(os.Args) > 1 {
-		buildType = os.Args[1]
-	}
-
-	release := getLatestRelease()
-	targetAsset := pickAsset(release, buildType)
-	if targetAsset == "" {
-		fmt.Println("No matching asset found.")
+	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
+		fmt.Println("Usage: go run setup_ntgcalls.go [static|shared]")
+		fmt.Println("  static: Download static library build")
+		fmt.Println("  shared: Download shared library build (default)")
 		return
 	}
 
-	fmt.Println("Downloading:", targetAsset)
-	tmpZip := "ntgcalls.zip"
-	downloadFile(tmpZip, targetAsset)
+	start := time.Now()
+	defer func() {
+		fmt.Printf("\nTime elapsed: %v\n", time.Since(start))
+	}()
 
-	fmt.Println("Extracting...")
-	unzip(tmpZip, "ntgcalls_tmp")
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "\nError: %v\n", err)
+		os.Exit(1)
+	}
 
-	destHeader := "src/vc/ntgcalls"
-	destLib := "src/vc"
-	os.MkdirAll(destHeader, 0755)
-	os.MkdirAll(destLib, 0755)
-
-	filepath.Walk("ntgcalls_tmp", func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return nil
-		}
-		name := filepath.Base(path)
-		switch {
-		case name == "ntgcalls.h":
-			copyFile(path, filepath.Join(destHeader, name))
-		case strings.HasPrefix(name, "libntgcalls.") || strings.HasPrefix(name, "ntgcalls."):
-			copyFile(path, filepath.Join(destLib, name))
-		}
-		return nil
-	})
-
-	fmt.Println("✅ Done!")
-	os.RemoveAll("ntgcalls_tmp")
-	os.Remove(tmpZip)
+	fmt.Println("\nSetup completed successfully!")
 }
 
-// getLatestRelease fetches the latest release information from the ntgcalls GitHub repository.
-// It returns a Release object.
-func getLatestRelease() Release {
-	resp, err := http.Get("https://api.github.com/repos/pytgcalls/ntgcalls/releases/latest")
+func run() error {
+	buildType := "shared"
+	if len(os.Args) > 1 {
+		buildType = os.Args[1]
+		if buildType != "shared" && buildType != "static" {
+			return fmt.Errorf("invalid build type: %s (use 'shared' or 'static')", buildType)
+		}
+	}
+
+	fmt.Printf("Looking for %s/%s %s build...\n", runtime.GOOS, runtime.GOARCH, buildType)
+	release, err := getLatestRelease()
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to get latest release: %w", err)
+	}
+
+	fmt.Printf("Latest release: %s\n", release.TagName)
+	targetAsset := pickAsset(release, buildType)
+	if targetAsset == "" {
+		return fmt.Errorf("no matching asset found for your platform")
+	}
+
+	fmt.Printf("Downloading: %s\n", filepath.Base(targetAsset))
+	tmpZip := "ntgcalls.zip"
+	if err := downloadFile(tmpZip, targetAsset); err != nil {
+		return fmt.Errorf("download failed: %w", err)
+	}
+	defer os.Remove(tmpZip)
+
+	tmpDir := "ntgcalls_tmp"
+	fmt.Println("Extracting...")
+	if err := unzip(tmpZip, tmpDir); err != nil {
+		return fmt.Errorf("extraction failed: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	return organizeFiles(tmpDir)
+}
+
+func getLatestRelease() (Release, error) {
+	var r Release
+
+	resp, err := http.Get(releaseUrl)
+	if err != nil {
+		return r, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
-	var r Release
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		panic(err)
+
+	if resp.StatusCode != http.StatusOK {
+		return r, fmt.Errorf("GitHub API returned: %s", resp.Status)
 	}
-	return r
+
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return r, fmt.Errorf("failed to decode JSON: %w", err)
+	}
+
+	return r, nil
 }
 
-// pickAsset selects the appropriate asset from a release based on the operating system, architecture, and build type.
-// It takes a Release object and a build type as input.
-// It returns the URL of the selected asset.
 func pickAsset(r Release, buildType string) string {
 	goos := runtime.GOOS
 	arch := runtime.GOARCH
 
-	if arch == "amd64" {
-		arch = "x86_64"
+	archMap := map[string]string{
+		"amd64": "x86_64",
+		"arm64": "arm64",
 	}
 
-	search := fmt.Sprintf("ntgcalls.%s-%s-%s_libs.zip", goos, arch, buildType)
+	if mappedArch, ok := archMap[arch]; ok {
+		arch = mappedArch
+	}
 
-	for _, a := range r.Assets {
-		if strings.Contains(a.Name, search) {
-			return a.BrowserDownloadURL
+	osMap := map[string]string{
+		"darwin":  "macos",
+		"windows": "win",
+	}
+	if mappedOS, ok := osMap[goos]; ok {
+		goos = mappedOS
+	}
+
+	pattern := fmt.Sprintf("ntgcalls.%s-%s-%s_libs.zip", goos, arch, buildType)
+	for _, asset := range r.Assets {
+		if strings.Contains(strings.ToLower(asset.Name), strings.ToLower(pattern)) {
+			fmt.Printf("Found: %s\n", asset.Name)
+			return asset.BrowserDownloadURL
 		}
 	}
-	fmt.Println("Search pattern:", search)
+
 	return ""
 }
 
-// downloadFile downloads a file from a URL and saves it to a local file.
-// It takes a filename and a URL as input.
-func downloadFile(filename, url string) {
+func downloadFile(filename, url string) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed with status: %s", resp.Status)
+	}
+
 	out, err := os.Create(filename)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer out.Close()
-	io.Copy(out, resp.Body)
+
+	totalSize := resp.ContentLength
+	writer := &progressWriter{
+		total:   totalSize,
+		prefix:  "   Progress: ",
+		lastPct: -1,
+	}
+
+	_, err = io.Copy(io.MultiWriter(out, writer), resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	if writer.lastPct >= 0 {
+		fmt.Println()
+	}
+
+	return nil
 }
 
-// unzip extracts a zip archive to a destination directory.
-// It takes a source zip file and a destination directory as input.
-func unzip(src, dest string) {
+type progressWriter struct {
+	total   int64
+	written int64
+	prefix  string
+	lastPct int
+}
+
+func (pw *progressWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	pw.written += int64(n)
+
+	if pw.total > 0 {
+		pct := int(float64(pw.written) / float64(pw.total) * 100)
+		if pct != pw.lastPct && pct%10 == 0 {
+			fmt.Printf("\r%s%d%%", pw.prefix, pct)
+			pw.lastPct = pct
+		}
+	}
+
+	return n, nil
+}
+
+func unzip(src, dest string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to open zip: %w", err)
 	}
 	defer r.Close()
+
 	os.MkdirAll(dest, 0755)
 	for _, f := range r.File {
 		fp := filepath.Join(dest, f.Name)
+		if !strings.HasPrefix(fp, filepath.Clean(dest)+string(os.PathSeparator)) {
+			return fmt.Errorf("invalid file path: %s", f.Name)
+		}
+
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(fp, f.Mode())
 			continue
 		}
-		os.MkdirAll(filepath.Dir(fp), 0755)
+
+		if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
+			return fmt.Errorf("failed to create directory: %w", err)
+		}
+
 		rc, err := f.Open()
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("failed to open file in zip: %w", err)
 		}
-		out, err := os.Create(fp)
+
+		out, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 		if err != nil {
-			panic(err)
+			rc.Close()
+			return fmt.Errorf("failed to create file: %w", err)
 		}
-		io.Copy(out, rc)
+
+		_, err = io.Copy(out, rc)
 		rc.Close()
 		out.Close()
+
+		if err != nil {
+			return fmt.Errorf("failed to extract file: %w", err)
+		}
 	}
+
+	return nil
 }
 
-// copyFile copies a file from a source path to a destination path.
-// It takes a source path and a destination path as input.
-func copyFile(src, dst string) {
+func organizeFiles(tmpDir string) error {
+	var filesCopied []string
+	err := filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("walk error: %w", err)
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		name := filepath.Base(path)
+		var dest string
+
+		switch {
+		case name == "ntgcalls.h":
+			dest = filepath.Join(destHeader, name)
+			filesCopied = append(filesCopied, dest)
+
+			if err := copyFile(path, dest); err != nil {
+				return fmt.Errorf("failed to copy header: %w", err)
+			}
+
+		case strings.HasPrefix(name, "libntgcalls.") || strings.HasPrefix(name, "ntgcalls."):
+			dest = filepath.Join(destLib, name)
+			filesCopied = append(filesCopied, dest)
+
+			if err := copyFile(path, dest); err != nil {
+				return fmt.Errorf("failed to copy library: %w", err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if len(filesCopied) == 0 {
+		return fmt.Errorf("no files were copied - check the zip contents")
+	}
+
+	fmt.Println("Files copied:")
+	for _, file := range filesCopied {
+		relPath, _ := filepath.Rel(".", file)
+		fmt.Printf("   ✓ %s\n", relPath)
+	}
+
+	return nil
+}
+
+func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to open source: %w", err)
 	}
 	defer in.Close()
+
 	out, err := os.Create(dst)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to create destination: %w", err)
 	}
 	defer out.Close()
-	io.Copy(out, in)
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return fmt.Errorf("failed to copy data: %w", err)
+	}
+
+	info, err := in.Stat()
+	if err == nil {
+		os.Chmod(dst, info.Mode())
+	}
+
+	return nil
 }

@@ -215,12 +215,12 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 		"-o", outputTemplate,
 	}
 
-	formatSelector := "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio[ext=webm]/bestaudio/best"
 	if video {
-		formatSelector = "bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4][height<=1080]"
-		params = append(params, "--merge-output-format", "mp4")
+		formatSelector := "bestvideo[height<=720]+bestaudio/best[height<=720]"
+		params = append(params, "-f", formatSelector, "--merge-output-format", "mp4")
+	} else {
+		params = append(params, "--extract-audio", "--audio-format", "best")
 	}
-	params = append(params, "-f", formatSelector)
 
 	if cookieFile := y.getCookieFile(); cookieFile != "" {
 		params = append(params, "--cookies", cookieFile)
