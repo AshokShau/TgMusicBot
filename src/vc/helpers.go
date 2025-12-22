@@ -179,13 +179,13 @@ func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Cl
 		if err != nil {
 			return "", nil, err
 		}
-		
+
 		fileName := filepath.Join(config.Conf.DownloadsDir, song.Name)
 		if _, err := os.Stat(fileName); err == nil {
 			return fileName, nil, nil
 		}
 
-		filePath, err := bot.DownloadMedia(file, &telegram.DownloadOptions{FileName: fileName, Ctx: ctx})
+		filePath, err := bot.DownloadMedia(file, &telegram.DownloadOptions{FileName: fileName})
 		return filePath, nil, err
 	}
 
@@ -211,7 +211,12 @@ func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Cl
 			}
 
 			fileName := msg.File.Name
-			download, err := msg.Download(&telegram.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, fileName), Ctx: ctx})
+			file := filepath.Join(config.Conf.DownloadsDir, fileName)
+			//if _, err := os.Stat(file); err == nil {
+			//	return fileName, &trackInfo, nil
+			//}
+
+			download, err := msg.Download(&telegram.DownloadOptions{FileName: file})
 			if err != nil {
 				return "", &trackInfo, fmt.Errorf("failed to download %s: %w", trackInfo.Name, err)
 			}

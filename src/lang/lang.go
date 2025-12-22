@@ -10,7 +10,6 @@ package lang
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,10 +18,10 @@ import (
 
 var translations = make(map[string]map[string]string)
 
-func LoadTranslations() error {
+func LoadTranslations() (int, error) {
 	execPath, err := os.Executable()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	execDir := filepath.Dir(execPath)
 
@@ -30,7 +29,7 @@ func LoadTranslations() error {
 	if _, err := os.Stat(localePath); os.IsNotExist(err) {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return err
+			return 0, err
 		}
 		localePath = filepath.Join(cwd, "locales")
 	}
@@ -39,6 +38,7 @@ func LoadTranslations() error {
 		if err != nil {
 			return err
 		}
+
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".json") {
 			langCode := strings.TrimSuffix(info.Name(), ".json")
 			file, err := os.ReadFile(path)
@@ -50,18 +50,15 @@ func LoadTranslations() error {
 				return err
 			}
 			translations[langCode] = langMap
-			log.Printf("Loaded language: %s", langCode)
 		}
 		return nil
 	})
 
 	if err != nil {
-		log.Printf("Failed to load translations: %v", err)
-		return err
+		return 0, err
 	}
 
-	log.Printf("Loaded %d languages", len(translations))
-	return nil
+	return len(translations), nil
 }
 
 func GetString(langCode, key string) string {

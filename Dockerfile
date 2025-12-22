@@ -28,12 +28,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip && \
     rm -rf /var/lib/apt/lists/*
 
+
 RUN wget -q -O /usr/local/bin/yt-dlp \
       https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux && \
     chmod +x /usr/local/bin/yt-dlp
 
-RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh && \
-    ln -s /usr/local/bin/deno /usr/bin/deno
+
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL="/home/app/.deno" sh
+ENV PATH="/home/app/.deno/bin:${PATH}"
 
 RUN useradd -m -u 1000 app
 

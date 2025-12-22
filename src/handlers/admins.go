@@ -9,6 +9,7 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/vc"
 	"fmt"
 	"time"
 
@@ -51,6 +52,8 @@ func reloadAdminCacheHandler(m *telegram.NewMessage) error {
 	}
 
 	cache.ClearAdminCache(chatID)
+	// cache.ChatCache.ClearChat(chatID)
+	vc.Calls.UpdateInviteLink(chatID, "")
 	admins, err := cache.GetAdmins(m.Client, chatID, true)
 	if err != nil {
 		logger.Warn("Failed to reload the admin cache for chat %d: %v", chatID, err)
