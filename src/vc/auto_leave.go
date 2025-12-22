@@ -29,10 +29,10 @@ func (c *TelegramCalls) StartAutoLeaveService() {
 		time.Sleep(30 * time.Second)
 		
 		if logger != nil {
-			logger.Infof("Starting auto leave service with timeout: %d seconds", config.Conf.AutoLeaveTime)
+			logger.Infof("Starting auto leave service - userbot will leave chats with no queue and no music playing for 10 minutes")
 		}
 		
-		ticker := time.NewTicker(5 * time.Minute) // Check every 5 minutes
+		ticker := time.NewTicker(3 * time.Minute) // Check every 3 minutes
 		defer ticker.Stop()
 
 		for range ticker.C {
@@ -99,16 +99,27 @@ func (c *TelegramCalls) checkInactiveChats() {
 				continue
 			}
 
+			// Check if there's any queue in the chat
+			queueLength := cache.ChatCache.GetQueueLength(chatID)
+			if queueLength > 0 {
+				// There's a queue, don't leave
+				continue
+			}
+
 			// Check last active time
 			lastActive, exists := activeChats[chatID]
 			if !exists {
 				// Never been active, skip
 				continue
-			}			// Calculate inactive duration
+			}
+
+			// Calculate inactive duration (10 minutes = 600 seconds)
 			inactiveDuration := time.Since(lastActive)
-			if inactiveDuration.Seconds() >= float64(config.Conf.AutoLeaveTime) {
+			inactiveThreshold := 10 * time.Minute // 10 menit
+			
+			if inactiveDuration >= inactiveThreshold {
 				if logger != nil {
-					logger.Infof("Leaving inactive chat %d (inactive for %v)", chatID, inactiveDuration)
+					logger.Infof("Leaving inactive chat %d (no queue, no playing music for %v)", chatID, inactiveDuration)
 				}
 
 				err = userBot.LeaveChannel(chatID)
