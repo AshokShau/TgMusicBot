@@ -7,7 +7,10 @@ func (ctx *Context) Stop(chatId int64) error {
 	if err != nil {
 		return err
 	}
-	_, err = ctx.App.PhoneLeaveGroupCall(ctx.inputGroupCalls[chatId], 0)
+	ctx.inputGroupCallsMutex.RLock()
+	inputGroupCall := ctx.inputGroupCalls[chatId]
+	ctx.inputGroupCallsMutex.RUnlock()
+	_, err = ctx.App.PhoneLeaveGroupCall(inputGroupCall, 0)
 	if err != nil {
 		return err
 	}

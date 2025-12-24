@@ -10,7 +10,7 @@ func (ctx *Context) updateSources(chatId int64) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if ctx.callSources[chatId] == nil {
 		ctx.callSources[chatId] = &types.CallSources{
 			CameraSources: make(map[int64]string),
