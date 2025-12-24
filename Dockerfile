@@ -40,8 +40,7 @@ ENV PATH="/home/app/.deno/bin:${PATH}"
 RUN useradd -m -u 1000 app
 
 COPY --from=builder /src/app /app/app
-COPY --from=builder /src/assets /app/assets
-COPY --from=builder /src/locales /app/locales
+COPY --from=builder /src/config /app/config
 
 RUN chmod +x /app/app && \
     chown -R app:app /app
