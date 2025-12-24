@@ -35,7 +35,7 @@ var apiPatterns = map[string]*regexp.Regexp{
 	utils.Spotify:  regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$`),
 	"yt_playlist":  regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)/(?:playlist|watch)\?.*\blist=([\w-]+)`),
 	"yt_music":     regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/(?:watch|playlist)\?.*v=([\w-]+)`),
-	utils.JioSaavn: regexp.MustCompile(`(?i)^(https?://)?(www\.)?jiosaavn\.com/(song|featured)/[\w-]+/[a-zA-Z0-9_-]+$`),
+	utils.JioSaavn: regexp.MustCompile(`(?i)https?:\/\/(?:www\.)?jiosaavn\.com\/(song|album|playlist|featured)\/[^\/]+\/([A-Za-z0-9_]+)`),
 	utils.Deezer:   regexp.MustCompile(`(?i)https?:\/\/(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?(track|album|playlist)\/(\d+)`),
 	utils.SoundCloud: regexp.MustCompile(
 		`(?i)^(https?://)?(www\.)?soundcloud\.com/[a-zA-Z0-9_-]+/(sets/)?[a-zA-Z0-9._-]+(\?.*)?$`,

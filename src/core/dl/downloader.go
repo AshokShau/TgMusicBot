@@ -36,29 +36,6 @@ func DownloadSong(ctx context.Context, cached *utils.CachedTrack, bot *tg.Client
 	return downloadViaWrapper(ctx, cached, bot)
 }
 
-func downloadTelegramFile(cached *utils.CachedTrack, bot *tg.Client) (string, error) {
-	file, err := tg.ResolveBotFileID(cached.TrackID)
-	if err != nil {
-		return "", fmt.Errorf("resolve telegram file id: %w", err)
-	}
-
-	fileName := filepath.Base(cached.Name)
-	dst := filepath.Join(config.Conf.DownloadsDir, fileName)
-
-	if exists(dst) {
-		return dst, nil
-	}
-
-	path, err := bot.DownloadMedia(file, &tg.DownloadOptions{
-		FileName: dst,
-	})
-	if err != nil {
-		return "", fmt.Errorf("telegram download failed: %w", err)
-	}
-
-	return path, nil
-}
-
 func downloadViaWrapper(ctx context.Context, cached *utils.CachedTrack, bot *tg.Client) (string, error) {
 	wrapper := NewDownloaderWrapper(cached.URL)
 	if !wrapper.IsValid() {
@@ -75,14 +52,35 @@ func downloadViaWrapper(ctx context.Context, cached *utils.CachedTrack, bot *tg.
 		return "", err
 	}
 
-	if track.Platform != utils.YouTube {
-		return path, nil
-	}
-	if !utils.TelegramMessageRegex.MatchString(path) {
-		return path, nil
+	if utils.TelegramMessageRegex.MatchString(path) {
+		return downloadFromTelegramMessage(bot, path)
 	}
 
-	return downloadFromTelegramMessage(bot, path)
+	return path, nil
+}
+
+func downloadTelegramFile(cached *utils.CachedTrack, bot *tg.Client) (string, error) {
+	file, err := tg.ResolveBotFileID(cached.TrackID)
+	if err != nil {
+		return "", fmt.Errorf("resolve telegram file id: %w", err)
+	}
+
+	fileName := filepath.Base(cached.Name)
+	dst := filepath.Join(config.Conf.DownloadsDir, fileName)
+
+	if exists(dst) {
+		return dst, nil
+	}
+
+	path, err := bot.DownloadMedia(file, &tg.DownloadOptions{
+		FileName: dst,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("telegram download failed: %w", err)
+	}
+
+	return path, nil
 }
 
 func downloadFromTelegramMessage(bot *tg.Client, msgURL string) (string, error) {

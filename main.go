@@ -61,7 +61,7 @@ func main() {
 
 	err = src.Init(client)
 	if err != nil {
-		log.Fatalf("failed to init: %v", err)
+		panic(err)
 	}
 
 	userName := client.Me().Username
