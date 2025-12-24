@@ -9,13 +9,13 @@
 package db
 
 import (
+	"ashokshau/tgmusic/config"
 	"context"
 	"errors"
 	"log"
 	"sync"
 	"time"
 
-	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core/cache"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -64,7 +64,7 @@ func InitDatabase(ctx context.Context) error {
 		userCache:  cache.NewCache[map[string]interface{}](20 * time.Minute),
 	}
 
-	if err := Instance.Ping(ctx); err != nil {
+	if err := client.Ping(ctx, nil); err != nil {
 		return errors.New("failed to ping database: " + err.Error())
 	}
 
@@ -72,16 +72,7 @@ func InitDatabase(ctx context.Context) error {
 	return nil
 }
 
-// Ping verifies the connection to the MongoDB server.
-// It returns an error if the connection is not active.
-func (db *Database) Ping(ctx context.Context) error {
-	return db.client.Ping(ctx, nil)
-}
-
-// ----------------- CHAT -----------------
-
 // getChat retrieves a chat's data from the cache or database.
-// It returns a map representing the chat data, or nil if not found.
 func (db *Database) getChat(ctx context.Context, chatID int64) (map[string]interface{}, error) {
 	key := toKey(chatID)
 	if cached, ok := db.chatCache.Get(key); ok {
@@ -278,57 +269,6 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		db.chatCache.Delete(toKey(chatID))
 	}
 	return result.ModifiedCount, nil
-}
-
-// SetUserLang sets the language for a given user.
-func (db *Database) SetUserLang(ctx context.Context, userID int64, lang string) error {
-	return db.updateUserField(ctx, userID, "language", lang)
-}
-
-// getUserLang retrieves the language for a user.
-func (db *Database) getUserLang(ctx context.Context, userID int64) string {
-	key := toKey(userID)
-	if cached, ok := db.userCache.Get(key); ok {
-		if val, ok := cached["language"].(string); ok {
-			return val
-		}
-	}
-
-	var user map[string]interface{}
-	err := db.userDB.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
-	if err != nil {
-		return "en"
-	}
-
-	if val, ok := user["language"].(string); ok {
-		return val
-	}
-	return "en"
-}
-
-// SetChatLang sets the language for a given chat.
-func (db *Database) SetChatLang(ctx context.Context, chatID int64, lang string) error {
-	return db.updateChatField(ctx, chatID, "language", lang)
-}
-
-// getChatLang retrieves the language for a chat.
-func (db *Database) getChatLang(ctx context.Context, chatID int64) string {
-	chat, _ := db.getChat(ctx, chatID)
-	if chat == nil {
-		return "en"
-	}
-	if val, ok := chat["language"].(string); ok {
-		return val
-	}
-	return "en"
-}
-
-// GetLang retrieves the language for a chat or user.
-func (db *Database) GetLang(ctx context.Context, chatID int64) string {
-	if chatID > 0 {
-		return db.getUserLang(ctx, chatID)
-	}
-	return db.getChatLang(ctx, chatID)
 }
 
 // GetRtmpUrl retrieves the rtmp_url for a chat.

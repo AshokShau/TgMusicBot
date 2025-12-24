@@ -9,10 +9,9 @@
 package dl
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/utils"
 	"context"
-
-	"ashokshau/tgmusic/src/config"
-	"ashokshau/tgmusic/src/core/cache"
 )
 
 // MusicService defines a standard interface for interacting with various music services.
@@ -21,24 +20,22 @@ type MusicService interface {
 	// IsValid determines if the service can handle the given query.
 	IsValid() bool
 	// GetInfo retrieves metadata for a track or playlist.
-	GetInfo(ctx context.Context) (cache.PlatformTracks, error)
+	GetInfo(ctx context.Context) (utils.PlatformTracks, error)
 	// Search queries the service for a track.
-	Search(ctx context.Context) (cache.PlatformTracks, error)
+	Search(ctx context.Context) (utils.PlatformTracks, error)
 	// GetTrack fetches detailed information for a single track.
-	GetTrack(ctx context.Context) (cache.TrackInfo, error)
+	GetTrack(ctx context.Context) (utils.TrackInfo, error)
 	// downloadTrack handles the download of a track.
-	downloadTrack(ctx context.Context, trackInfo cache.TrackInfo, video bool) (string, error)
+	downloadTrack(ctx context.Context, trackInfo utils.TrackInfo, video bool) (string, error)
 }
 
 // DownloaderWrapper provides a unified interface for music service interactions,
-// wrapping a specific MusicService implementation and delegating calls to it.
 type DownloaderWrapper struct {
 	Query   string
 	Service MusicService
 }
 
 // NewDownloaderWrapper selects the appropriate MusicService based on the query format or configuration defaults.
-// It returns a new DownloaderWrapper configured with the chosen service.
 func NewDownloaderWrapper(query string) *DownloaderWrapper {
 	yt := NewYouTubeData(query)
 	api := NewApiData(query)
@@ -71,22 +68,22 @@ func (d *DownloaderWrapper) IsValid() bool {
 }
 
 // GetInfo retrieves metadata by delegating the call to the wrapped service.
-func (d *DownloaderWrapper) GetInfo(ctx context.Context) (cache.PlatformTracks, error) {
+func (d *DownloaderWrapper) GetInfo(ctx context.Context) (utils.PlatformTracks, error) {
 	return d.Service.GetInfo(ctx)
 }
 
 // Search performs a search by delegating the call to the wrapped service.
-func (d *DownloaderWrapper) Search(ctx context.Context) (cache.PlatformTracks, error) {
+func (d *DownloaderWrapper) Search(ctx context.Context) (utils.PlatformTracks, error) {
 	return d.Service.Search(ctx)
 }
 
 // GetTrack retrieves detailed track information by delegating the call to the wrapped service.
-func (d *DownloaderWrapper) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
+func (d *DownloaderWrapper) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
 	return d.Service.GetTrack(ctx)
 }
 
 // DownloadTrack downloads a track by delegating the call to the wrapped service.
 // It returns the file path of the downloaded track or an error if the download fails.
-func (d *DownloaderWrapper) DownloadTrack(ctx context.Context, info cache.TrackInfo, video bool) (string, error) {
+func (d *DownloaderWrapper) DownloadTrack(ctx context.Context, info utils.TrackInfo, video bool) (string, error) {
 	return d.Service.downloadTrack(ctx, info, video)
 }

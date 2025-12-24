@@ -3,7 +3,6 @@ package ntgcalls
 //#include "ntgcalls.h"
 //#include <stdlib.h>
 import "C"
-import "unsafe"
 
 type VideoDescription struct {
 	MediaSource   MediaSource
@@ -13,7 +12,7 @@ type VideoDescription struct {
 	KeepOpen      bool
 }
 
-func (ctx *VideoDescription) ParseToC() (C.ntg_video_description_struct, func()) {
+func (ctx *VideoDescription) ParseToC() C.ntg_video_description_struct {
 	var x C.ntg_video_description_struct
 	x.mediaSource = ctx.MediaSource.ParseToC()
 	x.input = C.CString(ctx.Input)
@@ -21,7 +20,5 @@ func (ctx *VideoDescription) ParseToC() (C.ntg_video_description_struct, func())
 	x.height = C.int16_t(ctx.Height)
 	x.fps = C.uint8_t(ctx.Fps)
 	x.keepOpen = C.bool(ctx.KeepOpen)
-	return x, func() {
-		C.free(unsafe.Pointer(x.input))
-	}
+	return x
 }

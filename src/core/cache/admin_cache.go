@@ -19,7 +19,6 @@ import (
 var AdminCache = NewCache[[]*telegram.Participant](time.Hour)
 
 // GetChatAdmins retrieves the list of admin IDs for a given chat from the cache.
-// It takes a chat ID and returns a slice of admin IDs, or an error if the admins are not found in the cache.
 func GetChatAdmins(chatID int64) ([]int64, error) {
 	cacheKey := fmt.Sprintf("admins:%d", chatID)
 	if admins, ok := AdminCache.Get(cacheKey); ok {
@@ -33,8 +32,6 @@ func GetChatAdmins(chatID int64) ([]int64, error) {
 }
 
 // GetAdmins fetches a list of administrators from the cache or, if not present, from the Telegram API.
-// It accepts a Telegram client, a chat ID, and a boolean to force a reload from the API, bypassing the cache.
-// It returns a slice of telegram.Participant objects and any error encountered.
 func GetAdmins(client *telegram.Client, chatID int64, forceReload bool) ([]*telegram.Participant, error) {
 	cacheKey := fmt.Sprintf("admins:%d", chatID)
 	if !forceReload {
@@ -59,15 +56,12 @@ func GetAdmins(client *telegram.Client, chatID int64, forceReload bool) ([]*tele
 }
 
 // GetUserAdmin retrieves the participant information for a single administrator in a chat.
-// It accepts a Telegram client, a chat ID, a user ID, and a boolean to force a reload from the API.
-// It returns a telegram.Participant object or an error if the user is not an admin.
 func GetUserAdmin(client *telegram.Client, chatID, userID int64, forceReload bool) (*telegram.Participant, error) {
 	admins, err := GetAdmins(client, chatID, forceReload)
 	if err != nil {
 		client.Logger.Warn("GetUserAdmin error: %v", err)
-		// Cache a negative result for a short period to avoid repeated failed lookups.
 		cacheKey := fmt.Sprintf("admins:%d", chatID)
-		AdminCache.SetWithTTL(cacheKey, []*telegram.Participant{}, 20*time.Minute)
+		AdminCache.SetWithTTL(cacheKey, []*telegram.Participant{}, 10*time.Minute)
 		return nil, err
 	}
 
@@ -81,7 +75,6 @@ func GetUserAdmin(client *telegram.Client, chatID, userID int64, forceReload boo
 }
 
 // ClearAdminCache removes cached administrator lists.
-// If the chatID is 0, it clears the entire admin cache. Otherwise, it clears the cache for a specific chat.
 func ClearAdminCache(chatID int64) {
 	if chatID == 0 {
 		AdminCache.Clear()

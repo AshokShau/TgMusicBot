@@ -10,7 +10,7 @@ func (ctx *Context) updateSources(chatId int64) error {
 	if err != nil {
 		return err
 	}
-	ctx.participantsMutex.Lock()
+	
 	if ctx.callSources[chatId] == nil {
 		ctx.callSources[chatId] = &types.CallSources{
 			CameraSources: make(map[int64]string),
@@ -19,28 +19,26 @@ func (ctx *Context) updateSources(chatId int64) error {
 	}
 	for _, participant := range participants {
 		participantId := getParticipantId(participant.Peer)
+
 		if participant.Video != nil && ctx.callSources[chatId].CameraSources[participantId] == "" {
 			ctx.callSources[chatId].CameraSources[participantId] = participant.Video.Endpoint
-			ctx.participantsMutex.Unlock()
 			_, err = ctx.binding.AddIncomingVideo(chatId, participant.Video.Endpoint, parseVideoSources(participant.Video.SourceGroups))
 			if err != nil {
 				return err
 			}
-			ctx.participantsMutex.Lock()
 		}
+
 		if participant.Presentation != nil && ctx.callSources[chatId].ScreenSources[participantId] == "" {
 			ctx.callSources[chatId].ScreenSources[participantId] = participant.Presentation.Endpoint
-			ctx.participantsMutex.Unlock()
 			_, err = ctx.binding.AddIncomingVideo(chatId, participant.Presentation.Endpoint, parseVideoSources(participant.Presentation.SourceGroups))
 			if err != nil {
 				return err
 			}
-			ctx.participantsMutex.Lock()
 		}
+
 		if participantId == ctx.self.ID && !participant.CanSelfUnmute && !slices.Contains(ctx.mutedByAdmin, chatId) {
 			ctx.mutedByAdmin = append(ctx.mutedByAdmin, chatId)
 		}
 	}
-	ctx.participantsMutex.Unlock()
 	return nil
 }

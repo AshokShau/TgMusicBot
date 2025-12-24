@@ -10,6 +10,7 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/src/core/db"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -40,7 +41,7 @@ func broadcastHandler(m *tg.NewMessage) error {
 	broadcastInProgress.Store(true)
 	defer broadcastInProgress.Store(false)
 
-	ctx, cancel := db.Ctx()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	reply, err := m.GetReplyMessage()
@@ -135,9 +136,12 @@ func broadcastHandler(m *tg.NewMessage) error {
 			}
 
 			for {
-				_, errSend := reply.ForwardTo(id, &tg.ForwardOptions{
-					HideAuthor: copyMode,
-				})
+				var errSend error
+				if copyMode {
+					_, errSend = m.Client.SendMessage(m.ChatID(), reply)
+				} else {
+					_, errSend = reply.ForwardTo(id, &tg.ForwardOptions{HideAuthor: copyMode})
+				}
 
 				if errSend == nil {
 					atomic.AddInt32(&success, 1)

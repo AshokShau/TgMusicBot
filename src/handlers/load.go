@@ -26,7 +26,6 @@ func LoadModules(c *tg.Client) {
 	c.On("command:ping", pingHandler)
 	c.On("command:start", startHandler)
 	c.On("command:help", startHandler)
-	c.On("command:lang", langHandler)
 	c.On("command:reload", reloadAdminCacheHandler)
 	c.On("command:privacy", privacyHandler)
 	c.On("command:setRtmp ", setRtmpHandler)
@@ -66,6 +65,7 @@ func LoadModules(c *tg.Client) {
 	c.On("command:broadcast", broadcastHandler, tg.Custom(isDev))
 	c.On("command:gCast", broadcastHandler, tg.Custom(isDev))
 	c.On("command:cancelBroadcast", cancelBroadcastHandler, tg.Custom(isDev))
+	c.On("command:sh", shellCommand, tg.Custom(isDev))
 
 	c.On("command:settings", settingsHandler, tg.Custom(adminMode))
 
@@ -86,7 +86,6 @@ func LoadModules(c *tg.Client) {
 	c.On("callback:vcplay_\\w+", vcPlayHandler)
 	c.On("callback:help_\\w+", helpCallbackHandler)
 	c.On("callback:settings_\\w+", settingsCallbackHandler)
-	c.On("callback:setlang_\\w+", setLangCallbackHandler)
 
 	c.AddParticipantHandler(handleParticipant)
 	c.AddActionHandler(handleVoiceChatMessage)

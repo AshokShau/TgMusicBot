@@ -6,7 +6,7 @@
  *  See https://github.com/AshokShau/TgMusicBot
  */
 
-package cache
+package utils
 
 // CachedTrack defines the structure for a track that is stored in the queue.
 // It includes metadata such as the track's URL, name, duration, and the user who requested it.
@@ -27,30 +27,24 @@ type CachedTrack struct {
 
 // TrackInfo holds detailed information about a specific track, including its CDN URL, cover art, and lyrics.
 type TrackInfo struct {
+	Id       string `json:"id"`
 	URL      string `json:"url"`
 	CdnURL   string `json:"cdnurl"`
 	Key      string `json:"key"`
-	Name     string `json:"name"`
-	TC       string `json:"tc"`
-	Cover    string `json:"cover"`
-	Duration int    `json:"duration"`
-	Lyrics   string `json:"lyrics"`
-	Channel  string `json:"channel"`
-	Views    string `json:"views"`
 	Platform string `json:"platform"`
 }
 
 // MusicTrack represents a single music track returned from a search query.
 // It contains essential details like the track's name, ID, and cover art URL.
 type MusicTrack struct {
-	URL      string `json:"url"`
-	Name     string `json:"name"`
-	ID       string `json:"id"`
-	Cover    string `json:"cover"`
-	Duration int    `json:"duration"`
-	Channel  string `json:"channel"`
-	Views    string `json:"views"`
-	Platform string `json:"platform"`
+	Title     string `json:"title"`
+	Id        string `json:"id"`
+	Url       string `json:"url"`
+	Thumbnail string `json:"thumbnail"`
+	Duration  int    `json:"duration"`
+	Channel   string `json:"channel"`
+	Views     string `json:"views"`
+	Platform  string `json:"platform"`
 }
 
 // PlatformTracks is a collection of music tracks, typically returned from a search operation.
@@ -65,6 +59,7 @@ const (
 	JioSaavn   = "jiosaavn"
 	Apple      = "apple_music"
 	SoundCloud = "soundcloud"
+	Deezer     = "Deezer"
 	DirectLink = "direct_link"
 )
 

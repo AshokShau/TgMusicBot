@@ -9,17 +9,16 @@
 package handlers
 
 import (
-	"ashokshau/tgmusic/src/config"
+	"ashokshau/tgmusic/config"
+	"fmt"
+
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
-	"fmt"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// Constants for participant status and log messages
 const (
 	StatusCreator    = telegram.Creator
 	StatusAdmin      = telegram.Admin
@@ -222,16 +221,12 @@ func handleLeave(client *telegram.Client, chatID, userID, ubID int64) error {
 // handleBan handles user/bot/assistant being banned from chat
 func handleBan(client *telegram.Client, chatID, userID, ubID int64) error {
 	logger.Debugf("User %d was banned from chat %d", userID, chatID)
-	ctx, cancel := db.Ctx()
-	defer cancel()
-
-	langCode := db.Instance.GetLang(ctx, chatID)
 
 	if userID == ubID {
 		logger.Warnf("Assistant banned from chat %d. Performing cleanup...", chatID)
 		cache.ChatCache.ClearChat(chatID)
 
-		message := fmt.Sprintf(lang.GetString(langCode, "watcher_assistant_banned"), ubID)
+		message := fmt.Sprintf("🚫 My assistant has been banned from this chat.\n\nAll ongoing music playback and related data have been stopped and cleared.\n\nIf this was a mistake, please unban <code>%d</code> to continue using the music features. 🎶", ubID)
 		_, err := client.SendMessage(chatID, message)
 		if err != nil {
 			logger.Errorf("Failed to send assistant ban notification: %v", err)

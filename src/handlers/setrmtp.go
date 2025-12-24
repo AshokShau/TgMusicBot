@@ -3,7 +3,6 @@ package handlers
 import (
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 	"fmt"
 	"io"
 	"os/exec"
@@ -48,33 +47,31 @@ func streamHandler(m *telegram.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
-	langCode := db.Instance.GetLang(ctx, chatID)
-
 	rtmpURL, _ := db.Instance.GetRtmpUrl(ctx, chatID)
 	if rtmpURL == "" || !isValidRTMP(rtmpURL) {
-		_, _ = m.Reply(lang.GetString(langCode, "rtmp_missing"))
+		_, _ = m.Reply("⚠ RTMP not configured. Use /setrtmp chat_id rtmp://server/key")
 		return telegram.ErrEndGroup
 	}
 
 	if streamExists(chatID) {
-		_, _ = m.Reply(lang.GetString(langCode, "stream_exists"))
+		_, _ = m.Reply("⚠ A stream is already running in this chat.")
 		return telegram.ErrEndGroup
 	}
 
 	rMsg := resolveMediaInput(m)
 	if rMsg == nil || !isValidMedia(rMsg) {
-		_, _ = m.Reply(lang.GetString(langCode, "play_invalid"))
+		_, _ = m.Reply("❌ Reply to a valid audio/video or send Telegram media link.")
 		return telegram.ErrEndGroup
 	}
 
-	statusMsg, _ := m.Reply(lang.GetString(langCode, "stream_preparing"))
+	statusMsg, _ := m.Reply("⏳ Preparing stream...")
 	if err := startStream(rMsg, rtmpURL, m.SenderID(), chatID); err != nil {
-		_, _ = statusMsg.Edit(fmt.Sprintf(lang.GetString(langCode, "stream_failed"), err))
+		_, _ = statusMsg.Edit(fmt.Sprintf("❌ Failed: %v", err))
 		return telegram.ErrEndGroup
 	}
 
 	_, _ = statusMsg.Edit(fmt.Sprintf(
-		lang.GetString(langCode, "stream_started"),
+		"🔴 <b>Live Stream Started</b>\n📂 <b>%s</b>\n\nUse <code>/stopstream</code> to stop.",
 		rMsg.File.Name,
 	))
 
@@ -215,40 +212,38 @@ func setRtmpHandler(m *telegram.NewMessage) error {
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
-	langCode := db.Instance.GetLang(ctx, m.ChannelID())
-
 	if !m.IsPrivate() {
-		_, _ = m.Reply(lang.GetString(langCode, "setrtmp_private_only"))
+		_, _ = m.Reply("❌ This command can only be used in private chat.")
 		return telegram.ErrEndGroup
 	}
 
 	args := strings.Fields(m.Args())
 	if len(args) != 2 {
-		_, _ = m.Reply(lang.GetString(langCode, "setrtmp_usage"))
+		_, _ = m.Reply("❌ <b>Usage:</b> /setrtmp [chat_id] [rtmp_url]")
 		return telegram.ErrEndGroup
 	}
 
 	chatID, err := strconv.ParseInt(args[0], 10, 64)
 	if err != nil || !strings.HasPrefix(args[0], "-100") {
-		_, _ = m.Reply(lang.GetString(langCode, "setrtmp_invalid_chat_id"))
+		_, _ = m.Reply("❌ Invalid chat ID. Chat ID should start with -100.")
 		return telegram.ErrEndGroup
 	}
 
 	rtmpURL := args[1]
 	if !isValidRTMP(rtmpURL) {
-		_, _ = m.Reply(lang.GetString(langCode, "setrtmp_invalid_url"))
+		_, _ = m.Reply("❌ Invalid RTMP URL.")
 		return telegram.ErrEndGroup
 	}
 
 	client := m.Client
 
 	if bot, err := cache.GetUserAdmin(client, chatID, client.Me().ID, false); err != nil || !bot.Rights.ManageCall {
-		_, _ = m.Reply(lang.GetString(langCode, "setrtmp_bot_not_admin"))
+		_, _ = m.Reply("❌ I need to be an admin in that chat with 'Manage Video Chats' permission.")
 		return telegram.ErrEndGroup
 	}
 
 	if user, err := cache.GetUserAdmin(client, chatID, m.SenderID(), false); err != nil || user.Rights == nil || !user.Rights.ManageCall {
-		_, _ = m.Reply(lang.GetString(langCode, "setrtmp_user_not_admin"))
+		_, _ = m.Reply("❌ You must be an admin in that chat with 'Manage Video Chats' permission to use this command.")
 		return telegram.ErrEndGroup
 	}
 
@@ -257,6 +252,6 @@ func setRtmpHandler(m *telegram.NewMessage) error {
 		return telegram.ErrEndGroup
 	}
 
-	_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "setrtmp_success"), chatID))
+	_, _ = m.Reply(fmt.Sprintf("✅ RTMP URL has been successfully set for chat <code>%d</code>.", chatID))
 	return telegram.ErrEndGroup
 }

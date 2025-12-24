@@ -9,12 +9,12 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/utils"
 	"strings"
 
-	"ashokshau/tgmusic/src/config"
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -44,53 +44,52 @@ func adminMode(m *telegram.NewMessage) bool {
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
 	botStatus, err := cache.GetUserAdmin(m.Client, chatID, m.Client.Me().ID, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an admin in chat") {
-			_, _ = m.Reply(lang.GetString(langCode, "filter_bot_not_admin"))
+			_, _ = m.Reply("❌ bot is not admin in this chat.\nPlease promote me with Invite Users permission.")
 			return false
 		}
 
 		logger.Warn("GetUserAdmin error: %v", err)
-		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_admin_status_failed"))
+		_, _ = m.Reply("⚠️ Failed to get bot admin status (cache or fetch failed).")
 		return false
 	}
 
 	if botStatus.Status != telegram.Admin && botStatus.Status != telegram.Creator {
-		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_not_admin_reload"))
+		_, _ = m.Reply("❌ bot is not admin in this chat.\nUse /reload to refresh admin cache.")
 		return false
 	}
 
 	if botStatus.Rights != nil && !botStatus.Rights.InviteUsers {
-		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_no_invite_permission"))
+		_, _ = m.Reply("⚠️ bot doesn’t have permission to invite users.")
 		return false
 	}
 	userID := m.SenderID()
 
 	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
-	if getAdminMode == cache.Everyone {
+	if getAdminMode == utils.Everyone {
 		return true
 	}
 
-	if getAdminMode == cache.Admins {
+	if getAdminMode == utils.Admins {
 		if db.Instance.IsAdmin(ctx, chatID, userID) {
 			return true
 		}
-		_, _ = m.Reply(lang.GetString(langCode, "filter_not_admin"))
+		_, _ = m.Reply("❌ You are not an admin in this chat.")
 		return false
 	}
 
-	if getAdminMode == cache.Auth {
+	if getAdminMode == utils.Auth {
 		if db.Instance.IsAuthUser(ctx, chatID, userID) {
 			return true
 		}
-		_, _ = m.Reply(lang.GetString(langCode, "filter_not_authorized"))
+		_, _ = m.Reply("❌ You are not an authorized user in this chat.")
 		return false
 	}
 
-	_, _ = m.Reply(lang.GetString(langCode, "filter_not_authorized"))
+	_, _ = m.Reply("❌ You are not an authorized user in this chat.")
 	return false
 }
 
@@ -98,55 +97,54 @@ func adminModeCB(cb *telegram.CallbackQuery) bool {
 	chatID := cb.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
 	botStatus, err := cache.GetUserAdmin(cb.Client, chatID, cb.Client.Me().ID, false)
 	opts := &telegram.CallbackOptions{Alert: true}
 
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an admin in chat") {
-			_, _ = cb.Answer(lang.GetString(langCode, "filter_bot_not_admin"), opts)
+			_, _ = cb.Answer("❌ bot is not admin in this chat.\nPlease promote me with Invite Users permission.", opts)
 			return false
 		}
 
 		logger.Warn("GetUserAdmin error: %v", err)
-		_, _ = cb.Answer(lang.GetString(langCode, "filter_bot_admin_status_failed"), opts)
+		_, _ = cb.Answer("⚠️ Failed to get bot admin status (cache or fetch failed).", opts)
 		return false
 	}
 
 	if botStatus.Status != telegram.Admin && botStatus.Status != telegram.Creator {
-		_, _ = cb.Answer(lang.GetString(langCode, "filter_bot_not_admin_reload"), opts)
+		_, _ = cb.Answer("❌ bot is not admin in this chat.\nUse /reload to refresh admin cache.", opts)
 		return false
 	}
 
 	if botStatus.Rights != nil && !botStatus.Rights.InviteUsers {
-		_, _ = cb.Answer(lang.GetString(langCode, "filter_bot_no_invite_permission"), opts)
+		_, _ = cb.Answer("⚠️ bot doesn’t have permission to invite users.", opts)
 		return false
 	}
 	userID := cb.SenderID
 
 	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
-	if getAdminMode == cache.Everyone {
+	if getAdminMode == utils.Everyone {
 		return true
 	}
 
-	if getAdminMode == cache.Admins {
+	if getAdminMode == utils.Admins {
 		if db.Instance.IsAdmin(ctx, chatID, userID) {
 			return true
 		}
-		_, _ = cb.Answer(lang.GetString(langCode, "filter_not_admin"), opts)
+		_, _ = cb.Answer("❌ You are not an admin in this chat.", opts)
 		return false
 	}
 
-	if getAdminMode == cache.Auth {
+	if getAdminMode == utils.Auth {
 		if db.Instance.IsAuthUser(ctx, chatID, userID) {
 			return true
 		}
-		_, _ = cb.Answer(lang.GetString(langCode, "filter_not_authorized"), opts)
+		_, _ = cb.Answer("❌ You are not an authorized user in this chat.", opts)
 		return false
 	}
 
-	_, _ = cb.Answer(lang.GetString(langCode, "filter_not_authorized"), opts)
+	_, _ = cb.Answer("❌ You are not an authorized user in this chat.", opts)
 	return false
 }
 
@@ -158,31 +156,31 @@ func playMode(m *telegram.NewMessage) bool {
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
+
 	botStatus, err := cache.GetUserAdmin(m.Client, chatID, m.Client.Me().ID, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an admin in chat") {
-			_, _ = m.Reply(lang.GetString(langCode, "filter_bot_not_admin"))
+			_, _ = m.Reply("❌ bot is not admin in this chat.\nPlease promote me with Invite Users permission.")
 			return false
 		}
 
 		logger.Warn("GetUserAdmin error: %v", err)
-		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_admin_status_failed"))
+		_, _ = m.Reply("⚠️ Failed to get bot admin status (cache or fetch failed).")
 		return false
 	}
 
 	if botStatus.Status != telegram.Admin && botStatus.Status != telegram.Creator {
-		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_not_admin_reload"))
+		_, _ = m.Reply("❌ bot is not admin in this chat.\nUse /reload to refresh admin cache.")
 		return false
 	}
 
 	if botStatus.Rights != nil && !botStatus.Rights.InviteUsers {
-		_, _ = m.Reply(lang.GetString(langCode, "filter_bot_no_invite_permission"))
+		_, _ = m.Reply("⚠️ bot doesn’t have permission to invite users.")
 		return false
 	}
 
 	getPlayMode := db.Instance.GetPlayMode(ctx, chatID)
-	if getPlayMode != cache.Everyone {
+	if getPlayMode != utils.Everyone {
 		admins, err := cache.GetAdmins(m.Client, chatID, false)
 		if err != nil {
 			logger.Warn("getAdmins error: %v", err)
@@ -198,13 +196,13 @@ func playMode(m *telegram.NewMessage) bool {
 		}
 
 		if !isAdmin {
-			if getPlayMode == cache.Auth {
+			if getPlayMode == utils.Auth {
 				if !db.Instance.IsAuthUser(ctx, chatID, m.Sender.ID) {
-					_, _ = m.Reply(lang.GetString(langCode, "filter_not_authorized_command"))
+					_, _ = m.Reply("You are not authorized to use this command.")
 					return false
 				}
 			} else {
-				_, _ = m.Reply(lang.GetString(langCode, "filter_not_authorized_command"))
+				_, _ = m.Reply("You are not authorized to use this command.")
 				return false
 			}
 		}

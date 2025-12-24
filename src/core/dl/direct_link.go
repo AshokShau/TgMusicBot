@@ -9,6 +9,7 @@
 package dl
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,8 +18,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-
-	"ashokshau/tgmusic/src/core/cache"
 )
 
 type DirectLink struct {
@@ -34,9 +33,9 @@ func (d *DirectLink) IsValid() bool {
 	return strings.HasPrefix(d.Query, "http://") || strings.HasPrefix(d.Query, "https://")
 }
 
-func (d *DirectLink) GetInfo(ctx context.Context) (cache.PlatformTracks, error) {
+func (d *DirectLink) GetInfo(ctx context.Context) (utils.PlatformTracks, error) {
 	if !d.IsValid() {
-		return cache.PlatformTracks{}, errors.New("invalid url")
+		return utils.PlatformTracks{}, errors.New("invalid url")
 	}
 
 	cmd := exec.CommandContext(ctx, "ffprobe",
@@ -48,12 +47,12 @@ func (d *DirectLink) GetInfo(ctx context.Context) (cache.PlatformTracks, error) 
 
 	output, err := cmd.Output()
 	if err != nil {
-		return cache.PlatformTracks{}, fmt.Errorf("invalid or unplayable link: %w", err)
+		return utils.PlatformTracks{}, fmt.Errorf("invalid or unplayable link: %w", err)
 	}
 
-	var info cache.FFProbeFormat
+	var info utils.FFProbeFormat
 	if err = json.Unmarshal(output, &info); err != nil {
-		return cache.PlatformTracks{}, fmt.Errorf("failed to parse ffprobe output: %w", err)
+		return utils.PlatformTracks{}, fmt.Errorf("failed to parse ffprobe output: %w", err)
 	}
 
 	duration := 0
@@ -82,41 +81,38 @@ func (d *DirectLink) GetInfo(ctx context.Context) (cache.PlatformTracks, error) 
 		title = title[:maxTitleLength-3] + "..."
 	}
 
-	track := cache.MusicTrack{
-		Name:     title,
+	track := utils.MusicTrack{
+		Title:    title,
 		Duration: duration,
-		URL:      d.Query,
-		ID:       d.Query,
-		Platform: cache.DirectLink,
+		Url:      d.Query,
+		Id:       d.Query,
+		Platform: utils.DirectLink,
 	}
 
-	return cache.PlatformTracks{Results: []cache.MusicTrack{track}}, nil
+	return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
 }
 
-func (d *DirectLink) Search(ctx context.Context) (cache.PlatformTracks, error) {
+func (d *DirectLink) Search(ctx context.Context) (utils.PlatformTracks, error) {
 	return d.GetInfo(ctx)
 }
 
-func (d *DirectLink) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
+func (d *DirectLink) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
 	info, err := d.GetInfo(ctx)
 	if err != nil {
-		return cache.TrackInfo{}, err
-	}
-	if len(info.Results) == 0 {
-		return cache.TrackInfo{}, errors.New("no track found")
+		return utils.TrackInfo{}, err
 	}
 
-	t := info.Results[0]
-	return cache.TrackInfo{
+	if len(info.Results) == 0 {
+		return utils.TrackInfo{}, errors.New("no track found")
+	}
+
+	return utils.TrackInfo{
 		URL:      d.Query,
-		Name:     t.Name,
-		Duration: t.Duration,
-		Platform: cache.DirectLink,
+		Platform: utils.DirectLink,
 		CdnURL:   d.Query,
-		TC:       d.Query,
 	}, nil
 }
 
-func (d *DirectLink) downloadTrack(_ context.Context, _ cache.TrackInfo, _ bool) (string, error) {
+func (d *DirectLink) downloadTrack(_ context.Context, _ utils.TrackInfo, _ bool) (string, error) {
 	return d.Query, nil
 }

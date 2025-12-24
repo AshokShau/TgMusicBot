@@ -9,6 +9,7 @@
 package dl
 
 import (
+	"ashokshau/tgmusic/config"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -24,8 +25,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"ashokshau/tgmusic/src/config"
 )
 
 const (
@@ -46,8 +45,6 @@ var client = &http.Client{
 }
 
 // sendRequest performs an HTTP request with a given context, method, URL, body, and headers.
-// It includes retry logic with exponential backoff for temporary network errors and server-side issues.
-// It returns an HTTP response or an error if the request fails after all retries.
 func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, headers map[string]string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
 	if err != nil {
@@ -97,7 +94,6 @@ func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, he
 }
 
 // isTemporaryError determines if an error is temporary and thus worth retrying.
-// It returns true for network timeouts and temporary operational errors.
 func isTemporaryError(err error) bool {
 	var netErr net.Error
 	if errors.As(err, &netErr) {
@@ -107,15 +103,12 @@ func isTemporaryError(err error) bool {
 }
 
 // generateUniqueName creates a pseudo-random filename using a combination of the current timestamp and a random number.
-// It takes a file extension and returns a unique filename.
 func generateUniqueName(ext string) string {
 	n, _ := rand.Int(rand.Reader, big.NewInt(99999))
 	return fmt.Sprintf("%d_%05d%s", time.Now().UnixNano(), n.Int64(), ext)
 }
 
 // determineFilename safely determines a valid filename for a download.
-// It prioritizes the Content-Disposition header, falls back to the URL path, and generates a unique name if neither is available.
-// It returns a secure and sanitized filename.
 func determineFilename(urlStr, contentDisp string) string {
 	if filename := extractFilename(contentDisp); filename != "" {
 		return filepath.Join(config.Conf.DownloadsDir, sanitizeFilename(filename))
@@ -132,7 +125,6 @@ func determineFilename(urlStr, contentDisp string) string {
 }
 
 // writeToFile writes data from an io.Reader to a specified file.
-// It returns an error if file creation or writing fails.
 func writeToFile(filename string, data io.Reader) error {
 	out, err := os.Create(filename)
 	if err != nil {
@@ -150,8 +142,6 @@ func writeToFile(filename string, data io.Reader) error {
 }
 
 // DownloadFile downloads a file from a URL and saves it to a local path.
-// It supports overwriting existing files and determines the filename automatically if not provided.
-// It returns the final file path or an error if the download fails.
 func DownloadFile(ctx context.Context, urlStr, fileName string, overwrite bool) (string, error) {
 	if urlStr == "" {
 		return "", errors.New("an empty URL was provided")

@@ -10,8 +10,6 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -20,11 +18,8 @@ import (
 // skipHandler handles the /skip command.
 func skipHandler(m *telegram.NewMessage) error {
 	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply(lang.GetString(langCode, "no_track_playing"))
+		_, _ = m.Reply("⏸ No track currently playing.")
 		return nil
 	}
 

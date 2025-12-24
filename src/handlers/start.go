@@ -15,7 +15,6 @@ import (
 
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -66,11 +65,7 @@ func startHandler(m *telegram.NewMessage) error {
 		}(chatID)
 	}
 
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
-
-	response := fmt.Sprintf(lang.GetString(langCode, "start_text"), m.Sender.FirstName, bot.FirstName)
+	response := fmt.Sprintf("ʜᴇʏ %s;\n\n◎ ᴛʜɪꜱ ɪꜱ %s!\n➻ ᴀ ꜰᴀꜱᴛ & ᴘᴏᴡᴇʀꜰᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜꜱɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ.\n\nꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ, ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.\n\n---\n◎ ᴄʟɪᴄᴋ ᴏɴ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ꜰᴏʀ ɪɴꜰᴏ.", m.Sender.FirstName, bot.FirstName)
 	_, err := m.Reply(response, &telegram.SendOptions{
 		ReplyMarkup: core.AddMeMarkup(m.Client.Me().Username),
 	})

@@ -9,15 +9,14 @@
 package main
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src"
 	"log"
 	"time"
 
 	"net/http"
 	_ "net/http/pprof"
 
-	"ashokshau/tgmusic/src"
-	"ashokshau/tgmusic/src/config"
-	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -26,7 +25,6 @@ import (
 //go:generate go run setup_ntgcalls.go static
 
 // main serves as the entry point for the application.
-// It initializes the configuration, database, and Telegram client, then starts the bot and waits for a shutdown signal.
 func main() {
 	if err := config.LoadConfig(); err != nil {
 		panic(err)
@@ -37,12 +35,6 @@ func main() {
 			log.Println("pprof server error:", err)
 		}
 	}()
-
-	translations, err := lang.LoadTranslations()
-	if err != nil {
-		panic(err)
-	}
-	log.Printf("Loaded %d languages", translations)
 
 	clientConfig := tg.ClientConfig{
 		AppID:        config.Conf.ApiId,
@@ -67,7 +59,7 @@ func main() {
 		log.Fatalf("failed to login: %v", err)
 	}
 
-	err = pkg.Init(client)
+	err = src.Init(client)
 	if err != nil {
 		log.Fatalf("failed to init: %v", err)
 	}
@@ -77,7 +69,7 @@ func main() {
 		log.Fatal("failed to get bot username")
 	}
 
-	client.Log.Info("The bot is running as @%s.", userName)
+	client.Log.Infof("The bot is running as @%s.", userName)
 	_, _ = client.SendMessage(config.Conf.LoggerId, "The bot has started!")
 	client.Idle()
 	log.Println("The bot is shutting down...")
@@ -89,7 +81,7 @@ func main() {
 // It returns true if a flood wait error is handled, and false otherwise.
 func handleFlood(err error) bool {
 	if wait := tg.GetFloodWait(err); wait > 0 {
-		log.Printf("A flood wait has been detected. Sleeping for %ds.", wait)
+		log.Printf("A flood wait has been detected. Sleeping for %ds (%v).", wait, err)
 		time.Sleep(time.Duration(wait) * time.Second)
 		return true
 	}

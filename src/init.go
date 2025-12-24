@@ -6,10 +6,10 @@
  *  See https://github.com/AshokShau/TgMusicBot
  */
 
-package pkg
+package src
 
 import (
-	"ashokshau/tgmusic/src/config"
+	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/handlers"
 	"ashokshau/tgmusic/src/vc"
@@ -23,7 +23,6 @@ func Init(client *tg.Client) error {
 		return err
 	}
 
-	// Then start the voice call clients
 	for _, session := range config.Conf.SessionStrings {
 		_, err := vc.Calls.StartClient(config.Conf.ApiId, config.Conf.ApiHash, session)
 		if err != nil {
@@ -31,7 +30,6 @@ func Init(client *tg.Client) error {
 		}
 	}
 
-	// Register handlers and load modules
 	vc.Calls.RegisterHandlers(client)
 	handlers.LoadModules(client)
 

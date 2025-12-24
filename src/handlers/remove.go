@@ -13,8 +13,6 @@ import (
 	"strconv"
 
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -22,38 +20,35 @@ import (
 // removeHandler handles the /remove command.
 func removeHandler(m *telegram.NewMessage) error {
 	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply(lang.GetString(langCode, "no_track_playing"))
+		_, _ = m.Reply("⏸ No track currently playing.")
 		return nil
 	}
 
 	queue := cache.ChatCache.GetQueue(chatID)
 	if len(queue) == 0 {
-		_, _ = m.Reply(lang.GetString(langCode, "queue_empty"))
+		_, _ = m.Reply("📭 The queue is currently empty.")
 		return nil
 	}
 
 	args := m.Args()
 	if args == "" {
-		_, _ = m.Reply(lang.GetString(langCode, "remove_usage"))
+		_, _ = m.Reply("<b>❌ Remove Track</b>\n\n<b>Usage:</b> <code>/remove [track number]</code>\n\n- Use <code>1</code> to remove the first track, <code>2</code> for the second, and so on.")
 		return nil
 	}
 
 	trackNum, err := strconv.Atoi(args)
 	if err != nil {
-		_, _ = m.Reply(lang.GetString(langCode, "remove_invalid_number"))
+		_, _ = m.Reply("⚠️ Please enter a valid track number.")
 		return nil
 	}
 
 	if trackNum <= 0 || trackNum > len(queue) {
-		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "remove_out_of_range"), len(queue)))
+		_, _ = m.Reply(fmt.Sprintf("⚠️ The track number is not valid. Please choose a number between 1 and %d.", len(queue)))
 		return nil
 	}
 
 	cache.ChatCache.RemoveTrack(chatID, trackNum)
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "remove_success"), trackNum, m.Sender.FirstName))
+	_, err = m.Reply(fmt.Sprintf("✅ Track #%d has been removed by %s.", trackNum, m.Sender.FirstName))
 	return err
 }

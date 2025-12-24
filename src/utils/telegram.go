@@ -6,7 +6,7 @@
  *  See https://github.com/AshokShau/TgMusicBot
  */
 
-package dl
+package utils
 
 import (
 	"errors"
@@ -23,8 +23,6 @@ var (
 )
 
 // GetMessage retrieves a Telegram message by its URL.
-// It supports both public (e.g., https://t.me/ChannelName/1234) and private (e.g., https://t.me/c/12345678/90) URLs.
-// It returns the message object or an error if the URL is invalid or the message cannot be fetched.
 func GetMessage(client *tg.Client, url string) (*tg.NewMessage, error) {
 	url = strings.TrimSpace(url)
 	if url == "" {

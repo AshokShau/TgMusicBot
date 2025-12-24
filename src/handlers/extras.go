@@ -9,6 +9,7 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"strconv"
 )
 
@@ -17,7 +18,7 @@ func parseTelegramURL(input string) (string, int, bool) {
 		return "", 0, false
 	}
 
-	match := telegramURLRegex.FindStringSubmatch(input)
+	match := utils.TelegramMessageRegex.FindStringSubmatch(input)
 	if match == nil {
 		return "", 0, false
 	}

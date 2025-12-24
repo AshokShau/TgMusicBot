@@ -1,57 +1,43 @@
 /*
  * TgMusicBot - Telegram Music Bot
- *  Copyright (c) 2025 Ashok Shau
+ * Copyright (c) 2025 Ashok Shau
  *
- *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
+ * Licensed under GNU GPL v3
+ * https://github.com/AshokShau/TgMusicBot
  */
 
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/disk"
-	"github.com/shirou/gopsutil/mem"
-	"github.com/shirou/gopsutil/process"
 )
 
-// AppStats holds both process and system info.
 type AppStats struct {
-	Uptime          string
-	ProcessID       int32
-	NumGoroutines   int
-	CPUPercent      float64
-	MemUsed         string
-	MemPerc         float64
-	MemLimit        string
-	GoVersion       string
-	Arch            string
-	OS              string
-	SystemCPUUsage  float64
-	SystemMemUsed   string
-	SystemMemTotal  string
-	SystemDiskUsed  string
-	SystemDiskTotal string
-	Alloc           string
-	TotalAlloc      string
-	Sys             string
-	NumGC           uint32
-	LastGC          string
-	GCTotalPause    string
+	Uptime     string
+	Goroutines int
+	GoVersion  string
+
+	AppMemUsed string
+	AppHeap    string
+	GCCount    uint32
+	GCPause    string
+
+	MemLimit  string
+	DiskUsed  string
+	DiskTotal string
 }
 
-// Converts bytes to human-readable string.
 func humanBytes(bytes uint64) string {
 	const unit = 1024
 	if bytes < unit {
@@ -65,145 +51,144 @@ func humanBytes(bytes uint64) string {
 	return fmt.Sprintf("%.2f %ciB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// Reads memory limit if running inside Docker.
+// Docker / cgroup memory limit
 func readContainerMemLimit() uint64 {
-	if data, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes"); err == nil {
-		if limit, err := strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64); err == nil {
-			if limit > 0 && limit < (1<<60) {
-				return limit
+	if data, err := os.ReadFile("/sys/fs/cgroup/memory.max"); err == nil {
+		val := strings.TrimSpace(string(data))
+		if val != "max" {
+			if v, err := strconv.ParseUint(val, 10, 64); err == nil {
+				return v
 			}
 		}
 	}
 
-	if data, err := os.ReadFile("/sys/fs/cgroup/memory.max"); err == nil {
-		val := strings.TrimSpace(string(data))
-		if val != "max" {
-			if limit, err := strconv.ParseUint(val, 10, 64); err == nil && limit > 0 && limit < (1<<60) {
-				return limit
-			}
+	if data, err := os.ReadFile("/sys/fs/cgroup/memory/memory.limit_in_bytes"); err == nil {
+		if v, err := strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64); err == nil && v < (1<<60) {
+			return v
 		}
 	}
 	return 0
 }
 
-// Collects both app and system-level stats.
-func gatherAppStats() (*AppStats, error) {
-	pid := int32(os.Getpid())
-	proc, err := process.NewProcess(pid)
-	if err != nil {
-		return nil, err
+// Disk usage using syscall
+func diskUsage(path string) (used, total string) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(path, &stat); err != nil {
+		return "N/A", "N/A"
 	}
 
-	cpuPercent, _ := proc.CPUPercent()
-	memInfo, _ := proc.MemoryInfo()
-	memPerc, _ := proc.MemoryPercent()
+	totalBytes := stat.Blocks * uint64(stat.Bsize)
+	freeBytes := stat.Bfree * uint64(stat.Bsize)
+	usedBytes := totalBytes - freeBytes
 
-	// ---- System stats ----
-	vmem, _ := mem.VirtualMemory()
-	cpus, _ := cpu.Percent(0, false)
+	return humanBytes(usedBytes), humanBytes(totalBytes)
+}
 
-	// Choose root path for disk usage
-	rootPath := "/"
+func appMemoryStats() (used, heap string, gc uint32, pause string) {
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+
+	return humanBytes(ms.Alloc),
+		humanBytes(ms.HeapAlloc),
+		ms.NumGC,
+		(time.Duration(ms.PauseTotalNs) * time.Nanosecond).String()
+}
+
+func gatherAppStats() *AppStats {
+	memUsed, heap, gcCount, gcPause := appMemoryStats()
+
+	root := "/"
 	if runtime.GOOS == "windows" {
-		rootPath = "C:\\"
+		root = "C:\\"
 	}
-	diskUsage, _ := disk.Usage(rootPath)
 
-	// Get memory stats
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	// Get GC stats
-	var lastGC time.Time
-	if memStats.LastGC > 0 {
-		lastGC = time.Unix(0, int64(memStats.LastGC))
-	}
+	dUsed, dTotal := diskUsage(root)
 
 	stats := &AppStats{
-		Uptime:          time.Since(startTime).Round(time.Second).String(),
-		ProcessID:       pid,
-		Alloc:           humanBytes(memStats.Alloc),
-		TotalAlloc:      humanBytes(memStats.TotalAlloc),
-		Sys:             humanBytes(memStats.Sys),
-		NumGC:           memStats.NumGC,
-		LastGC:          lastGC.Format("2006-01-02 15:04:05 -0700"),
-		GCTotalPause:    (time.Duration(memStats.PauseTotalNs) * time.Nanosecond).String(),
-		NumGoroutines:   runtime.NumGoroutine(),
-		CPUPercent:      cpuPercent,
-		MemUsed:         humanBytes(memInfo.RSS),
-		MemPerc:         float64(memPerc),
-		GoVersion:       runtime.Version(),
-		Arch:            fmt.Sprintf("%s (%d CPU cores)", runtime.GOARCH, runtime.NumCPU()),
-		OS:              runtime.GOOS,
-		SystemCPUUsage:  cpus[0],
-		SystemMemUsed:   humanBytes(vmem.Used),
-		SystemMemTotal:  humanBytes(vmem.Total),
-		SystemDiskUsed:  humanBytes(diskUsage.Used),
-		SystemDiskTotal: humanBytes(diskUsage.Total),
+		Uptime:     time.Since(startTime).Round(time.Second).String(),
+		Goroutines: runtime.NumGoroutine(),
+		GoVersion:  runtime.Version(),
+
+		AppMemUsed: memUsed,
+		AppHeap:    heap,
+		GCCount:    gcCount,
+		GCPause:    gcPause,
+
+		DiskUsed:  dUsed,
+		DiskTotal: dTotal,
 	}
 
 	if limit := readContainerMemLimit(); limit > 0 {
 		stats.MemLimit = humanBytes(limit)
 	}
 
-	return stats, nil
+	return stats
 }
 
-// Handles /stats command.
 func sysStatsHandler(msg *telegram.NewMessage) error {
-	ctx, cancel := db.Ctx()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	chatID := msg.ChannelID()
-	langCode := db.Instance.GetLang(ctx, chatID)
-	sysMsg, err := msg.Reply(lang.GetString(langCode, "stats_gathering"))
+
+	sysMsg, err := msg.Reply("📊 Collecting system statistics...")
 	if err != nil {
 		return err
 	}
 
-	info, err := gatherAppStats()
-	if err != nil {
-		_, _ = sysMsg.Edit(fmt.Sprintf(lang.GetString(langCode, "stats_error"), err))
-		return nil
-	}
+	stats := gatherAppStats()
 
 	chats, _ := db.Instance.GetAllChats(ctx)
 	users, _ := db.Instance.GetAllUsers(ctx)
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_header"), msg.Client.Me().FirstName))
-	sb.WriteString(strings.Repeat("-", 40) + "\n\n")
+	sb.WriteString(fmt.Sprintf(
+		"📊 <b>%s — Runtime Status</b>\n",
+		msg.Client.Me().FirstName,
+	))
+	sb.WriteString(strings.Repeat("─", 36) + "\n\n")
 
-	sb.WriteString(lang.GetString(langCode, "stats_app_header"))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_uptime"), info.Uptime))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_cpu"), info.CPUPercent))
-	if info.MemLimit != "" {
-		sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_mem_limited"),
-			info.MemUsed, info.MemLimit, info.MemPerc))
+	sb.WriteString("🤖 <b>Application</b>\n")
+	sb.WriteString(fmt.Sprintf(
+		"• Uptime: %s\n• Goroutines: %d\n• Go Version: %s\n\n",
+		stats.Uptime,
+		stats.Goroutines,
+		stats.GoVersion,
+	))
+
+	sb.WriteString("🧠 <b>Memory Usage</b>\n")
+	if stats.MemLimit != "" {
+		sb.WriteString(fmt.Sprintf(
+			"• App Memory: %s / %s\n",
+			stats.AppMemUsed,
+			stats.MemLimit,
+		))
 	} else {
-		sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_mem"), info.MemUsed, info.MemPerc))
+		sb.WriteString(fmt.Sprintf(
+			"• App Memory: %s\n",
+			stats.AppMemUsed,
+		))
 	}
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_goroutines"), info.NumGoroutines))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_db"), len(chats), len(users)))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_go_version"), info.GoVersion))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_platform"), info.OS, info.Arch))
+	sb.WriteString(fmt.Sprintf(
+		"• Heap: %s\n• GC Runs: %d (pause %s)\n\n",
+		stats.AppHeap,
+		stats.GCCount,
+		stats.GCPause,
+	))
 
-	// Memory allocation stats
-	sb.WriteString(lang.GetString(langCode, "stats_memory_header"))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_memory_alloc"), info.Alloc))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_memory_total_alloc"), info.TotalAlloc))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_memory_sys"), info.Sys))
+	sb.WriteString("💾 <b>Storage</b>\n")
+	sb.WriteString(fmt.Sprintf(
+		"• Disk Usage: %s / %s\n\n",
+		stats.DiskUsed,
+		stats.DiskTotal,
+	))
 
-	// GC stats
-	sb.WriteString(lang.GetString(langCode, "stats_gc_header"))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_gc_count"), info.NumGC))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_gc_last"), info.LastGC))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_gc_pause"), info.GCTotalPause))
+	sb.WriteString("📦 <b>Database</b>\n")
+	sb.WriteString(fmt.Sprintf(
+		"• Chats: %d\n• Users: %d\n",
+		len(chats),
+		len(users),
+	))
 
-	sb.WriteString("\n" + lang.GetString(langCode, "stats_server_header"))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_cpu"), info.SystemCPUUsage))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_ram"), info.SystemMemUsed, info.SystemMemTotal))
-	sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "stats_server_disk"), info.SystemDiskUsed, info.SystemDiskTotal))
-	sb.WriteString(strings.Repeat("-", 40))
+	sb.WriteString("\n" + strings.Repeat("─", 36))
 
 	_, _ = sysMsg.Edit(sb.String())
 	return nil

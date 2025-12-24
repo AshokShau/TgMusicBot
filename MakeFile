@@ -1,0 +1,23 @@
+SHELL := /bin/bash
+.SHELLFLAGS := -euo pipefail -c
+
+.PHONY: all copy ntgcalls generate run clean
+
+all: copy generate run
+
+clean:
+	@echo "▶ Cleaning generated files..."
+	@rm -rf src/vc/ntgcalls src/vc/ubot
+
+copy:
+	@echo "▶ Copying ntgcalls..."
+	@chmod +x copy_ntgcalls.sh
+	@./copy_ntgcalls.sh
+
+generate:
+	@echo "▶ Running go generate..."
+	@go generate ./...
+
+run:
+	@echo "▶ Running application..."
+	@go run .

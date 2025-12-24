@@ -11,8 +11,6 @@ package handlers
 import (
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 	"fmt"
 	"time"
 
@@ -25,19 +23,12 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 	}
 
 	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
 	client := m.Client
-	defer cancel()
-
-	langCode := "en"
-	if db.Instance != nil {
-		langCode = db.Instance.GetLang(ctx, chatID)
-	}
 
 	// Chat is not a Supergroup
 	if m.Channel == nil {
 		text := fmt.Sprintf(
-			lang.GetString(langCode, "watcher_not_supergroup"),
+			"This chat (%d) is not a supergroup yet.\n<b>⚠️ Please convert this chat to a supergroup and add me as admin.</b>\n\nIf you don't know how to convert, use this guide:\n🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\nIf you have any questions, join our support group:",
 			chatID,
 		)
 
@@ -60,11 +51,11 @@ func handleVoiceChatMessage(m *telegram.NewMessage) error {
 
 	if action.Duration == 0 {
 		cache.ChatCache.ClearChat(chatID)
-		message = lang.GetString(langCode, "watcher_vc_started")
+		message = "🎙️ Video chat started!\nUse /play <song name> to play music."
 	} else {
 		cache.ChatCache.ClearChat(chatID)
 		logger.Info("Voice chat ended. Duration: %d seconds", action.Duration)
-		message = lang.GetString(langCode, "watcher_vc_ended")
+		message = "🎧 Video chat ended!\nAll queues cleared."
 	}
 
 	_, _ = m.Client.SendMessage(chatID, message)

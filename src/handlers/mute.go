@@ -13,8 +13,6 @@ import (
 
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -27,20 +25,17 @@ func muteHandler(m *telegram.NewMessage) error {
 	}
 
 	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	if !cache.ChatCache.IsActive(chatID) {
-		_, err := m.Reply(lang.GetString(langCode, "no_track_playing"))
+		_, err := m.Reply("⏸ No track currently playing.")
 		return err
 	}
 
 	if _, err := vc.Calls.Mute(chatID); err != nil {
-		_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "mute_error"), err.Error()))
+		_, err = m.Reply(fmt.Sprintf("❌ An error occurred while muting the playback: %s", err.Error()))
 		return err
 	}
 
-	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "mute_success"), m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
+	_, err := m.Reply(fmt.Sprintf("🔇 Playback has been muted by %s.", m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
 	return err
 }
 
@@ -51,19 +46,16 @@ func unmuteHandler(m *telegram.NewMessage) error {
 	}
 
 	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	if !cache.ChatCache.IsActive(chatID) {
-		_, err := m.Reply(lang.GetString(langCode, "no_track_playing"))
+		_, err := m.Reply("⏸ No track currently playing.")
 		return err
 	}
 
 	if _, err := vc.Calls.Unmute(chatID); err != nil {
-		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "unmute_error"), err.Error()))
+		_, _ = m.Reply(fmt.Sprintf("❌ An error occurred while unmuting the playback: %s", err.Error()))
 		return err
 	}
 
-	_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "unmute_success"), m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
+	_, err := m.Reply(fmt.Sprintf("🔊 Playback has been unmuted by %s.", m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
 	return err
 }

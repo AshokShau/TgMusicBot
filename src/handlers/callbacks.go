@@ -9,13 +9,13 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"fmt"
 	"strings"
 
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -33,9 +33,9 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 	chatID := cb.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
+
 	if !cache.ChatCache.IsActive(chatID) {
-		text := lang.GetString(langCode, "no_track_playing")
+		text := "⏸ No track currently playing."
 		_, _ = cb.Answer(text, &telegram.CallbackOptions{Alert: true})
 		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
 		return nil
@@ -43,17 +43,17 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 
 	currentTrack := cache.ChatCache.GetPlayingTrack(chatID)
 	if currentTrack == nil {
-		_, _ = cb.Answer(lang.GetString(langCode, "no_track_playing"), &telegram.CallbackOptions{Alert: true})
-		_, _ = cb.Edit(lang.GetString(langCode, "no_track_playing"), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
+		_, _ = cb.Answer("⏸ No track currently playing.", &telegram.CallbackOptions{Alert: true})
+		_, _ = cb.Edit("⏸ No track currently playing.", &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
 		return nil
 	}
 
 	buildTrackMessage := func(status, emoji string) string {
 		return fmt.Sprintf(
-			lang.GetString(langCode, "track_message"),
+			"%s <b>%s</b>\n\n🎧 <b>Track:</b> <a href='%s'>%s</a>\n🕒 <b>Duration:</b> %s\n🙋‍♂️ <b>Requested by:</b> %s",
 			emoji, status,
 			currentTrack.URL, currentTrack.Name,
-			cache.SecToMin(currentTrack.Duration),
+			utils.SecToMin(currentTrack.Duration),
 			currentTrack.User,
 		)
 	}
@@ -61,73 +61,73 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 	switch {
 	case strings.Contains(data, "play_skip"):
 		if err := vc.Calls.PlayNext(chatID); err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "skip_fail"), &telegram.CallbackOptions{Alert: true})
-			_, _ = cb.Edit(lang.GetString(langCode, "skip_fail"), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
+			_, _ = cb.Answer("Failed to skip track.", &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Edit("Failed to skip track.", &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
 			return nil
 		}
-		_, _ = cb.Answer(lang.GetString(langCode, "track_skipped"), &telegram.CallbackOptions{Alert: true})
+		_, _ = cb.Answer("Track skipped.", &telegram.CallbackOptions{Alert: true})
 		_, _ = cb.Delete()
 		return nil
 
 	case strings.Contains(data, "play_stop"):
 		if err := vc.Calls.Stop(chatID); err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "stop_fail"), &telegram.CallbackOptions{Alert: true})
-			_, _ = cb.Edit(lang.GetString(langCode, "stop_fail"), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
+			_, _ = cb.Answer("Failed to stop track.", &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Edit("Failed to stop track.", &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
 			return nil
 		}
-		msg := fmt.Sprintf(lang.GetString(langCode, "playback_stopped"), cb.Sender.FirstName)
-		_, _ = cb.Answer(lang.GetString(langCode, "track_stopped"), &telegram.CallbackOptions{Alert: true})
+		msg := fmt.Sprintf("⏹ <b>Playback Stopped</b>\n└ Requested by: %s", cb.Sender.FirstName)
+		_, _ = cb.Answer("Track stopped.", &telegram.CallbackOptions{Alert: true})
 		_, err := cb.Edit(msg, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
 		return err
 
 	case strings.Contains(data, "play_pause"):
 		if _, err := vc.Calls.Pause(chatID); err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "pause_fail"), &telegram.CallbackOptions{Alert: true})
-			_, _ = cb.Edit(lang.GetString(langCode, "pause_fail"), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
+			_, _ = cb.Answer("Failed to pause track.", &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Edit("Failed to pause track.", &telegram.SendOptions{ReplyMarkup: core.ControlButtons("")})
 			return nil
 		}
-		_, _ = cb.Answer(lang.GetString(langCode, "track_paused"), &telegram.CallbackOptions{Alert: true})
-		text := buildTrackMessage(lang.GetString(langCode, "paused"), "⏸") + fmt.Sprintf(lang.GetString(langCode, "paused_by"), cb.Sender.FirstName)
+		_, _ = cb.Answer("Track paused.", &telegram.CallbackOptions{Alert: true})
+		text := buildTrackMessage("Paused", "⏸") + fmt.Sprintf("\n\n⏸ <i>Paused by %s</i>", cb.Sender.FirstName)
 		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
 		return nil
 
 	case strings.Contains(data, "play_resume"):
 		if _, err := vc.Calls.Resume(chatID); err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "resume_fail"), &telegram.CallbackOptions{Alert: true})
-			_, _ = cb.Edit(lang.GetString(langCode, "resume_fail"), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
+			_, _ = cb.Answer("Failed to resume track.", &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Edit("Failed to resume track.", &telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
 			return nil
 		}
-		_, _ = cb.Answer(lang.GetString(langCode, "track_resumed"), &telegram.CallbackOptions{Alert: true})
-		text := buildTrackMessage(lang.GetString(langCode, "now_playing"), "🎵") + fmt.Sprintf(lang.GetString(langCode, "resumed_by"), cb.Sender.FirstName)
+		_, _ = cb.Answer("Track resumed.", &telegram.CallbackOptions{Alert: true})
+		text := buildTrackMessage("Now Playing", "🎵") + fmt.Sprintf("\n\n▶️ <i>Resumed by %s</i>", cb.Sender.FirstName)
 		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("resume")})
 		return nil
 
 	case strings.Contains(data, "play_mute"):
 		if _, err := vc.Calls.Mute(chatID); err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "mute_fail"), &telegram.CallbackOptions{Alert: true})
-			_, _ = cb.Edit(lang.GetString(langCode, "mute_fail"), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
+			_, _ = cb.Answer("Failed to mute track.", &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Edit("Failed to mute track.", &telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
 			return nil
 		}
-		_, _ = cb.Answer(lang.GetString(langCode, "track_muted"), &telegram.CallbackOptions{Alert: true})
-		text := buildTrackMessage(lang.GetString(langCode, "muted"), "🔇") + fmt.Sprintf(lang.GetString(langCode, "muted_by"), cb.Sender.FirstName)
+		_, _ = cb.Answer("Track muted.", &telegram.CallbackOptions{Alert: true})
+		text := buildTrackMessage("Muted", "🔇") + fmt.Sprintf("\n\n🔇 <i>Muted by %s</i>", cb.Sender.FirstName)
 		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
 		return nil
 
 	case strings.Contains(data, "play_unmute"):
 		if _, err := vc.Calls.Unmute(chatID); err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "unmute_fail"), &telegram.CallbackOptions{Alert: true})
-			_, _ = cb.Edit(lang.GetString(langCode, "unmute_fail"), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
+			_, _ = cb.Answer("Failed to unmute track.", &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Edit("Failed to unmute track.", &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
 			return nil
 		}
-		_, _ = cb.Answer(lang.GetString(langCode, "track_unmuted"), &telegram.CallbackOptions{Alert: true})
-		text := buildTrackMessage(lang.GetString(langCode, "now_playing"), "🎵") + fmt.Sprintf(lang.GetString(langCode, "unmuted_by"), cb.Sender.FirstName)
+		_, _ = cb.Answer("Track unmuted.", &telegram.CallbackOptions{Alert: true})
+		text := buildTrackMessage("Now Playing", "🎵") + fmt.Sprintf("\n\n🔊 <i>Unmuted by %s</i>", cb.Sender.FirstName)
 		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
 		return nil
 	case strings.Contains(data, "play_add_to_list"):
 		userID := cb.GetSenderID()
 		playlists, err := db.Instance.GetUserPlaylists(ctx, userID)
 		if err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "playlist_fetch_error"), &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Answer("An error occurred while fetching your playlists: %s", &telegram.CallbackOptions{Alert: true})
 			return nil
 		}
 
@@ -135,7 +135,7 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 		if len(playlists) == 0 {
 			playlistID, err = db.Instance.CreatePlaylist(ctx, "My Playlist (TgMusic)", userID)
 			if err != nil {
-				_, _ = cb.Answer(lang.GetString(langCode, "playlist_create_error"), &telegram.CallbackOptions{Alert: true})
+				_, _ = cb.Answer("An error occurred while creating the playlist: %s", &telegram.CallbackOptions{Alert: true})
 				return nil
 			}
 		} else {
@@ -152,21 +152,21 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 
 		err = db.Instance.AddSongToPlaylist(ctx, playlistID, song)
 		if err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "playlist_add_error"), &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Answer("An error occurred while adding the song to the playlist: %s", &telegram.CallbackOptions{Alert: true})
 			return nil
 		}
 
 		playlist, err := db.Instance.GetPlaylist(ctx, playlistID)
 		if err != nil {
-			_, _ = cb.Answer(lang.GetString(langCode, "playlist_not_found"), &telegram.CallbackOptions{Alert: true})
+			_, _ = cb.Answer("❌ Playlist not found.", &telegram.CallbackOptions{Alert: true})
 			return nil
 		}
 
-		_, _ = cb.Answer(fmt.Sprintf(lang.GetString(langCode, "playlist_song_added"), song.Name, playlist.Name), &telegram.CallbackOptions{Alert: true})
+		_, _ = cb.Answer(fmt.Sprintf("✅ '%s' has been added to the playlist '%s'.", song.Name, playlist.Name), &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
 
-	text := buildTrackMessage(lang.GetString(langCode, "now_playing"), "🎵")
+	text := buildTrackMessage("Now Playing", "🎵")
 	_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("resume")})
 	return nil
 }
@@ -175,13 +175,9 @@ func playCallbackHandler(cb *telegram.CallbackQuery) error {
 // It takes a telegram.CallbackQuery object as input.
 // It returns an error if any.
 func vcPlayHandler(cb *telegram.CallbackQuery) error {
-	chatID := cb.ChannelID()
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	data := cb.DataString()
 	if strings.Contains(data, "vcplay_close") {
-		_, _ = cb.Answer(lang.GetString(langCode, "closed"), &telegram.CallbackOptions{Alert: true})
+		_, _ = cb.Answer("Closed !", &telegram.CallbackOptions{Alert: true})
 		_, _ = cb.Delete()
 		return nil
 	}

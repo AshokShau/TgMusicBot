@@ -9,43 +9,31 @@
 package core
 
 import (
-	"ashokshau/tgmusic/src/config"
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/utils"
 	"fmt"
-
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// CloseBtn is a button that closes the current view.
-var CloseBtn = telegram.Button.Data("Cʟᴏsᴇ", "vcplay_close")
+var CloseBtn = telegram.Button.Data("❌ ᴄʟᴏꜱᴇ", "vcplay_close")
 
-// HomeBtn is a button that returns to the home screen.
-var HomeBtn = telegram.Button.Data("Hᴏᴍᴇ", "help_back")
+var HomeBtn = telegram.Button.Data("🏠 ʜᴏᴍᴇ", "help_back")
 
-// HelpBtn is a button that displays the help menu.
-var HelpBtn = telegram.Button.Data("Hᴇʟᴘ & Cᴏᴍᴍᴀɴᴅꜱ", "help_all")
+var HelpBtn = telegram.Button.Data("📖 ʜᴇʟᴘ & ᴄᴏᴍᴍᴀɴᴅꜱ", "help_all")
 
-// UserBtn is a button that displays the user commands.
-var UserBtn = telegram.Button.Data("Uꜱᴇʀ Cᴏᴍᴍᴀɴᴅꜱ", "help_user")
+var UserBtn = telegram.Button.Data("👤 ᴜꜱᴇʀꜱ", "help_user")
 
-// AdminBtn is a button that displays the admin commands.
-var AdminBtn = telegram.Button.Data("Aᴅᴍɪɴ Cᴏᴍᴍᴀɴᴅꜱ", "help_admin")
+var AdminBtn = telegram.Button.Data("🛡 ᴀᴅᴍɪɴꜱ", "help_admin")
 
-// OwnerBtn is a button that displays the owner commands.
-var OwnerBtn = telegram.Button.Data("Oᴡɴᴇʀ Cᴏᴍᴍᴀɴᴅꜱ", "help_owner")
+var OwnerBtn = telegram.Button.Data("👑 ᴏᴡɴᴇʀ", "help_owner")
 
-// DevsBtn is a button that displays the developer commands.
-var DevsBtn = telegram.Button.Data("Dᴇᴠꜱ Cᴏᴍᴍᴀɴᴅꜱ", "help_devs")
+var DevsBtn = telegram.Button.Data("‍💻 ᴅᴇᴠꜱ", "help_devs")
 
-// PlaylistBtn is a button that displays the playlist commands.
-var PlaylistBtn = telegram.Button.Data("Pʟᴀʏʟɪsᴛ Cᴏᴍᴍᴀɴᴅꜱ", "help_playlist")
+var PlaylistBtn = telegram.Button.Data("🎶 ᴘʟᴀʏʟɪꜱᴛ", "help_playlist")
 
-// SourceCodeBtn is a button that links to the source code.
-var SourceCodeBtn = telegram.Button.URL("Sᴏᴜʀᴄᴇ Cᴏᴅᴇ", "https://github.com/AshokShau/TgMusicBot")
+var SourceCodeBtn = telegram.Button.URL("💻 ꜱᴏᴜʀᴄᴇ", "https://github.com/AshokShau/TgMusicBot")
 
-// SupportKeyboard creates and returns an inline keyboard with buttons for support and updates.
 func SupportKeyboard() *telegram.ReplyInlineMarkup {
 	channelBtn := telegram.Button.URL("ᴜᴘᴅᴀᴛᴇꜱ", config.Conf.SupportChannel)
 	groupBtn := telegram.Button.URL("ꜱᴜᴘᴘᴏʀᴛ", config.Conf.SupportGroup)
@@ -56,9 +44,7 @@ func SupportKeyboard() *telegram.ReplyInlineMarkup {
 	return keyboard.Build()
 }
 
-// SettingsKeyboard creates an inline keyboard for bot settings
 func SettingsKeyboard(playMode, adminMode string) *telegram.ReplyInlineMarkup {
-	// Helper function to create a button with a checkmark if active
 	createButton := func(label, settingType, settingValue, currentValue string) *telegram.KeyboardButtonCallback {
 		text := label
 		if settingValue == currentValue {
@@ -69,29 +55,25 @@ func SettingsKeyboard(playMode, adminMode string) *telegram.ReplyInlineMarkup {
 
 	keyboard := telegram.NewKeyboard()
 
-	// Play Mode Section
 	keyboard.AddRow(telegram.Button.Data("🎵 Play Mode", "settings_xxx_noop"))
 	keyboard.AddRow(
-		createButton("Admins", "play", cache.Admins, playMode),
-		createButton("Auth", "play", cache.Auth, playMode),
-		createButton("Everyone", "play", cache.Everyone, playMode),
+		createButton("Admins", "play", utils.Admins, playMode),
+		createButton("Auth", "play", utils.Auth, playMode),
+		createButton("Everyone", "play", utils.Everyone, playMode),
 	)
 
-	// Admin Mode Section
 	keyboard.AddRow(telegram.Button.Data("🛡️ Admin Mode", "settings_xxx_none"))
 	keyboard.AddRow(
-		createButton("Admins", "admin", cache.Admins, adminMode),
-		createButton("Auth", "admin", cache.Auth, adminMode),
-		createButton("Everyone", "admin", cache.Everyone, adminMode),
+		createButton("Admins", "admin", utils.Admins, adminMode),
+		createButton("Auth", "admin", utils.Auth, adminMode),
+		createButton("Everyone", "admin", utils.Everyone, adminMode),
 	)
 
-	// Close button
 	keyboard.AddRow(CloseBtn)
 
 	return keyboard.Build()
 }
 
-// HelpMenuKeyboard creates and returns an inline keyboard with buttons for navigating the help menu.
 func HelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 	keyboard := telegram.NewKeyboard().
 		AddRow(UserBtn, AdminBtn).
@@ -102,7 +84,6 @@ func HelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 	return keyboard.Build()
 }
 
-// BackHelpMenuKeyboard creates and returns an inline keyboard with buttons to return to the main help menu.
 func BackHelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 	keyboard := telegram.NewKeyboard().
 		AddRow(HelpBtn, HomeBtn).
@@ -111,8 +92,6 @@ func BackHelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 	return keyboard.Build()
 }
 
-// ControlButtons creates and returns an inline keyboard with playback control buttons, customized based on the current mode.
-// The 'mode' parameter can be "play", "pause", "resume", "mute", or "unmute" to display the relevant controls.
 func ControlButtons(mode string) *telegram.ReplyInlineMarkup {
 	skipBtn := telegram.Button.Data("‣‣I", "play_skip")
 	stopBtn := telegram.Button.Data("▢", "play_stop")
@@ -142,25 +121,6 @@ func ControlButtons(mode string) *telegram.ReplyInlineMarkup {
 	return keyboard.Build()
 }
 
-func LanguageKeyboard() *telegram.ReplyInlineMarkup {
-	keyboard := telegram.NewKeyboard()
-	langs := lang.GetAvailableLangs()
-	for i := 0; i < len(langs); i += 2 {
-		if i+1 < len(langs) {
-			keyboard.AddRow(
-				telegram.Button.Data(lang.GetLangDisplayName(langs[i]), fmt.Sprintf("setlang_%s", langs[i])),
-				telegram.Button.Data(lang.GetLangDisplayName(langs[i+1]), fmt.Sprintf("setlang_%s", langs[i+1])),
-			)
-		} else {
-			keyboard.AddRow(telegram.Button.Data(lang.GetLangDisplayName(langs[i]), fmt.Sprintf("setlang_%s", langs[i])))
-		}
-	}
-	keyboard.AddRow(CloseBtn)
-	return keyboard.Build()
-}
-
-// AddMeMarkup creates and returns an inline keyboard with a button that allows users to add the bot to their group.
-// It requires the bot's username to generate the correct link.
 func AddMeMarkup(username string) *telegram.ReplyInlineMarkup {
 	addMeBtn := telegram.Button.URL(fmt.Sprintf("Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ"), fmt.Sprintf("https://t.me/%s?startgroup=true", username))
 	channelBtn := telegram.Button.URL("ᴜᴘᴅᴀᴛᴇꜱ", config.Conf.SupportChannel)

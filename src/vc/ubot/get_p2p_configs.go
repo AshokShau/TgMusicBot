@@ -11,6 +11,7 @@ func (ctx *Context) getP2PConfigs(GAorB []byte) (*types.P2PConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	
 	dhConfig := dhConfigRaw.(*tg.MessagesDhConfigObj)
 	return &types.P2PConfig{
 		DhConfig:   dhConfig,

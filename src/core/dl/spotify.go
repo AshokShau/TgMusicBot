@@ -9,6 +9,8 @@
 package dl
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/utils"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -22,9 +24,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
-
-	"ashokshau/tgmusic/src/config"
-	"ashokshau/tgmusic/src/core/cache"
 )
 
 const (
@@ -39,15 +38,14 @@ var (
 )
 
 // processSpotify manages the download and decryption of Spotify tracks.
-// It returns the file path of the processed track or an error if any step fails.
 func (d *Download) processSpotify() (string, error) {
 	track := d.Track
 	downloadsDir := config.Conf.DownloadsDir
-	sanitizedTrackID := filepath.Base(track.TC)
+	sanitizedTrackID := filepath.Base(track.Id)
 
 	outputFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
 	if _, err := os.Stat(outputFile); err == nil {
-		log.Printf("✅ The file already exists: %s", outputFile)
+		log.Printf("The file already exists: %s", outputFile)
 		return outputFile, nil
 	}
 
@@ -81,7 +79,6 @@ func (d *Download) processSpotify() (string, error) {
 }
 
 // downloadAndDecrypt handles the download and decryption of a file.
-// It takes the paths for the encrypted and decrypted files and returns an error if any step fails.
 func (d *Download) downloadAndDecrypt(encryptedPath, decryptedPath string) error {
 	resp, err := http.Get(d.Track.CdnURL)
 	if err != nil {
@@ -114,9 +111,7 @@ func (d *Download) downloadAndDecrypt(encryptedPath, decryptedPath string) error
 }
 
 // decryptAudioFile decrypts an audio file using AES-CTR encryption.
-// It takes a file path and a hexadecimal key, and returns the decrypted data, decryption time, and any error encountered.
 func decryptAudioFile(filePath, hexKey string) ([]byte, string, error) {
-	// #nosec G304 - The file path is constructed internally and not from user input.
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, "", fmt.Errorf("%w: %s", errFileNotFound, filePath)
 	}
@@ -150,9 +145,7 @@ func decryptAudioFile(filePath, hexKey string) ([]byte, string, error) {
 }
 
 // rebuildOGG reconstructs the OGG header of a given file by patching specific offsets.
-// This is necessary to make the decrypted file playable.
 func rebuildOGG(filename string) error {
-	// #nosec G304 - The filename is constructed internally.
 	file, err := os.OpenFile(filename, os.O_RDWR, defaultFilePerm)
 	if err != nil {
 		return fmt.Errorf("error opening the file: %w", err)
@@ -166,7 +159,6 @@ func rebuildOGG(filename string) error {
 		return err
 	}
 
-	// OGG header patch structure.
 	patches := map[int64]string{
 		0:  "OggS",
 		6:  "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
@@ -189,12 +181,11 @@ func rebuildOGG(filename string) error {
 }
 
 // fixOGG uses ffmpeg to correct any remaining issues in the OGG file, ensuring it is playable.
-// It takes the input file path and track information, and returns the final output file path or an error.
-func fixOGG(inputFile string, track cache.TrackInfo) (string, error) {
+func fixOGG(inputFile string, track utils.TrackInfo) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	sanitizedTrackID := filepath.Base(track.TC)
+	sanitizedTrackID := filepath.Base(track.Id)
 	outputFile := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-i", inputFile, "-c", "copy", outputFile)
 	if output, err := cmd.CombinedOutput(); err != nil {

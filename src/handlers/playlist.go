@@ -15,32 +15,29 @@ import (
 
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/core/dl"
-	"ashokshau/tgmusic/src/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
 func createPlaylistHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	userID := m.SenderID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
-	langCode := db.Instance.GetLang(ctx, chatID)
 	args := m.Args()
 	if args == "" {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_create_usage"))
+		_, err := m.Reply("<b>Usage:</b> /createplaylist [playlist name]")
 		return err
 	}
 
 	userPlaylists, err := db.Instance.GetUserPlaylists(ctx, userID)
 	if err != nil {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_create_error"))
+		_, err := m.Reply("An error occurred while creating the playlist: %s")
 		return err
 	}
 
 	if len(userPlaylists) >= 10 {
-		_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_create_limit"), 10))
+		_, _ = m.Reply(fmt.Sprintf("You have reached the maximum limit of %d playlists.", 10))
 		return telegram.ErrEndGroup
 	}
 
@@ -50,122 +47,116 @@ func createPlaylistHandler(m *telegram.NewMessage) error {
 
 	playlistID, err := db.Instance.CreatePlaylist(ctx, args, userID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_create_error"), err.Error()))
+		_, err := m.Reply(fmt.Sprintf("An error occurred while creating the playlist: %s", err.Error()))
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_created"), args, playlistID))
+	_, err = m.Reply(fmt.Sprintf("✅ Playlist '%s' created with ID: <code>%s</code>", args, playlistID))
 	return telegram.ErrEndGroup
 }
 
 func deletePlaylistHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	userID := m.SenderID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	args := m.Args()
 	if args == "" {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_delete_usage"))
+		_, err := m.Reply("<b>Usage:</b> /deleteplaylist [playlist id]")
 		return err
 	}
 	playlist, err := db.Instance.GetPlaylist(ctx, args)
 	if err != nil {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_not_found"))
+		_, err := m.Reply("❌ Playlist not found.")
 		return err
 	}
 	if playlist.UserID != userID {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_not_owner"))
+		_, err := m.Reply("❌ You are not the owner of this playlist.")
 		return err
 	}
 
 	err = db.Instance.DeletePlaylist(ctx, args, userID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_delete_error"), err.Error()))
+		_, err := m.Reply(fmt.Sprintf("An error occurred while deleting the playlist: %s", err.Error()))
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_deleted"), playlist.Name))
+	_, err = m.Reply(fmt.Sprintf("✅ Playlist '%s' has been deleted.", playlist.Name))
 	return err
 }
 
 func addToPlaylistHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	userID := m.SenderID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
-	langCode := db.Instance.GetLang(ctx, chatID)
 	args := strings.SplitN(m.Args(), " ", 2)
 	if len(args) != 2 {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_add_usage"))
+		_, err := m.Reply("<b>Usage:</b> /addtoplaylist [playlist id] [song url]")
 		return err
 	}
 	playlistID := args[0]
 	songURL := args[1]
 	playlist, err := db.Instance.GetPlaylist(ctx, playlistID)
 	if err != nil {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_not_found"))
+		_, err := m.Reply("❌ Playlist not found.")
 		return err
 	}
 	if playlist.UserID != userID {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_not_owner"))
+		_, err := m.Reply("❌ You are not the owner of this playlist.")
 		return err
 	}
 	wrapper := dl.NewDownloaderWrapper(songURL)
 	if !wrapper.IsValid() {
-		_, err := m.Reply(lang.GetString(langCode, "play_invalid_url"))
+		_, err := m.Reply("❌ Invalid URL or unsupported platform.\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music")
 		return err
 	}
 	trackInfo, err := wrapper.GetInfo(ctx)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "play_fetch_error"), err.Error()))
+		_, err := m.Reply(fmt.Sprintf("❌ Error fetching track information: %s", err.Error()))
 		return err
 	}
 
 	if trackInfo.Results == nil {
-		_, err := m.Reply(lang.GetString(langCode, "play_no_tracks_found"))
+		_, err := m.Reply("❌ No tracks were found for the provided source.")
 		return err
 	}
 
 	song := db.Song{
-		URL:      trackInfo.Results[0].URL,
-		Name:     trackInfo.Results[0].Name,
-		TrackID:  trackInfo.Results[0].ID,
+		URL:      trackInfo.Results[0].Url,
+		Name:     trackInfo.Results[0].Title,
+		TrackID:  trackInfo.Results[0].Id,
 		Duration: trackInfo.Results[0].Duration,
 		Platform: trackInfo.Results[0].Platform,
 	}
 
 	err = db.Instance.AddSongToPlaylist(ctx, playlistID, song)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_add_error"), err.Error()))
+		_, err := m.Reply(fmt.Sprintf("An error occurred while adding the song to the playlist: %s", err.Error()))
 		return err
 	}
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_song_added"), song.Name, playlist.Name))
+	_, err = m.Reply(fmt.Sprintf("✅ '%s' has been added to the playlist '%s'.", song.Name, playlist.Name))
 	return err
 }
 
 func removeFromPlaylistHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	userID := m.SenderID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	args := strings.SplitN(m.Args(), " ", 2)
 	if len(args) != 2 {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_remove_usage"))
+		_, err := m.Reply("<b>Usage:</b> /removefromplaylist [playlist id] [song number or url]")
 		return err
 	}
 	playlistID := args[0]
 	songIdentifier := args[1]
 	playlist, err := db.Instance.GetPlaylist(ctx, playlistID)
 	if err != nil {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_not_found"))
+		_, err := m.Reply("❌ Playlist not found.")
 		return err
 	}
 
 	if playlist.UserID != userID {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_not_owner"))
+		_, err := m.Reply("❌ You are not the owner of this playlist.")
 		return err
 	}
 
@@ -173,7 +164,7 @@ func removeFromPlaylistHandler(m *telegram.NewMessage) error {
 	var trackID string
 	if err == nil {
 		if songIndex < 1 || songIndex > len(playlist.Songs) {
-			_, err := m.Reply(lang.GetString(langCode, "playlist_remove_invalid_index"))
+			_, err := m.Reply("❌ Invalid song number.")
 			return err
 		}
 
@@ -188,35 +179,33 @@ func removeFromPlaylistHandler(m *telegram.NewMessage) error {
 	}
 
 	if trackID == "" {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_remove_song_not_found"))
+		_, err := m.Reply("❌ Song not found in the playlist.")
 		return err
 	}
 
 	logger.Info("Removing song from playlist %s: %s", playlistID, trackID)
 	err = db.Instance.RemoveSongFromPlaylist(ctx, playlistID, trackID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_remove_error"), err.Error()))
+		_, err := m.Reply(fmt.Sprintf("An error occurred while removing the song from the playlist: %s", err.Error()))
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_song_removed"), playlist.Name))
+	_, err = m.Reply(fmt.Sprintf("✅ Song has been removed from the playlist '%s'.", playlist.Name))
 	return err
 }
 
 func playlistInfoHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	args := m.Args()
 	if args == "" {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_info_usage"))
+		_, err := m.Reply("<b>Usage:</b> /playlistinfo [playlist id]")
 		return err
 	}
 
 	playlist, err := db.Instance.GetPlaylist(ctx, args)
 	if err != nil {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_not_found"))
+		_, err := m.Reply("❌ Playlist not found.")
 		return err
 	}
 	var songs []string
@@ -229,29 +218,27 @@ func playlistInfoHandler(m *telegram.NewMessage) error {
 		return telegram.ErrEndGroup
 	}
 
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_info"), playlist.Name, owner.FirstName, len(playlist.Songs), strings.Join(songs, "\n")))
+	_, err = m.Reply(fmt.Sprintf("<b>🎵 Playlist Info</b>\n\n<b>Name:</b> %s\n<b>Owner:</b> %s\n<b>Songs:</b> %d\n\n%s", playlist.Name, owner.FirstName, len(playlist.Songs), strings.Join(songs, "\n")))
 	return telegram.ErrEndGroup
 }
 
 func myPlaylistsHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	userID := m.SenderID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	playlists, err := db.Instance.GetUserPlaylists(ctx, userID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_fetch_error"), err.Error()))
+		_, err := m.Reply(fmt.Sprintf("An error occurred while fetching your playlists: %s", err.Error()))
 		return err
 	}
 	if len(playlists) == 0 {
-		_, err := m.Reply(lang.GetString(langCode, "playlist_no_playlists"))
+		_, err := m.Reply("❌ You don't have any playlists.")
 		return err
 	}
 	var playlistInfo []string
 	for _, playlist := range playlists {
 		playlistInfo = append(playlistInfo, fmt.Sprintf("- %s (<code>%s</code>)", playlist.Name, playlist.ID))
 	}
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "playlist_my_playlists"), strings.Join(playlistInfo, "\n")))
+	_, err = m.Reply(fmt.Sprintf("<b>🎵 My Playlists</b>\n\n%s", strings.Join(playlistInfo, "\n")))
 	return err
 }

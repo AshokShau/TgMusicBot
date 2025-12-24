@@ -9,6 +9,8 @@
 package dl
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/utils"
 	"context"
 	"crypto/rand"
 	"errors"
@@ -20,9 +22,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"ashokshau/tgmusic/src/config"
-	"ashokshau/tgmusic/src/core/cache"
 )
 
 // YouTubeData provides an interface for fetching track and playlist information from YouTube.
@@ -89,6 +88,7 @@ func (y *YouTubeData) IsValid() bool {
 		log.Println("The query or patterns are empty.")
 		return false
 	}
+
 	for _, pattern := range y.Patterns {
 		if pattern.MatchString(y.Query) {
 			return true
@@ -99,52 +99,50 @@ func (y *YouTubeData) IsValid() bool {
 
 // GetInfo retrieves metadata for a track from YouTube.
 // It returns a PlatformTracks object or an error if the information cannot be fetched.
-func (y *YouTubeData) GetInfo(_ context.Context) (cache.PlatformTracks, error) {
+func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
 	if !y.IsValid() {
-		return cache.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
+		return utils.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
 	y.Query = y.normalizeYouTubeURL(y.Query)
 	videoID := y.extractVideoID(y.Query)
 	if videoID == "" {
-		return cache.PlatformTracks{}, errors.New("unable to extract the video ID")
+		return utils.PlatformTracks{}, errors.New("unable to extract the video ID")
 	}
 
-	tracks, err := searchYouTube(y.Query)
+	tracks, err := searchYouTube(videoID)
 	if err != nil {
-		return cache.PlatformTracks{}, err
+		return utils.PlatformTracks{}, err
 	}
 
 	for _, track := range tracks {
-		if track.ID == videoID {
-			return cache.PlatformTracks{Results: []cache.MusicTrack{track}}, nil
+		if track.Id == videoID {
+			return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
 		}
 	}
 
-	return cache.PlatformTracks{}, errors.New("no video results were found")
+	return utils.PlatformTracks{}, errors.New("no video results were found")
 }
 
 // Search performs a search for a track on YouTube.
-// It accepts a context for handling timeouts and cancellations, and returns a PlatformTracks object or an error.
-func (y *YouTubeData) Search(_ context.Context) (cache.PlatformTracks, error) {
+func (y *YouTubeData) Search(_ context.Context) (utils.PlatformTracks, error) {
 	tracks, err := searchYouTube(y.Query)
 	if err != nil {
-		return cache.PlatformTracks{}, err
+		return utils.PlatformTracks{}, err
 	}
 	if len(tracks) == 0 {
-		return cache.PlatformTracks{}, errors.New("no video results were found")
+		return utils.PlatformTracks{}, errors.New("no video results were found")
 	}
-	return cache.PlatformTracks{Results: tracks}, nil
+	return utils.PlatformTracks{Results: tracks}, nil
 }
 
 // GetTrack retrieves detailed information for a single track.
-// It returns a TrackInfo object or an error if the track cannot be found.
-func (y *YouTubeData) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
+func (y *YouTubeData) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
 	if y.Query == "" {
-		return cache.TrackInfo{}, errors.New("the query is empty")
+		return utils.TrackInfo{}, errors.New("the query is empty")
 	}
 	if !y.IsValid() {
-		return cache.TrackInfo{}, errors.New("the provided URL is invalid or the platform is not supported")
+		return utils.TrackInfo{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
 	if y.ApiUrl != "" && y.APIKey != "" {
@@ -155,43 +153,35 @@ func (y *YouTubeData) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
 
 	getInfo, err := y.GetInfo(ctx)
 	if err != nil {
-		return cache.TrackInfo{}, err
+		return utils.TrackInfo{}, err
 	}
 	if len(getInfo.Results) == 0 {
-		return cache.TrackInfo{}, errors.New("no video results were found")
+		return utils.TrackInfo{}, errors.New("no video results were found")
 	}
 
 	track := getInfo.Results[0]
-	trackInfo := cache.TrackInfo{
-		URL:      track.URL,
-		CdnURL:   "None",
-		Key:      "None",
-		Name:     track.Name,
-		Duration: track.Duration,
-		TC:       track.ID,
-		Cover:    track.Cover,
-		Platform: "youtube",
+	trackInfo := utils.TrackInfo{
+		URL:      track.Url,
+		Platform: utils.YouTube,
 	}
 
 	return trackInfo, nil
 }
 
 // downloadTrack handles the download of a track from YouTube.
-// It returns the file path of the downloaded track or an error if the download fails.
-func (y *YouTubeData) downloadTrack(ctx context.Context, info cache.TrackInfo, video bool) (string, error) {
+func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, video bool) (string, error) {
 	if !video && y.ApiUrl != "" && y.APIKey != "" {
-		if filePath, err := y.downloadWithApi(ctx, info.TC, video); err == nil {
+		if filePath, err := y.downloadWithApi(ctx, info.Id, video); err == nil {
 			return filePath, nil
 		}
 	}
 
-	filePath, err := y.downloadWithYtDlp(ctx, info.TC, video)
+	filePath, err := y.downloadWithYtDlp(ctx, info.Id, video)
 	return filePath, err
 }
 
-// BuildYtdlpParams constructs the command-line parameters for yt-dlp to download media.
-// It takes a video ID and a boolean indicating whether to download video or audio, and returns the corresponding parameters.
-func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
+// buildYtdlpParams constructs the command-line parameters for yt-dlp to download media.
+func (y *YouTubeData) buildYtdlpParams(videoID string, video bool) []string {
 	outputTemplate := filepath.Join(config.Conf.DownloadsDir, "%(id)s.%(ext)s")
 
 	params := []string{
@@ -235,9 +225,8 @@ func (y *YouTubeData) BuildYtdlpParams(videoID string, video bool) []string {
 }
 
 // downloadWithYtDlp downloads media from YouTube using the yt-dlp command-line tool.
-// It returns the file path of the downloaded track or an error if the download fails.
 func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, video bool) (string, error) {
-	ytdlpParams := y.BuildYtdlpParams(videoID, video)
+	ytdlpParams := y.buildYtdlpParams(videoID, video)
 	cmd := exec.CommandContext(ctx, ytdlpParams[0], ytdlpParams[1:]...)
 
 	output, err := cmd.Output()
@@ -268,7 +257,6 @@ func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, vid
 }
 
 // getCookieFile retrieves the path to a cookie file from the configured list.
-// It returns the path to a randomly selected cookie file.
 func (y *YouTubeData) getCookieFile() string {
 	cookiesPath := config.Conf.CookiesPath
 	if len(cookiesPath) == 0 {
@@ -284,7 +272,6 @@ func (y *YouTubeData) getCookieFile() string {
 }
 
 // downloadWithApi downloads a track using the external API.
-// It returns the file path of the downloaded track or an error if the download fails.
 func (y *YouTubeData) downloadWithApi(ctx context.Context, videoID string, _ bool) (string, error) {
 	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
 	api := NewApiData(videoUrl)

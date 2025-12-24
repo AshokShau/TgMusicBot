@@ -9,19 +9,17 @@
 package dl
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/utils"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
-
-	"ashokshau/tgmusic/src/config"
-	"ashokshau/tgmusic/src/core/cache"
 )
 
 // ApiData provides a unified interface for fetching track and playlist information from various music platforms via an API gateway.
@@ -33,12 +31,15 @@ type ApiData struct {
 }
 
 var apiPatterns = map[string]*regexp.Regexp{
-	cache.Apple:      regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*music\.apple\.com/([a-z]{2}/)?(album|playlist|song)/[a-zA-Z0-9\-._]+/(pl\.[a-zA-Z0-9]+|\d+)(\?.*)?$`),
-	cache.Spotify:    regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$`),
-	"yt_playlist":    regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)/(?:playlist|watch)\?.*\blist=([\w-]+)`),
-	"yt_music":       regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/(?:watch|playlist)\?.*v=([\w-]+)`),
-	cache.JioSaavn:   regexp.MustCompile(`(?i)^(https?://)?(www\.)?jiosaavn\.com/(song|featured)/[\w-]+/[a-zA-Z0-9_-]+$`),
-	cache.SoundCloud: regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*soundcloud\.com/[a-zA-Z0-9_-]+(/(sets)?/[a-zA-Z0-9_-]+)?(\?.*)?$`),
+	utils.Apple:    regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*music\.apple\.com/([a-z]{2}/)?(album|playlist|song)/[a-zA-Z0-9\-._]+/(pl\.[a-zA-Z0-9]+|\d+)(\?.*)?$`),
+	utils.Spotify:  regexp.MustCompile(`(?i)^(https?://)?([a-z0-9-]+\.)*spotify\.com/(track|playlist|album|artist)/[a-zA-Z0-9]+(\?.*)?$`),
+	"yt_playlist":  regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?(?:youtube\.com|music\.youtube\.com)/(?:playlist|watch)\?.*\blist=([\w-]+)`),
+	"yt_music":     regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/(?:watch|playlist)\?.*v=([\w-]+)`),
+	utils.JioSaavn: regexp.MustCompile(`(?i)^(https?://)?(www\.)?jiosaavn\.com/(song|featured)/[\w-]+/[a-zA-Z0-9_-]+$`),
+	utils.Deezer:   regexp.MustCompile(`(?i)https?:\/\/(?:www\.)?deezer\.com\/(?:[a-z]{2}\/)?(track|album|playlist)\/(\d+)`),
+	utils.SoundCloud: regexp.MustCompile(
+		`(?i)^(https?://)?(www\.)?soundcloud\.com/[a-zA-Z0-9_-]+/(sets/)?[a-zA-Z0-9._-]+(\?.*)?$`,
+	),
 }
 
 // NewApiData creates and initializes a new ApiData instance with the provided query.
@@ -52,10 +53,8 @@ func NewApiData(query string) *ApiData {
 }
 
 // IsValid checks if the query is a valid URL for any of the supported platforms.
-// It returns true if the URL matches a known pattern, and false otherwise.
 func (a *ApiData) IsValid() bool {
 	if a.Query == "" || a.ApiUrl == "" || a.APIKey == "" {
-		log.Printf("The query, API URL, or API key is missing.")
 		return false
 	}
 
@@ -68,99 +67,94 @@ func (a *ApiData) IsValid() bool {
 }
 
 // GetInfo retrieves metadata for a track or playlist from the API.
-// It returns a PlatformTracks object or an error if the request fails.
-func (a *ApiData) GetInfo(ctx context.Context) (cache.PlatformTracks, error) {
+func (a *ApiData) GetInfo(ctx context.Context) (utils.PlatformTracks, error) {
 	if !a.IsValid() {
-		return cache.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
+		return utils.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
-	fullURL := fmt.Sprintf("%s/get_url?%s", a.ApiUrl, url.Values{"url": {a.Query}}.Encode())
+	fullURL := fmt.Sprintf("%s/api/get_url?%s", a.ApiUrl, url.Values{"url": {a.Query}}.Encode())
 	resp, err := sendRequest(ctx, http.MethodGet, fullURL, nil, map[string]string{"X-API-Key": a.APIKey})
 	if err != nil {
-		return cache.PlatformTracks{}, fmt.Errorf("the GetInfo request failed: %w", err)
+		return utils.PlatformTracks{}, fmt.Errorf("the GetInfo request failed: %w", err)
 	}
+
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return cache.PlatformTracks{}, fmt.Errorf("unexpected status code while fetching info: %s", resp.Status)
+		return utils.PlatformTracks{}, fmt.Errorf("unexpected status code while fetching info: %s", resp.Status)
 	}
 
-	var data cache.PlatformTracks
+	var data utils.PlatformTracks
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return cache.PlatformTracks{}, fmt.Errorf("failed to decode the GetInfo response: %w", err)
+		return utils.PlatformTracks{}, fmt.Errorf("failed to decode the GetInfo response: %w", err)
 	}
 	return data, nil
 }
 
 // Search queries the API for a track. The context can be used for timeouts or cancellations.
-// If the query is a valid URL, it fetches the information directly.
-// It returns a PlatformTracks object or an error if the search fails.
-func (a *ApiData) Search(ctx context.Context) (cache.PlatformTracks, error) {
+func (a *ApiData) Search(ctx context.Context) (utils.PlatformTracks, error) {
 	if a.IsValid() {
 		return a.GetInfo(ctx)
 	}
 
-	fullURL := fmt.Sprintf("%s/search?%s", a.ApiUrl, url.Values{
+	fullURL := fmt.Sprintf("%s/api/search?%s", a.ApiUrl, url.Values{
 		"query": {a.Query},
 		"limit": {"5"},
 	}.Encode())
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
-		return cache.PlatformTracks{}, fmt.Errorf("failed to create the search request: %w", err)
+		return utils.PlatformTracks{}, fmt.Errorf("failed to create the search request: %w", err)
 	}
 	req.Header.Set("X-API-Key", a.APIKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return cache.PlatformTracks{}, fmt.Errorf("the search request failed: %w", err)
+		return utils.PlatformTracks{}, fmt.Errorf("the search request failed: %w", err)
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return cache.PlatformTracks{}, fmt.Errorf("unexpected status code during search: %s", resp.Status)
+		return utils.PlatformTracks{}, fmt.Errorf("unexpected status code during search: %s", resp.Status)
 	}
 
-	var data cache.PlatformTracks
+	var data utils.PlatformTracks
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return cache.PlatformTracks{}, fmt.Errorf("failed to decode the search response: %w", err)
+		return utils.PlatformTracks{}, fmt.Errorf("failed to decode the search response: %w", err)
 	}
 	return data, nil
 }
 
 // GetTrack retrieves detailed information for a single track from the API.
-// It returns a TrackInfo object or an error if the request fails.
-func (a *ApiData) GetTrack(ctx context.Context) (cache.TrackInfo, error) {
-	fullURL := fmt.Sprintf("%s/track?%s", a.ApiUrl, url.Values{"url": {a.Query}}.Encode())
+func (a *ApiData) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
+	fullURL := fmt.Sprintf("%s/api/track?%s", a.ApiUrl, url.Values{"url": {a.Query}}.Encode())
 	resp, err := sendRequest(ctx, http.MethodGet, fullURL, nil, map[string]string{"X-API-Key": a.APIKey})
 	if err != nil {
-		return cache.TrackInfo{}, fmt.Errorf("the GetTrack request failed: %w", err)
+		return utils.TrackInfo{}, fmt.Errorf("the GetTrack request failed: %w", err)
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return cache.TrackInfo{}, fmt.Errorf("unexpected status code while fetching the track: %s", resp.Status)
+		return utils.TrackInfo{}, fmt.Errorf("unexpected status code while fetching the track: %s", resp.Status)
 	}
 
-	var data cache.TrackInfo
+	var data utils.TrackInfo
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return cache.TrackInfo{}, fmt.Errorf("failed to decode the GetTrack response: %w", err)
+		return utils.TrackInfo{}, fmt.Errorf("failed to decode the GetTrack response: %w", err)
 	}
 	return data, nil
 }
 
 // downloadTrack downloads a track using the API. If the track is a YouTube video and video format is requested,
-// it delegates the download to the YouTube downloader.
-// It returns the file path of the downloaded track or an error if the download fails.
-func (a *ApiData) downloadTrack(ctx context.Context, info cache.TrackInfo, video bool) (string, error) {
-	if info.Platform == cache.YouTube && video {
-		yt := NewYouTubeData(a.Query)
+func (a *ApiData) downloadTrack(ctx context.Context, info utils.TrackInfo, video bool) (string, error) {
+	yt := NewYouTubeData(a.Query)
+	if info.Platform == utils.YouTube && video {
 		return yt.downloadTrack(ctx, info, video)
 	}
 
@@ -171,10 +165,10 @@ func (a *ApiData) downloadTrack(ctx context.Context, info cache.TrackInfo, video
 
 	filePath, err := downloader.Process()
 	if err != nil {
-		if info.Platform == "youtube" {
-			yt := NewYouTubeData(a.Query)
+		if info.Platform == utils.YouTube {
 			return yt.downloadTrack(ctx, info, video)
 		}
+
 		return "", fmt.Errorf("the download process failed: %w", err)
 	}
 	return filePath, nil

@@ -9,6 +9,7 @@
 package db
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"context"
 	"crypto/rand"
 	"fmt"
@@ -139,4 +140,20 @@ func (db *Database) GetUserPlaylists(ctx context.Context, userID int64) ([]Playl
 		playlists = append(playlists, playlist)
 	}
 	return playlists, nil
+}
+
+func ConvertSongsToTracks(songs []Song) []utils.MusicTrack {
+	tracks := make([]utils.MusicTrack, 0, len(songs))
+
+	for _, song := range songs {
+		tracks = append(tracks, utils.MusicTrack{
+			Url:      song.URL,
+			Title:    song.Name,
+			Id:       song.TrackID,
+			Duration: song.Duration,
+			Platform: song.Platform,
+		})
+	}
+
+	return tracks
 }

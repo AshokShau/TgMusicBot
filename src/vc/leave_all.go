@@ -19,8 +19,6 @@ import (
 )
 
 // LeaveAll makes the bot leave all groups and channels it's currently in,
-// except for the ones specified in the exceptions list.
-// Returns the number of chats left and any error encountered.
 func (c *TelegramCalls) LeaveAll() (int, error) {
 	leftCount := 0
 

@@ -9,17 +9,16 @@
 package vc
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/utils"
 	"fmt"
-
-	"ashokshau/tgmusic/src/config"
-	"ashokshau/tgmusic/src/core/cache"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
 // sendLogger sends a formatted log message to the designated logger chat.
 // It includes details about the song being played, such as its title, duration, and the user who requested it.
-func sendLogger(client *tg.Client, chatID int64, song *cache.CachedTrack) {
+func sendLogger(client *tg.Client, chatID int64, song *utils.CachedTrack) {
 	if chatID == 0 || song == nil || chatID == config.Conf.LoggerId {
 		return
 	}
@@ -29,7 +28,7 @@ func sendLogger(client *tg.Client, chatID int64, song *cache.CachedTrack) {
 		chatID,
 		song.URL,
 		song.Name,
-		cache.SecToMin(song.Duration),
+		utils.SecToMin(song.Duration),
 		song.User,
 		song.Platform,
 		song.IsVideo,

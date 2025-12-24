@@ -13,22 +13,16 @@ type Context struct {
 	App                   *tg.Client
 	mutedByAdmin          []int64
 	presentations         []int64
-	presentationsMutex    sync.RWMutex
+	pendingPresentation   map[int64]bool
 	p2pConfigs            map[int64]*types.P2PConfig
-	p2pMutex              sync.RWMutex
 	inputCalls            map[int64]*tg.InputPhoneCall
-	inputCallsMutex       sync.RWMutex
 	inputGroupCalls       map[int64]tg.InputGroupCall
-	groupCallsMutex       sync.RWMutex
 	participantsMutex     sync.Mutex
 	callParticipants      map[int64]*types.CallParticipantsCache
 	pendingConnections    map[int64]*types.PendingConnection
-	pendingConnMutex      sync.RWMutex
 	callSources           map[int64]*types.CallSources
 	waitConnect           map[int64]chan error
-	waitConnMutex         sync.RWMutex
 	self                  *tg.UserObj
-	callbacksMutex        sync.RWMutex
 	incomingCallCallbacks []func(client *Context, chatId int64)
 	streamEndCallbacks    []ntgcalls.StreamEndCallback
 	frameCallbacks        []ntgcalls.FrameCallback
@@ -36,45 +30,37 @@ type Context struct {
 
 func NewInstance(app *tg.Client) (*Context, error) {
 	client := &Context{
-		binding:            ntgcalls.NTgCalls(),
-		App:                app,
-		p2pConfigs:         make(map[int64]*types.P2PConfig),
-		inputCalls:         make(map[int64]*tg.InputPhoneCall),
-		inputGroupCalls:    make(map[int64]tg.InputGroupCall),
-		pendingConnections: make(map[int64]*types.PendingConnection),
-		callParticipants:   make(map[int64]*types.CallParticipantsCache),
-		callSources:        make(map[int64]*types.CallSources),
-		waitConnect:        make(map[int64]chan error),
+		binding:             ntgcalls.NTgCalls(),
+		App:                 app,
+		pendingPresentation: make(map[int64]bool),
+		p2pConfigs:          make(map[int64]*types.P2PConfig),
+		inputCalls:          make(map[int64]*tg.InputPhoneCall),
+		inputGroupCalls:     make(map[int64]tg.InputGroupCall),
+		pendingConnections:  make(map[int64]*types.PendingConnection),
+		callParticipants:    make(map[int64]*types.CallParticipantsCache),
+		callSources:         make(map[int64]*types.CallSources),
+		waitConnect:         make(map[int64]chan error),
 	}
-
 	if app.IsConnected() {
 		self, err := app.GetMe()
 		if err != nil {
-			client.Close()
 			return nil, err
 		}
 		client.self = self
 	}
-
 	client.handleUpdates()
 	return client, nil
 }
 
 func (ctx *Context) OnIncomingCall(callback func(client *Context, chatId int64)) {
-	ctx.callbacksMutex.Lock()
-	defer ctx.callbacksMutex.Unlock()
 	ctx.incomingCallCallbacks = append(ctx.incomingCallCallbacks, callback)
 }
 
 func (ctx *Context) OnStreamEnd(callback ntgcalls.StreamEndCallback) {
-	ctx.callbacksMutex.Lock()
-	defer ctx.callbacksMutex.Unlock()
 	ctx.streamEndCallbacks = append(ctx.streamEndCallbacks, callback)
 }
 
 func (ctx *Context) OnFrame(callback ntgcalls.FrameCallback) {
-	ctx.callbacksMutex.Lock()
-	defer ctx.callbacksMutex.Unlock()
 	ctx.frameCallbacks = append(ctx.frameCallbacks, callback)
 }
 

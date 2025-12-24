@@ -13,15 +13,12 @@ import (
 	"fmt"
 
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
 // getTargetUserID gets the user ID from a message.
-// It takes a telegram.NewMessage object as input.
-// It returns the user ID and an error if any.
-func getTargetUserID(m *telegram.NewMessage, langCode string) (int64, error) {
+func getTargetUserID(m *tg.NewMessage) (int64, error) {
 	var userID int64
 
 	if m.IsReply() {
@@ -35,43 +32,41 @@ func getTargetUserID(m *telegram.NewMessage, langCode string) (int64, error) {
 		if err != nil {
 			return 0, err
 		}
-		ux, ok := user.(*telegram.UserObj)
+		ux, ok := user.(*tg.UserObj)
 		if !ok {
-			return 0, errors.New(lang.GetString(langCode, "auth_user_not_found"))
+			return 0, errors.New("user not found")
 		}
 		userID = ux.ID
 	}
 
 	if userID == 0 {
-		return 0, errors.New(lang.GetString(langCode, "auth_no_user_specified"))
+		return 0, errors.New("no user specified")
 	}
 
 	if m.SenderID() == userID {
-		return 0, errors.New(lang.GetString(langCode, "auth_action_on_self"))
+		return 0, errors.New("cannot perform action on yourself")
 	}
 
 	return userID, nil
 }
 
 // authListHandler handles the /auth command.
-// It takes a telegram.NewMessage object as input.
-// It returns an error if any.
-func authListHandler(m *telegram.NewMessage) error {
+func authListHandler(m *tg.NewMessage) error {
 	if m.IsPrivate() {
 		return nil
 	}
+
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
 	authUser := db.Instance.GetAuthUsers(ctx, chatID)
 	if authUser == nil || len(authUser) == 0 {
-		_, _ = m.Reply(lang.GetString(langCode, "no_auth_users"))
+		_, _ = m.Reply("ℹ️ No authorized users found.")
 		return nil
 	}
 
-	text := lang.GetString(langCode, "auth_users_list")
+	text := "<b>🔐 Authorized Users:</b>\n\n"
 	for _, uid := range authUser {
 		text += fmt.Sprintf("• <code>%d</code>\n", uid)
 	}
@@ -81,42 +76,38 @@ func authListHandler(m *telegram.NewMessage) error {
 }
 
 // addAuthHandler handles the /addauth command.
-// It takes a telegram.NewMessage object as input.
-// It returns an error if any.
-func addAuthHandler(m *telegram.NewMessage) error {
+func addAuthHandler(m *tg.NewMessage) error {
 	if m.IsPrivate() {
 		return nil
 	}
+
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
-	userID, err := getTargetUserID(m, langCode)
+	userID, err := getTargetUserID(m)
 	if err != nil {
 		_, _ = m.Reply(err.Error())
 		return nil
 	}
 
 	if db.Instance.IsAuthUser(ctx, chatID, userID) {
-		_, _ = m.Reply(lang.GetString(langCode, "user_already_authed"))
+		_, _ = m.Reply("User is already authorized.")
 		return nil
 	}
 
 	if err := db.Instance.AddAuthUser(ctx, chatID, userID); err != nil {
 		logger.Error("Failed to add authorized user:", err)
-		_, _ = m.Reply(lang.GetString(langCode, "add_auth_error"))
+		_, _ = m.Reply("Something went wrong while adding the user.")
 		return nil
 	}
 
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "user_authed"), userID))
+	_, err = m.Reply(fmt.Sprintf("✅ User (%d) has been successfully granted authorization permissions.", userID))
 	return err
 }
 
 // removeAuthHandler handles the /removeauth command.
-// It takes a telegram.NewMessage object as input.
-// It returns an error if any.
-func removeAuthHandler(m *telegram.NewMessage) error {
+func removeAuthHandler(m *tg.NewMessage) error {
 	if m.IsPrivate() {
 		return nil
 	}
@@ -124,25 +115,24 @@ func removeAuthHandler(m *telegram.NewMessage) error {
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
-	userID, err := getTargetUserID(m, langCode)
+	userID, err := getTargetUserID(m)
 	if err != nil {
 		_, _ = m.Reply(err.Error())
 		return nil
 	}
 
 	if !db.Instance.IsAuthUser(ctx, chatID, userID) {
-		_, _ = m.Reply(lang.GetString(langCode, "user_not_authed"))
+		_, _ = m.Reply("User is not authorized.")
 		return nil
 	}
 
 	if err := db.Instance.RemoveAuthUser(ctx, chatID, userID); err != nil {
 		logger.Error("Failed to remove authorized user:", err)
-		_, _ = m.Reply(lang.GetString(langCode, "remove_auth_error"))
+		_, _ = m.Reply("Something went wrong while removing the user.")
 		return nil
 	}
 
-	_, err = m.Reply(fmt.Sprintf(lang.GetString(langCode, "user_unauthed"), userID))
+	_, err = m.Reply(fmt.Sprintf("✅ User (%d) has been successfully removed from the authorized users list.", userID))
 	return err
 }

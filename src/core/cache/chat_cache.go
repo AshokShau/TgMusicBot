@@ -9,13 +9,13 @@
 package cache
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"sync"
 )
 
 // ChatData holds the state of a chat's music queue, including whether it is active and the list of tracks.
 type ChatData struct {
-	IsActive bool
-	Queue    []*CachedTrack
+	Queue []*utils.CachedTrack
 }
 
 // ChatCacher is a thread-safe cache that manages music queues for multiple chats.
@@ -32,24 +32,24 @@ func NewChatCacher() *ChatCacher {
 }
 
 // AddSong adds a new song to a chat's queue. If the chat does not exist, it creates a new one.
-// It takes a chat ID and a CachedTrack to add, and returns the added track.
-func (c *ChatCacher) AddSong(chatID int64, song *CachedTrack) *CachedTrack {
+// It takes a chat ID and a CachedTrack to add, and returns the new length of the queue.
+func (c *ChatCacher) AddSong(chatID int64, song *utils.CachedTrack) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		data = &ChatData{IsActive: true, Queue: []*CachedTrack{}}
+		data = &ChatData{Queue: []*utils.CachedTrack{}}
 		c.chatCache[chatID] = data
 	}
 
 	data.Queue = append(data.Queue, song)
-	return song
+	return len(data.Queue)
 }
 
 // GetUpcomingTrack retrieves the next song in the queue for a given chat.
 // It returns the upcoming track or nil if the queue is empty or has only one song.
-func (c *ChatCacher) GetUpcomingTrack(chatID int64) *CachedTrack {
+func (c *ChatCacher) GetUpcomingTrack(chatID int64) *utils.CachedTrack {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -62,7 +62,7 @@ func (c *ChatCacher) GetUpcomingTrack(chatID int64) *CachedTrack {
 
 // GetPlayingTrack retrieves the currently playing song for a given chat.
 // It returns the current track or nil if the queue is empty.
-func (c *ChatCacher) GetPlayingTrack(chatID int64) *CachedTrack {
+func (c *ChatCacher) GetPlayingTrack(chatID int64) *utils.CachedTrack {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -70,12 +70,13 @@ func (c *ChatCacher) GetPlayingTrack(chatID int64) *CachedTrack {
 	if !ok || len(data.Queue) == 0 {
 		return nil
 	}
+
 	return data.Queue[0]
 }
 
 // RemoveCurrentSong removes the currently playing song from the queue.
 // It returns the removed track or nil if the queue was empty.
-func (c *ChatCacher) RemoveCurrentSong(chatID int64) *CachedTrack {
+func (c *ChatCacher) RemoveCurrentSong(chatID int64) *utils.CachedTrack {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -91,26 +92,13 @@ func (c *ChatCacher) RemoveCurrentSong(chatID int64) *CachedTrack {
 }
 
 // IsActive checks if the music player is currently active in a specific chat.
-// It returns true if active, otherwise false.
+// It returns true if there is at least one song in the queue.
 func (c *ChatCacher) IsActive(chatID int64) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	data, ok := c.chatCache[chatID]
-	return ok && data.IsActive
-}
-
-// SetActive updates the active state of the music player for a chat.
-func (c *ChatCacher) SetActive(chatID int64, active bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	data, ok := c.chatCache[chatID]
-	if !ok {
-		data = &ChatData{Queue: []*CachedTrack{}}
-		c.chatCache[chatID] = data
-	}
-	data.IsActive = active
+	return ok && len(data.Queue) > 0
 }
 
 // ClearChat removes all tracks from a chat's queue.
@@ -180,15 +168,15 @@ func (c *ChatCacher) RemoveTrack(chatID int64, index int) bool {
 }
 
 // GetQueue returns a copy of the current song queue for a chat.
-func (c *ChatCacher) GetQueue(chatID int64) []*CachedTrack {
+func (c *ChatCacher) GetQueue(chatID int64) []*utils.CachedTrack {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	data, ok := c.chatCache[chatID]
 	if !ok {
-		return []*CachedTrack{}
+		return []*utils.CachedTrack{}
 	}
-	return append([]*CachedTrack(nil), data.Queue...)
+	return append([]*utils.CachedTrack(nil), data.Queue...)
 }
 
 // GetActiveChats returns a list of all chat IDs where the music player is currently active.
@@ -198,7 +186,7 @@ func (c *ChatCacher) GetActiveChats() []int64 {
 
 	var active []int64
 	for chatID, data := range c.chatCache {
-		if data.IsActive {
+		if len(data.Queue) > 0 {
 			active = append(active, chatID)
 		}
 	}
@@ -207,7 +195,7 @@ func (c *ChatCacher) GetActiveChats() []int64 {
 
 // GetTrackIfExists searches for a track in the queue by its ID and returns it if found.
 // It returns the track or nil if it does not exist in the queue.
-func (c *ChatCacher) GetTrackIfExists(chatID int64, trackID string) *CachedTrack {
+func (c *ChatCacher) GetTrackIfExists(chatID int64, trackID string) *utils.CachedTrack {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 

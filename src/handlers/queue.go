@@ -9,14 +9,13 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 	"ashokshau/tgmusic/src/vc"
 
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -25,18 +24,15 @@ import (
 // queueHandler displays the current playback queue with detailed information.
 func queueHandler(m *tg.NewMessage) error {
 	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 	chat := m.Channel
 	queue := cache.ChatCache.GetQueue(chatID)
 	if len(queue) == 0 {
-		_, _ = m.Reply(lang.GetString(langCode, "queue_empty"))
+		_, _ = m.Reply("📭 The queue is currently empty.")
 		return nil
 	}
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply(lang.GetString(langCode, "queue_no_session"))
+		_, _ = m.Reply("⏸ There is no active playback session.")
 		return nil
 	}
 
@@ -44,28 +40,28 @@ func queueHandler(m *tg.NewMessage) error {
 	playedTime, _ := vc.Calls.PlayedTime(chatID)
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_header"), chat.Title))
+	b.WriteString(fmt.Sprintf("<b>🎧 Queue for %s</b>\n\n", chat.Title))
 
-	b.WriteString(lang.GetString(langCode, "queue_now_playing"))
-	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_track_title"), truncate(current.Name, 45)))
-	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_requested_by"), current.User))
-	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_duration"), cache.SecToMin(current.Duration)))
-	b.WriteString(lang.GetString(langCode, "queue_loop"))
+	b.WriteString("<b>▶️ Now Playing:</b>\n")
+	b.WriteString(fmt.Sprintf("├ <b>Title:</b> <code>%s</code>\n", truncate(current.Name, 45)))
+	b.WriteString(fmt.Sprintf("├ <b>Requested by:</b> %s\n", current.User))
+	b.WriteString(fmt.Sprintf("├ <b>Duration:</b> %s min\n", utils.SecToMin(current.Duration)))
+	b.WriteString("├ <b>Loop:</b> ")
 	if current.Loop > 0 {
-		b.WriteString(lang.GetString(langCode, "queue_loop_on"))
+		b.WriteString("🔁 On\n")
 	} else {
-		b.WriteString(lang.GetString(langCode, "queue_loop_off"))
+		b.WriteString("➡️ Off\n")
 	}
-	b.WriteString(lang.GetString(langCode, "queue_progress"))
+	b.WriteString("└ <b>Progress:</b> ")
 	if playedTime > 0 && playedTime < math.MaxInt {
-		b.WriteString(cache.SecToMin(int(playedTime)))
+		b.WriteString(utils.SecToMin(int(playedTime)))
 	} else {
 		b.WriteString("0:00")
 	}
 	b.WriteString(" min\n")
 
 	if len(queue) > 1 {
-		b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_next_up"), len(queue)-1))
+		b.WriteString(fmt.Sprintf("\n<b>⏭ Next Up (%d):</b>\n", len(queue)-1))
 
 		for i, song := range queue[1:] {
 			if i >= 14 {
@@ -75,25 +71,25 @@ func queueHandler(m *tg.NewMessage) error {
 			b.WriteString(". <code>")
 			b.WriteString(truncate(song.Name, 45))
 			b.WriteString("</code> | ")
-			b.WriteString(cache.SecToMin(song.Duration))
+			b.WriteString(utils.SecToMin(song.Duration))
 			b.WriteString(" min\n")
 		}
 
 		if len(queue) > 15 {
-			b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_more_tracks"), len(queue)-15))
+			b.WriteString(fmt.Sprintf("...and %d more track(s)\n", len(queue)-15))
 		}
 	}
 
-	b.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_total"), len(queue)))
+	b.WriteString(fmt.Sprintf("\n<b>📊 Total:</b> %d track(s) in the queue", len(queue)))
 
 	text := b.String()
 	if len(text) > 4096 {
 		var sb strings.Builder
 		progress := "0:00"
 		if playedTime > 0 && playedTime < math.MaxInt {
-			progress = cache.SecToMin(int(playedTime))
+			progress = utils.SecToMin(int(playedTime))
 		}
-		sb.WriteString(fmt.Sprintf(lang.GetString(langCode, "queue_short_summary"), chat.Title, truncate(current.Name, 45), progress, cache.SecToMin(current.Duration), len(queue)))
+		sb.WriteString(fmt.Sprintf("<b>🎧 Queue for %s</b>\n\n<b>▶️ Now Playing:</b>\n├ <code>%s</code>\n└ %s/%s min\n\n<b>📊 Total:</b> %d track(s) in the queue", chat.Title, truncate(current.Name, 45), progress, utils.SecToMin(current.Duration), len(queue)))
 		text = sb.String()
 	}
 

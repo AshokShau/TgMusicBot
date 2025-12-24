@@ -11,17 +11,12 @@ package vc
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"ashokshau/tgmusic/src/config"
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/dl"
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 
 	"github.com/amarnathcjd/gogram/telegram"
@@ -167,71 +162,6 @@ func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string)
 		Microphone: audioDescription,
 		Camera:     videoDescription,
 	}
-}
-
-var telegramMessageRegex = regexp.MustCompile(`t\.me/(\w+)/(\d+)`)
-
-// DownloadSong downloads a song using the provided cached track information.
-// It returns the file path, track information, and an error if the download fails.
-func DownloadSong(ctx context.Context, song *cache.CachedTrack, bot *telegram.Client) (string, *cache.TrackInfo, error) {
-	if song.Platform == cache.Telegram {
-		file, err := telegram.ResolveBotFileID(song.TrackID)
-		if err != nil {
-			return "", nil, err
-		}
-
-		fileName := filepath.Join(config.Conf.DownloadsDir, song.Name)
-		if _, err := os.Stat(fileName); err == nil {
-			return fileName, nil, nil
-		}
-
-		filePath, err := bot.DownloadMedia(file, &telegram.DownloadOptions{FileName: fileName})
-		return filePath, nil, err
-	}
-
-	if song.Platform == cache.DirectLink {
-		return song.URL, nil, nil
-	}
-
-	songUrl := song.URL
-	wrapper := dl.NewDownloaderWrapper(songUrl)
-
-	if wrapper.IsValid() {
-		trackInfo, err := wrapper.GetTrack(ctx)
-		if err != nil {
-			logger.Info("[DownloadSong] Failed to get track information: %v", err)
-			return "", nil, err
-		}
-
-		filePath, err := wrapper.DownloadTrack(ctx, trackInfo, song.IsVideo)
-		if match := telegramMessageRegex.FindStringSubmatch(filePath); match != nil {
-			msg, err := dl.GetMessage(bot, filePath)
-			if err != nil {
-				return "", &trackInfo, fmt.Errorf("failed to get the message for %s: %w", trackInfo.Name, err)
-			}
-
-			fileName := msg.File.Name
-			file := filepath.Join(config.Conf.DownloadsDir, fileName)
-			if _, err := os.Stat(file); err == nil {
-				return fileName, &trackInfo, nil
-			}
-
-			download, err := msg.Download(&telegram.DownloadOptions{FileName: file})
-			if err != nil {
-				return "", &trackInfo, fmt.Errorf("failed to download %s: %w", trackInfo.Name, err)
-			}
-
-			if trackInfo.Duration == 0 {
-				trackInfo.Duration = cache.GetFileDur(msg)
-			}
-
-			return download, &trackInfo, nil
-		}
-
-		return filePath, &trackInfo, err
-	}
-
-	return "", nil, fmt.Errorf("the provided song URL is invalid: %s", songUrl)
 }
 
 // UpdateMembership updates the membership status of a user in a specific chat.

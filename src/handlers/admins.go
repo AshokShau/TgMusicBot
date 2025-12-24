@@ -9,15 +9,14 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"ashokshau/tgmusic/src/vc"
 	"fmt"
 	"time"
 
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
 const reloadCooldown = 3 * time.Minute
@@ -25,30 +24,28 @@ const reloadCooldown = 3 * time.Minute
 var reloadRateLimit = cache.NewCache[time.Time](reloadCooldown)
 
 // reloadAdminCacheHandler reloads the admin cache for a chat.
-func reloadAdminCacheHandler(m *telegram.NewMessage) error {
+func reloadAdminCacheHandler(m *tg.NewMessage) error {
 	if m.IsPrivate() {
 		return nil
 	}
-	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
+	chatID := m.ChannelID()
 	reloadKey := fmt.Sprintf("reload:%d", chatID)
+
 	if lastUsed, ok := reloadRateLimit.Get(reloadKey); ok {
 		timePassed := time.Since(lastUsed)
 		if timePassed < reloadCooldown {
 			remaining := int((reloadCooldown - timePassed).Seconds())
-			_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "reload_cooldown"), cache.SecToMin(remaining)))
+			_, _ = m.Reply(fmt.Sprintf("⏳ Please wait %s before using this command again.", utils.SecToMin(remaining)))
 			return nil
 		}
 	}
 
 	reloadRateLimit.Set(reloadKey, time.Now())
-	reply, err := m.Reply(lang.GetString(langCode, "reloading_admins"))
+	reply, err := m.Reply("🔄 Reloading the admin cache...")
 	if err != nil {
 		logger.Warn("Failed to send reloading message for chat %d: %v", chatID, err)
-		return err
+		return tg.ErrEndGroup
 	}
 
 	cache.ClearAdminCache(chatID)
@@ -57,13 +54,11 @@ func reloadAdminCacheHandler(m *telegram.NewMessage) error {
 	admins, err := cache.GetAdmins(m.Client, chatID, true)
 	if err != nil {
 		logger.Warn("Failed to reload the admin cache for chat %d: %v", chatID, err)
-		_, _ = reply.Edit(lang.GetString(langCode, "reload_error"))
+		_, _ = reply.Edit("⚠️ An error occurred while reloading the admin cache.")
 		return nil
 	}
 
 	logger.Info("Reloaded %d admins for chat %d", len(admins), chatID)
-	if _, err = reply.Edit(lang.GetString(langCode, "reload_success")); err != nil {
-		_, _ = m.Reply(lang.GetString(langCode, "reload_success"))
-	}
+	_, _ = reply.Edit("✅ The admin cache has been successfully reloaded.")
 	return nil
 }

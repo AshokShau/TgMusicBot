@@ -132,7 +132,7 @@ func pickAsset(r Release, buildType string) string {
 
 	osMap := map[string]string{
 		"darwin":  "macos",
-		"windows": "win",
+		"windows": "windows",
 	}
 	if mappedOS, ok := osMap[goos]; ok {
 		goos = mappedOS

@@ -9,13 +9,13 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"fmt"
 	"strings"
 
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/lang"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -45,12 +45,11 @@ func settingsHandler(m *telegram.NewMessage) error {
 	if !isAdmin {
 		return nil
 	}
-	langCode := db.Instance.GetLang(ctx, chatID)
 	// Get current settings
 	getPlayMode := db.Instance.GetPlayMode(ctx, chatID)
 	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
 
-	text := fmt.Sprintf(lang.GetString(langCode, "settings_header"),
+	text := fmt.Sprintf("<b>⚙️ Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
 		m.Chat.Title, getPlayMode, getAdminMode)
 
 	_, err = m.Reply(text, &telegram.SendOptions{
@@ -63,7 +62,6 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 	chatID := c.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
 	// Check admin permissions
 	admins, err := cache.GetAdmins(c.Client, chatID, false)
@@ -80,7 +78,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 	}
 
 	if !hasPerms {
-		_, err := c.Answer(lang.GetString(langCode, "settings_no_permission"), &telegram.CallbackOptions{Alert: true})
+		_, err := c.Answer("You don't have permission to change settings.", &telegram.CallbackOptions{Alert: true})
 		return err
 	}
 
@@ -96,13 +94,13 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 
 	// Validate the setting value
 	validValues := map[string]bool{
-		cache.Admins:   true,
-		cache.Auth:     true,
-		cache.Everyone: true,
+		utils.Admins:   true,
+		utils.Auth:     true,
+		utils.Everyone: true,
 	}
 
 	if !validValues[settingValue] {
-		_, _ = c.Answer(lang.GetString(langCode, "settings_update_invalid"), &telegram.CallbackOptions{Alert: true})
+		_, _ = c.Answer("Update your chat settings", &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
 
@@ -112,7 +110,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 	case "admin":
 		_ = db.Instance.SetAdminMode(ctx, chatID, settingValue)
 	default:
-		_, _ = c.Answer(lang.GetString(langCode, "settings_update_prompt"), &telegram.CallbackOptions{Alert: true})
+		_, _ = c.Answer("Update your chat settings", &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
 
@@ -125,7 +123,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 		return nil
 	}
 
-	text := fmt.Sprintf(lang.GetString(langCode, "settings_header"),
+	text := fmt.Sprintf("<b>⚙️ Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
 		chat.Title, getPlayMode, getAdminMode)
 
 	_, err = c.Edit(text, &telegram.SendOptions{
@@ -136,7 +134,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 		return err
 	}
 
-	_, _ = c.Answer(lang.GetString(langCode, "settings_updated"), &telegram.CallbackOptions{Alert: false})
-	_, _ = c.Edit(lang.GetString(langCode, "settings_updated"))
+	_, _ = c.Answer("✅ Settings updated", &telegram.CallbackOptions{Alert: false})
+	_, _ = c.Edit("✅ Settings updated")
 	return nil
 }

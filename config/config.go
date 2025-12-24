@@ -34,7 +34,7 @@ func LoadConfig() error {
 		SessionType:       getEnvStr("SESSION_TYPE", "pyrogram"),
 		MongoUri:          os.Getenv("MONGO_URI"),
 		DbName:            getEnvStr("DB_NAME", "MusicBot"),
-		ApiUrl:            getEnvStr("API_URL", "https://tgmusic.fallenapi.fun"),
+		ApiUrl:            getEnvStr("API_URL", "https://beta.fallenapi.fun"),
 		ApiKey:            os.Getenv("API_KEY"),
 		OwnerId:           getEnvInt64("OWNER_ID"),
 		LoggerId:          getEnvInt64("LOGGER_ID"),
@@ -42,7 +42,7 @@ func LoadConfig() error {
 		DefaultService:    strings.ToLower(getEnvStr("DEFAULT_SERVICE", "youtube")),
 		MaxFileSize:       getEnvInt64("MAX_FILE_SIZE"),
 		SongDurationLimit: getEnvInt64("SONG_DURATION_LIMIT"),
-		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "/tmp/downloads"),
+		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "downloads"),
 		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
 		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
@@ -77,10 +77,6 @@ func LoadConfig() error {
 
 	if err := os.MkdirAll(Conf.DownloadsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create downloads directory: %w", err)
-	}
-
-	if err := os.MkdirAll("cache", 0755); err != nil {
-		return fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	if len(Conf.cookiesUrl) > 0 {

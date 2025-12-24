@@ -9,6 +9,7 @@
 package dl
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,12 +17,10 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-
-	"ashokshau/tgmusic/src/core/cache"
 )
 
 // searchYouTube scrapes YouTube results page
-func searchYouTube(query string) ([]cache.MusicTrack, error) {
+func searchYouTube(query string) ([]utils.MusicTrack, error) {
 	encoded := url.QueryEscape(query)
 	searchURL := "https://www.youtube.com/results?search_query=" + encoded
 
@@ -47,7 +46,7 @@ func searchYouTube(query string) ([]cache.MusicTrack, error) {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	re := regexp.MustCompile(`var ytInitialData = (.*?);\s*</script>`)
+	re := regexp.MustCompile(`(?s)var ytInitialData = (.*?);\s*</script>`)
 	match := re.FindSubmatch(body)
 	if len(match) < 2 {
 		return nil, fmt.Errorf("ytInitialData not found")
@@ -65,14 +64,14 @@ func searchYouTube(query string) ([]cache.MusicTrack, error) {
 		return nil, fmt.Errorf("no contents")
 	}
 
-	var tracks []cache.MusicTrack
+	var tracks []utils.MusicTrack
 	parseSearchResults(contents, &tracks)
 
 	return tracks, nil
 }
 
 // Recursively find items
-func parseSearchResults(node interface{}, tracks *[]cache.MusicTrack) {
+func parseSearchResults(node interface{}, tracks *[]utils.MusicTrack) {
 	switch v := node.(type) {
 	case []interface{}:
 		for _, item := range v {
@@ -85,17 +84,20 @@ func parseSearchResults(node interface{}, tracks *[]cache.MusicTrack) {
 			thumb := safeString(dig(vid, "thumbnail", "thumbnails", 0, "url"))
 			durationText := safeString(dig(vid, "lengthText", "simpleText"))
 			views := safeString(dig(vid, "shortViewCountText", "simpleText"))
+			if views == "" {
+				views = safeString(dig(vid, "shortViewCountText", "runs", 0, "text"))
+			}
 			channel := safeString(dig(vid, "ownerText", "runs", 0, "text"))
 			duration := parseDuration(durationText)
-			*tracks = append(*tracks, cache.MusicTrack{
-				URL:      "https://www.youtube.com/watch?v=" + id,
-				Name:     title,
-				ID:       id,
-				Cover:    thumb,
-				Duration: duration,
-				Views:    views,
-				Channel:  channel,
-				Platform: "youtube",
+			*tracks = append(*tracks, utils.MusicTrack{
+				Url:       "https://www.youtube.com/watch?v=" + id,
+				Title:     title,
+				Id:        id,
+				Thumbnail: thumb,
+				Duration:  duration,
+				Views:     views,
+				Channel:   channel,
+				Platform:  "youtube",
 			})
 		} else {
 			for _, child := range v {

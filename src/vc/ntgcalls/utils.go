@@ -43,14 +43,12 @@ func parseBool(futureResult *Future) (bool, error) {
 	return *futureResult.errCode == 0, parseErrorCode(futureResult)
 }
 
-func parseBytes(data []byte) (*C.uint8_t, C.int, func()) {
+func parseBytes(data []byte) (*C.uint8_t, C.int) {
 	if data != nil {
 		rawBytes := C.CBytes(data)
-		return (*C.uint8_t)(rawBytes), C.int(len(data)), func() {
-			C.free(rawBytes)
-		}
+		return (*C.uint8_t)(rawBytes), C.int(len(data))
 	}
-	return nil, 0, func() {}
+	return nil, 0
 }
 
 func parseStringVector(data unsafe.Pointer, size C.int) []string {
@@ -64,40 +62,30 @@ func parseStringVector(data unsafe.Pointer, size C.int) []string {
 	return result
 }
 
-func parseUint32VectorC(data []uint32) (*C.uint32_t, C.int, func()) {
+func parseUint32VectorC(data []uint32) (*C.uint32_t, C.int) {
 	if len(data) > 0 {
 		cData := C.malloc(C.size_t(len(data)) * C.size_t(unsafe.Sizeof(C.uint32_t(0))))
 		if cData == nil {
-			return nil, 0, func() {}
+			return nil, 0
 		}
 		ssrcs := (*C.uint32_t)(cData)
 		for i, v := range data {
 			*(*C.uint32_t)(unsafe.Pointer(uintptr(unsafe.Pointer(ssrcs)) + uintptr(i)*unsafe.Sizeof(C.uint32_t(0)))) = C.uint32_t(v)
 		}
-		return ssrcs, C.int(len(data)), func() {
-			C.free(cData)
-		}
+		return ssrcs, C.int(len(data))
 	}
-	return nil, 0, func() {}
+	return nil, 0
 }
 
-func parseStringVectorC(data []string) (**C.char, C.int, func()) {
+func parseStringVectorC(data []string) (**C.char, C.int) {
 	if len(data) > 0 {
-
 		rawData := make([]*C.char, len(data))
 		for i, v := range data {
 			rawData[i] = C.CString(v)
 		}
-
-		cleanup := func() {
-			for _, ptr := range rawData {
-				C.free(unsafe.Pointer(ptr))
-			}
-		}
-
-		return &rawData[0], C.int(len(data)), cleanup
+		return &rawData[0], C.int(len(data))
 	}
-	return nil, 0, func() {}
+	return nil, 0
 }
 
 func parseErrorCode(futureResult *Future) error {
@@ -127,31 +115,9 @@ func parseStreamStatus(status C.ntg_stream_status_enum) StreamStatus {
 	return ActiveStream
 }
 
-func parseRtcServers(rtcServers []RTCServer) (*C.ntg_rtc_server_struct, func()) {
+func parseRtcServers(rtcServers []RTCServer) *C.ntg_rtc_server_struct {
 	if len(rtcServers) > 0 {
 		rawServers := make([]C.ntg_rtc_server_struct, len(rtcServers))
-		cleanups := make([]func(), 0)
-
-		finalCleanup := func() {
-			for _, c := range cleanups {
-				c()
-			}
-			for _, server := range rawServers {
-				if server.ipv4 != nil {
-					C.free(unsafe.Pointer(server.ipv4))
-				}
-				if server.ipv6 != nil {
-					C.free(unsafe.Pointer(server.ipv6))
-				}
-				if server.username != nil {
-					C.free(unsafe.Pointer(server.username))
-				}
-				if server.password != nil {
-					C.free(unsafe.Pointer(server.password))
-				}
-			}
-		}
-
 		for i, server := range rtcServers {
 			rawServers[i] = C.ntg_rtc_server_struct{
 				ipv4:        C.CString(server.Ipv4),
@@ -166,46 +132,30 @@ func parseRtcServers(rtcServers []RTCServer) (*C.ntg_rtc_server_struct, func()) 
 				peerTagSize: 0,
 			}
 			if len(server.PeerTag) > 0 {
-				peerTagC, peerTagSize, cleanupPeerTag := parseBytes(server.PeerTag)
+				peerTagC, peerTagSize := parseBytes(server.PeerTag)
 				rawServers[i].peerTag = peerTagC
 				rawServers[i].peerTagSize = peerTagSize
-				cleanups = append(cleanups, cleanupPeerTag)
 			}
 		}
-		return (*C.ntg_rtc_server_struct)(unsafe.Pointer(&rawServers[0])), finalCleanup
+		return (*C.ntg_rtc_server_struct)(unsafe.Pointer(&rawServers[0]))
 	}
-	return nil, func() {}
+	return nil
 }
 
-func parseSsrcGroups(ssrcGroups []SsrcGroup) (*C.ntg_ssrc_group_struct, func()) {
+func parseSsrcGroups(ssrcGroups []SsrcGroup) *C.ntg_ssrc_group_struct {
 	if len(ssrcGroups) > 0 {
 		rawGroups := make([]C.ntg_ssrc_group_struct, len(ssrcGroups))
-		cleanups := make([]func(), 0)
-
-		finalCleanup := func() {
-			for _, c := range cleanups {
-				c()
-			}
-			for _, group := range rawGroups {
-				if group.semantics != nil {
-					C.free(unsafe.Pointer(group.semantics))
-				}
-			}
-		}
-
 		for i, group := range ssrcGroups {
-			ssrcsC, sizeSsrcs, cleanupSsrcs := parseUint32VectorC(group.Ssrcs)
-			cleanups = append(cleanups, cleanupSsrcs)
-
+			ssrcsC, sizeSsrcs := parseUint32VectorC(group.Ssrcs)
 			rawGroups[i] = C.ntg_ssrc_group_struct{
 				semantics: C.CString(group.Semantics),
 				ssrcs:     ssrcsC,
 				sizeSsrcs: sizeSsrcs,
 			}
 		}
-		return (*C.ntg_ssrc_group_struct)(unsafe.Pointer(&rawGroups[0])), finalCleanup
+		return (*C.ntg_ssrc_group_struct)(unsafe.Pointer(&rawGroups[0]))
 	}
-	return nil, func() {}
+	return nil
 }
 
 func parseDeviceInfoVector(devices unsafe.Pointer, size C.int) []DeviceInfo {
