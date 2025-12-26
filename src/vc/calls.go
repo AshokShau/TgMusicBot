@@ -125,6 +125,7 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) 
 		MemorySession: true,
 		SessionName:   clientName,
 		FloodHandler:  handleFlood,
+		LogLevel:      tg.TraceLevel,
 	}
 
 	switch config.Conf.SessionType {
