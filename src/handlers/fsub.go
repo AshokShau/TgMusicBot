@@ -214,8 +214,8 @@ func fsubCallbackHandler(cb *telegram.CallbackQuery) error {
 		// Execute the pending play
 		_, _ = cb.Answer(lang.GetString(langCode, "fsub_joined"), &telegram.CallbackOptions{Alert: true})
 
-		// Call handlePlay directly with the original message
-		go handlePlay(pendingPlay.Message, pendingPlay.IsVideo)
+		// Call handlePlaySkipFsub to bypass fsub check (already verified)
+		go handlePlaySkipFsub(pendingPlay.Message, pendingPlay.IsVideo)
 		return nil
 	}
 

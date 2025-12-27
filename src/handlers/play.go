@@ -42,6 +42,16 @@ func vPlayHandler(m *telegram.NewMessage) error {
 
 // handlePlay is the main handler for /play and /vplay commands.
 func handlePlay(m *telegram.NewMessage, isVideo bool) error {
+	return handlePlayInternal(m, isVideo, false)
+}
+
+// handlePlaySkipFsub is used by callback handler after fsub verification
+func handlePlaySkipFsub(m *telegram.NewMessage, isVideo bool) error {
+	return handlePlayInternal(m, isVideo, true)
+}
+
+// handlePlayInternal is the internal handler with skipFsub option
+func handlePlayInternal(m *telegram.NewMessage, isVideo bool, skipFsub bool) error {
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
@@ -53,10 +63,12 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	args := m.Args()
 	query := coalesce(url, args)
 
-	// Check force subscribe membership
-	// For anonymous users, this stores pending play and shows verification button
-	if !CheckFsubAndNotify(m, query, isVideo) {
-		return nil
+	// Check force subscribe membership (skip if already verified from callback)
+	if !skipFsub {
+		// For anonymous users, this stores pending play and shows verification button
+		if !CheckFsubAndNotify(m, query, isVideo) {
+			return nil
+		}
 	}
 
 	// Save chat/user to database for broadcast support
