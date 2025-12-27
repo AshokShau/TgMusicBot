@@ -170,13 +170,14 @@ func fsubCallbackHandler(cb *telegram.CallbackQuery) error {
 	if err != nil {
 		return nil
 	}
-	userID, err := strconv.ParseInt(parts[3], 10, 64)
+	storedUserID, err := strconv.ParseInt(parts[3], 10, 64)
 	if err != nil {
 		return nil
 	}
 
-	// Only the user who triggered can verify
-	if cb.SenderID != userID {
+	// If storedUserID is 0, it means anyone can verify (anonymous/channel post)
+	// Otherwise, only the specific user who triggered can verify
+	if storedUserID != 0 && cb.SenderID != storedUserID {
 		_, _ = cb.Answer("This button is not for you.", &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
@@ -187,16 +188,17 @@ func fsubCallbackHandler(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 
-	// Get fsub settings
-	fsubID, _, _ := db.Instance.GetFSub(ctx, chatID)
+	// Get GLOBAL fsub settings (key 0)
+	fsubID, _, _ := db.Instance.GetFSub(ctx, 0)
 	if fsubID == 0 {
 		_, _ = cb.Answer(lang.GetString(langCode, "fsub_not_set"), &telegram.CallbackOptions{Alert: true})
 		_, _ = cb.Delete()
 		return nil
 	}
 
-	// Check if user is member of fsub
-	isMember := checkUserMembership(cb.Client, fsubID, userID)
+	// Check if the person clicking the button is member of fsub
+	// Use cb.SenderID (the actual person clicking) not storedUserID
+	isMember := checkUserMembership(cb.Client, fsubID, cb.SenderID)
 	if !isMember {
 		_, _ = cb.Answer(lang.GetString(langCode, "fsub_not_member"), &telegram.CallbackOptions{Alert: true})
 		return nil
