@@ -21,163 +21,135 @@ import (
 )
 
 // addFsubHandler handles the /addfsub command to set force subscribe channel/group.
+// Usage: /addfsub <fsub_channel_id>
+// This command only works in private chat with bot owner.
+// Sets a GLOBAL fsub that applies to ALL groups.
 func addFsubHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
-	args := m.Args()
-	if args == "" {
-		_, _ = m.Reply(lang.GetString(langCode, "fsub_usage"))
+	// Must be in private chat
+	if !m.IsPrivate() {
+		_, _ = m.Reply("❌ This command only works in private chat.")
 		return nil
 	}
 
-	// Parse the fsub target (can be @username or chat ID)
-	var fsubID int64
+	args := m.Args()
+	if args == "" {
+		_, _ = m.Reply("❌ Usage: /addfsub <channel_id>\n\nExample:\n/addfsub -1001234567890")
+		return nil
+	}
+
+	// Parse fsub channel ID
+	fsubID, err := strconv.ParseInt(strings.TrimSpace(args), 10, 64)
+	if err != nil {
+		_, _ = m.Reply("❌ Invalid channel ID. Should be like -1001234567890")
+		return nil
+	}
+
 	var fsubLink string
 	var fsubTitle string
 
-	// Try to resolve as username or chat ID
-	if strings.HasPrefix(args, "@") {
-		// It's a username
-		peer, err := m.Client.ResolveUsername(strings.TrimPrefix(args, "@"))
-		if err != nil {
-			_, _ = m.Reply(lang.GetString(langCode, "fsub_invalid_chat"))
-			return nil
-		}
-
-		switch p := peer.(type) {
-		case *telegram.Channel:
-			fsubID = p.ID
-			fsubTitle = p.Title
-			if p.Username != "" {
-				fsubLink = fmt.Sprintf("https://t.me/%s", p.Username)
-			}
-		default:
-			_, _ = m.Reply(lang.GetString(langCode, "fsub_invalid_chat"))
-			return nil
-		}
+	// Try to get chat info
+	chat, err := m.Client.GetChat(fsubID)
+	if err != nil {
+		fsubTitle = fmt.Sprintf("Channel %d", fsubID)
+	} else if chat != nil {
+		fsubTitle = chat.Title
 	} else {
-		// Try to parse as chat ID
-		id, err := strconv.ParseInt(args, 10, 64)
-		if err != nil {
-			_, _ = m.Reply(lang.GetString(langCode, "fsub_invalid_chat"))
-			return nil
+		fsubTitle = fmt.Sprintf("Channel %d", fsubID)
+	}
+
+	// Try to get invite link
+	raw, err := m.Client.GetChatInviteLink(fsubID)
+	if err == nil {
+		if exported, ok := raw.(*telegram.ChatInviteExported); ok && exported.Link != "" {
+			fsubLink = exported.Link
 		}
-		fsubID = id
+	}
 
-		// Try to get chat info
-		peer, err := m.Client.ResolveUsername(args)
-		if err != nil {
-			// Try to get info using GetChat
-			chat, err := m.Client.GetChat(id)
-			if err != nil {
-				_, _ = m.Reply(lang.GetString(langCode, "fsub_invalid_chat"))
-				return nil
+	// If still no link, try to create private channel link format
+	if fsubLink == "" {
+		// Convert channel ID to proper format for t.me/c/ link
+		channelNum := fsubID
+		if channelNum < 0 {
+			// Remove -100 prefix
+			channelStr := fmt.Sprintf("%d", -channelNum)
+			if len(channelStr) > 3 && channelStr[:3] == "100" {
+				channelStr = channelStr[3:]
 			}
-
-			// GetChat returns *ChatObj which has Title field
-			if chat != nil {
-				fsubTitle = chat.Title
-			} else {
-				fsubTitle = fmt.Sprintf("Chat %d", id)
-			}
+			fsubLink = fmt.Sprintf("https://t.me/c/%s/1", channelStr)
 		} else {
-			switch c := peer.(type) {
-			case *telegram.Channel:
-				fsubTitle = c.Title
-				if c.Username != "" {
-					fsubLink = fmt.Sprintf("https://t.me/%s", c.Username)
-				}
-			default:
-				_, _ = m.Reply(lang.GetString(langCode, "fsub_only_channel_group"))
-				return nil
-			}
+			fsubLink = fmt.Sprintf("https://t.me/c/%d/1", channelNum)
 		}
 	}
 
-	// If no public link, try to get invite link
-	if fsubLink == "" {
-		raw, err := m.Client.GetChatInviteLink(fsubID)
-		if err == nil {
-			if exported, ok := raw.(*telegram.ChatInviteExported); ok && exported.Link != "" {
-				fsubLink = exported.Link
-			}
-		}
-	}
-
-	// If still no link, use a placeholder
-	if fsubLink == "" {
-		fsubLink = fmt.Sprintf("https://t.me/c/%d", fsubID)
-	}
-
-	// Save to database
-	if err := db.Instance.SetFSub(ctx, chatID, fsubID, fsubLink); err != nil {
+	// Save to database with key 0 (global fsub)
+	if err := db.Instance.SetFSub(ctx, 0, fsubID, fsubLink); err != nil {
 		_, _ = m.Reply(fmt.Sprintf("❌ Error: %s", err.Error()))
 		return nil
 	}
 
-	_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "fsub_set_success"), fsubTitle))
+	_, _ = m.Reply(fmt.Sprintf("✅ Force subscribe global berhasil diatur!\n\n� <b>Channel:</b> %s\n🆔 <b>ID:</b> <code>%d</code>\n🔗 <b>Link:</b> %s\n\n⚠️ Semua user di semua grup harus join channel ini untuk menggunakan /play", fsubTitle, fsubID, fsubLink))
 	return nil
 }
 
 // removeFsubHandler handles the /rmfsub and /delfsub commands.
+// Usage: /rmfsub <chat_id>
+// This command only works in private chat with bot owner.
 func removeFsubHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
-	// Check if fsub is set
-	fsubID, _, _ := db.Instance.GetFSub(ctx, chatID)
+	// Must be in private chat
+	if !m.IsPrivate() {
+		_, _ = m.Reply("❌ This command only works in private chat.")
+		return nil
+	}
+
+	// Check if global fsub is set (key 0)
+	fsubID, _, _ := db.Instance.GetFSub(ctx, 0)
 	if fsubID == 0 {
-		_, _ = m.Reply(lang.GetString(langCode, "fsub_not_set"))
+		_, _ = m.Reply("ℹ️ No global force subscribe is set.")
 		return nil
 	}
 
 	// Remove from database
-	if err := db.Instance.RemoveFSub(ctx, chatID); err != nil {
+	if err := db.Instance.RemoveFSub(ctx, 0); err != nil {
 		_, _ = m.Reply(fmt.Sprintf("❌ Error: %s", err.Error()))
 		return nil
 	}
 
-	_, _ = m.Reply(lang.GetString(langCode, "fsub_removed"))
+	_, _ = m.Reply("✅ Global force subscribe has been removed.")
 	return nil
 }
 
 // fsubStatusHandler handles the /fsub command to show current fsub status.
+// This command only works in private chat with bot owner.
 func fsubStatusHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)
 
-	fsubID, fsubLink, _ := db.Instance.GetFSub(ctx, chatID)
-	if fsubID == 0 {
-		_, _ = m.Reply(lang.GetString(langCode, "fsub_not_set"))
+	// Must be in private chat
+	if !m.IsPrivate() {
+		_, _ = m.Reply("❌ This command only works in private chat.")
 		return nil
 	}
 
-	// Try to get chat title
-	fsubTitle := fmt.Sprintf("<code>%d</code>", fsubID)
-	peer, err := m.Client.ResolveUsername("")
-	if err == nil {
-		if c, ok := peer.(*telegram.Channel); ok {
-			if fsubLink != "" {
-				fsubTitle = fmt.Sprintf("<a href='%s'>%s</a>", fsubLink, c.Title)
-			} else {
-				fsubTitle = c.Title
-			}
-		}
-	} else {
-		// Use the link as title
-		if fsubLink != "" {
-			fsubTitle = fmt.Sprintf("<a href='%s'>%s</a>", fsubLink, fsubLink)
-		}
+	// Get global fsub (key 0)
+	fsubID, fsubLink, _ := db.Instance.GetFSub(ctx, 0)
+	if fsubID == 0 {
+		_, _ = m.Reply("ℹ️ No global force subscribe is set.\n\nUse /addfsub <channel_id> to set one.")
+		return nil
 	}
 
-	_, _ = m.Reply(fmt.Sprintf(lang.GetString(langCode, "fsub_current"), fsubTitle))
+	// Display fsub info
+	fsubTitle := fsubLink
+	if fsubLink != "" {
+		fsubTitle = fmt.Sprintf("<a href='%s'>%s</a>", fsubLink, fsubLink)
+	}
+
+	_, _ = m.Reply(fmt.Sprintf("📋 <b>Global Force Subscribe</b>\n\n🔗 Channel: %s\n🆔 Channel ID: <code>%d</code>", fsubTitle, fsubID))
 	return nil
 }
 
@@ -264,10 +236,10 @@ func CheckFsubAndNotify(m *telegram.NewMessage) bool {
 	defer cancel()
 	langCode := db.Instance.GetLang(ctx, chatID)
 
-	// Get fsub settings
-	fsubID, fsubLink, _ := db.Instance.GetFSub(ctx, chatID)
+	// Get GLOBAL fsub settings (key 0)
+	fsubID, fsubLink, _ := db.Instance.GetFSub(ctx, 0)
 	if fsubID == 0 {
-		// No fsub set, allow
+		// No global fsub set, allow
 		return true
 	}
 

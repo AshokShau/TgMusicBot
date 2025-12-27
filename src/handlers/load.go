@@ -69,11 +69,11 @@ func LoadModules(c *tg.Client) {
 
 	c.On("command:settings", settingsHandler, tg.Custom(adminMode))
 
-	// Force Subscribe commands
-	c.On("command:addfsub", addFsubHandler, tg.Custom(adminMode))
-	c.On("command:rmfsub", removeFsubHandler, tg.Custom(adminMode))
-	c.On("command:delfsub", removeFsubHandler, tg.Custom(adminMode))
-	c.On("command:fsub", fsubStatusHandler, tg.Custom(adminMode))
+	// Force Subscribe commands (owner only, private chat)
+	c.On("command:addfsub", addFsubHandler, tg.Custom(isDev))
+	c.On("command:rmfsub", removeFsubHandler, tg.Custom(isDev))
+	c.On("command:delfsub", removeFsubHandler, tg.Custom(isDev))
+	c.On("command:fsub", fsubStatusHandler, tg.Custom(isDev))
 
 	c.On("command:cplist", createPlaylistHandler)
 	c.On("command:createplaylist", createPlaylistHandler)
