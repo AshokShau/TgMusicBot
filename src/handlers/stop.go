@@ -21,15 +21,15 @@ import (
 func stopHandler(m *telegram.NewMessage) error {
 	chatID := m.ChannelID()
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply("⏸ No track currently playing.")
+		_, _ = m.Reply("⏸ Nothing is playing.")
 		return nil
 	}
 
 	if err := vc.Calls.Stop(chatID); err != nil {
-		_, _ = m.Reply(fmt.Sprintf("❌ An error occurred while stopping the playback: %s", err.Error()))
+		_, _ = m.Reply(fmt.Sprintf("❌ Error stopping playback: %s", err.Error()))
 		return err
 	}
 
-	_, _ = m.Reply(fmt.Sprintf("⏹️ Playback has been stopped by %s, and the queue has been cleared.", m.Sender.FirstName))
+	_, _ = m.Reply(fmt.Sprintf("⏹️ Stopped by %s. Queue cleared.", m.Sender.FirstName))
 	return nil
 }

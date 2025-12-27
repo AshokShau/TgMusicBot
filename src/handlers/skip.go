@@ -19,7 +19,7 @@ import (
 func skipHandler(m *telegram.NewMessage) error {
 	chatID := m.ChannelID()
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply("⏸ No track currently playing.")
+		_, _ = m.Reply("⏸ Nothing is playing.")
 		return nil
 	}
 

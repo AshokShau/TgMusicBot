@@ -62,11 +62,11 @@ func authListHandler(m *tg.NewMessage) error {
 
 	authUser := db.Instance.GetAuthUsers(ctx, chatID)
 	if authUser == nil || len(authUser) == 0 {
-		_, _ = m.Reply("ℹ️ No authorized users found.")
+		_, _ = m.Reply("ℹ️ No authorized users.")
 		return nil
 	}
 
-	text := "<b>🔐 Authorized Users:</b>\n\n"
+	text := "<b>Authorized Users:</b>\n\n"
 	for _, uid := range authUser {
 		text += fmt.Sprintf("• <code>%d</code>\n", uid)
 	}
@@ -98,11 +98,11 @@ func addAuthHandler(m *tg.NewMessage) error {
 
 	if err := db.Instance.AddAuthUser(ctx, chatID, userID); err != nil {
 		logger.Error("Failed to add authorized user:", err)
-		_, _ = m.Reply("Something went wrong while adding the user.")
+		_, _ = m.Reply("Error adding user.")
 		return nil
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ User (%d) has been successfully granted authorization permissions.", userID))
+	_, err = m.Reply(fmt.Sprintf("✅ User %d authorized.", userID))
 	return err
 }
 
@@ -129,10 +129,10 @@ func removeAuthHandler(m *tg.NewMessage) error {
 
 	if err := db.Instance.RemoveAuthUser(ctx, chatID, userID); err != nil {
 		logger.Error("Failed to remove authorized user:", err)
-		_, _ = m.Reply("Something went wrong while removing the user.")
+		_, _ = m.Reply("Error removing user.")
 		return nil
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ User (%d) has been successfully removed from the authorized users list.", userID))
+	_, err = m.Reply(fmt.Sprintf("✅ User %d removed from authorized list.", userID))
 	return err
 }

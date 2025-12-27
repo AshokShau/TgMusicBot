@@ -238,13 +238,13 @@ func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *t
 
 	dlPath, err := dl.DownloadSong(ctx, song, c.bot)
 	if err != nil {
-		_, _ = reply.Edit(fmt.Sprintf("⚠️ Failed to download the song: (%v)\nSkipping to the next track...", err))
+		_, _ = reply.Edit("⚠️ Download failed. Skipping track...")
 		return err
 	}
 
 	song.FilePath = dlPath
 	if song.FilePath == "" {
-		_, _ = reply.Edit("⚠️ Failed to download the song.\nSkipping to the next track...")
+		_, _ = reply.Edit("⚠️ Download failed. Skipping track...")
 		return errors.New("download failed due to an empty file path")
 	}
 
@@ -274,7 +274,7 @@ func (c *TelegramCalls) PlayNext(chatID int64) error {
 // and sending a notification to the chat.
 func (c *TelegramCalls) handleNoSong(chatID int64) error {
 	_ = c.Stop(chatID)
-	_, _ = c.bot.SendMessage(chatID, "🎵 The queue has finished. Use /play to add more songs!")
+	_, _ = c.bot.SendMessage(chatID, "🎵 Queue finished. Add more songs with /play.")
 	return nil
 }
 
@@ -301,7 +301,7 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	}
 
 	text := fmt.Sprintf(
-		"<b>Now Playing:</b>\n\n‣ <b>Title:</b> <a href='%s'>%s</a>\n‣ <b>Duration:</b> %s\n‣ <b>Requested by:</b> %s",
+		"<b>Now Playing:</b>\n\n<b>Track:</b> <a href='%s'>%s</a>\n<b>Duration:</b> %s\n<b>By:</b> %s",
 		song.URL,
 		song.Name,
 		utils.SecToMin(song.Duration),
@@ -428,12 +428,12 @@ func (c *TelegramCalls) SeekStream(chatID int64, filePath string, toSeek, durati
 // ChangeSpeed modifies the playback speed of the current stream.
 func (c *TelegramCalls) ChangeSpeed(chatID int64, speed float64) error {
 	if speed < 0.5 || speed > 4.0 {
-		return errors.New("invalid speed: the value must be between 0.5 and 4.0")
+		return errors.New("invalid speed. Value must be between 0.5 and 4.0")
 	}
 
 	playingSong := cache.ChatCache.GetPlayingTrack(chatID)
 	if playingSong == nil {
-		return errors.New("🔇 No song playing")
+		return errors.New("🔇 Nothing is playing")
 	}
 
 	videoPTS := 1 / speed
@@ -480,7 +480,7 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 		})
 
 		call.OnIncomingCall(func(ub *ubot.Context, chatID int64) {
-			_, _ = ub.App.SendMessage(chatID, "Are you calling me? Let me play a song for you...")
+			_, _ = ub.App.SendMessage(chatID, "Incoming call detected. Playing music...")
 			msg, err := utils.GetMessage(c.bot, DefaultStreamURL)
 			if err != nil {
 				c.bot.Log.Info("[OnIncomingCall] Failed to get the message: %v", err)
@@ -509,7 +509,7 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 		})
 
 		_, _ = call.App.SendMessage(client.Me().Username, "/start")
-		_, err := call.App.SendMessage(config.Conf.LoggerId, "UB has started.")
+		_, err := call.App.SendMessage(config.Conf.LoggerId, "Userbot started.")
 		if err != nil {
 			c.bot.Log.Info("[TelegramCalls - SendMessage] Failed to send message: %v", err)
 		}

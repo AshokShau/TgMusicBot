@@ -29,27 +29,27 @@ func getHelpCategories() map[string]struct {
 	}{
 		"help_user": {
 			Title:   "🎧 User Commands",
-			Content: "<b>▶️ Playback:</b>\n• <code>/play [song]</code> — Play audio in VC\n\n<b>🛠 Utilities:</b>\n• <code>/start</code> — Intro message\n• <code>/privacy</code> — Privacy policy\n• <code>/queue</code> — View track queue",
+			Content: "<b>Playback:</b>\n• <code>/play [song]</code> — Play music\n\n<b>Utilities:</b>\n• <code>/start</code> — Start bot\n• <code>/privacy</code> — Privacy Policy\n• <code>/queue</code> — View queue",
 			Markup:  core.BackHelpMenuKeyboard(),
 		},
 		"help_admin": {
 			Title:   "⚙️ Admin Commands",
-			Content: "<b>🎛 Playback Controls:</b>\n• <code>/skip</code> — Skip current track\n• <code>/pause</code> — Pause playback\n• <code>/resume</code> — Resume playback\n• <code>/seek [sec]</code> — Jump to a position\n\n<b>📋 Queue Management:</b>\n• <code>/remove [x]</code> — Remove track number x\n• <code>/loop [0-10]</code> — Repeat queue x times\n\n<b>👑 Permissions:</b>\n• <code>/auth [reply]</code> — Grant approval\n• <code>/unauth [reply]</code> — Revoke authorization\n• <code>/authlist</code> — View authorized users",
+			Content: "<b>Controls:</b>\n• <code>/skip</code> — Skip track\n• <code>/pause</code> — Pause\n• <code>/resume</code> — Resume\n• <code>/seek [sec]</code> — Seek\n\n<b>Queue:</b>\n• <code>/remove [x]</code> — Remove track\n• <code>/loop [0-10]</code> — Loop queue\n\n<b>Access:</b>\n• <code>/auth [reply]</code> — Authorize user\n• <code>/unauth [reply]</code> — Unauthorize\n• <code>/authlist</code> — List authorized",
 			Markup:  core.BackHelpMenuKeyboard(),
 		},
 		"help_devs": {
 			Title:   "🛠 Developer Tools",
-			Content: "<b>📊 System Tools:</b>\n• <code>/stats</code> — Show usage stats\n\n<b>🧹 Maintenance:</b>\n• <code>/av</code> — Show active voice chats",
+			Content: "<b>System:</b>\n• <code>/stats</code> — Usage stats\n\n<b>Maintenance:</b>\n• <code>/av</code> — Active voice chats",
 			Markup:  core.BackHelpMenuKeyboard(),
 		},
 		"help_owner": {
 			Title:   "🔐 Owner Commands",
-			Content: "<b>⚙️ Settings:</b>\n• <code>/settings</code> - Update chat settings",
+			Content: "<b>Settings:</b>\n• <code>/settings</code> — Chat settings",
 			Markup:  core.BackHelpMenuKeyboard(),
 		},
 		"help_playlist": {
 			Title:   "🎵 Playlist Commands",
-			Content: "<b>🎵 Playlist Management:</b>\n• <code>/createplaylist [name]</code> — Create a new playlist\n• <code>/deleteplaylist [id]</code> — Delete a playlist\n• <code>/addtoplaylist [id] [url]</code> — Add a song to a playlist\n• <code>/removefromplaylist [id] [url]</code> — Remove a song from a playlist\n• <code>/playlistinfo [id]</code> — View playlist details\n• <code>/myplaylists</code> — View your playlists",
+			Content: "<b>Playlist Management:</b>\n• <code>/createplaylist [name]</code> — Create playlist\n• <code>/deleteplaylist [id]</code> — Delete playlist\n• <code>/addtoplaylist [id] [url]</code> — Add song\n• <code>/removefromplaylist [id] [url]</code> — Remove song\n• <code>/playlistinfo [id]</code> — Playlist info\n• <code>/myplaylists</code> — My playlists",
 			Markup:  core.BackHelpMenuKeyboard(),
 		},
 	}
@@ -64,14 +64,14 @@ func helpCallbackHandler(cb *telegram.CallbackQuery) error {
 	helpCategories := getHelpCategories()
 	if strings.Contains(data, "help_all") {
 		_, _ = cb.Answer("📚 Opening Help Menu...", &telegram.CallbackOptions{Alert: false})
-		response := fmt.Sprintf("ʜᴇʏ %s;\n\n◎ ᴛʜɪꜱ ɪꜱ %s!\n➻ ᴀ ꜰᴀꜱᴛ & ᴘᴏᴡᴇʀꜰᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜꜱɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ.\n\nꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ, ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.\n\n---\n◎ ᴄʟɪᴄᴋ ᴏɴ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ꜰᴏʀ ɪɴꜰᴏ.", cb.Sender.FirstName, cb.Client.Me().FirstName)
+		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", cb.Sender.FirstName, cb.Client.Me().FirstName)
 		_, _ = cb.Edit(response, &telegram.SendOptions{ReplyMarkup: core.HelpMenuKeyboard()})
 		return nil
 	}
 
 	if strings.Contains(data, "help_back") {
 		_, _ = cb.Answer("🏠 Returning to home...", &telegram.CallbackOptions{Alert: false})
-		response := fmt.Sprintf("ʜᴇʏ %s;\n\n◎ ᴛʜɪꜱ ɪꜱ %s!\n➻ ᴀ ꜰᴀꜱᴛ & ᴘᴏᴡᴇʀꜰᴜʟ ᴛᴇʟᴇɢʀᴀᴍ ᴍᴜꜱɪᴄ ᴘʟᴀʏᴇʀ ʙᴏᴛ.\n\nꜱᴜᴘᴘᴏʀᴛᴇᴅ ᴘʟᴀᴛꜰᴏʀᴍꜱ: ʏᴏᴜᴛᴜʙᴇ, ꜱᴘᴏᴛɪꜰʏ, ᴀᴘᴘʟᴇ ᴍᴜꜱɪᴄ, ꜱᴏᴜɴᴅᴄʟᴏᴜᴅ.\n\n---\n◎ ᴄʟɪᴄᴋ ᴏɴ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ꜰᴏʀ ɪɴꜰᴏ.", cb.Sender.FirstName, cb.Client.Me().FirstName)
+		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", cb.Sender.FirstName, cb.Client.Me().FirstName)
 		_, _ = cb.Edit(response, &telegram.SendOptions{ReplyMarkup: core.AddMeMarkup(cb.Client.Me().Username)})
 		return nil
 	}
@@ -93,7 +93,7 @@ func helpCallbackHandler(cb *telegram.CallbackQuery) error {
 func privacyHandler(m *telegram.NewMessage) error {
 	botName := m.Client.Me().FirstName
 
-	text := fmt.Sprintf("<u><b>Privacy Policy for %s:</b></u>\n\n<b>1. Data Storage:</b>\n- %s does not store any personal data on the user's device.\n- We do not collect or store any data about your device or personal browsing activity.\n\n<b>2. What We Collect:</b>\n- We only collect your Telegram <b>user ID</b> and <b>chat ID</b> to provide the music streaming and interaction functionalities of the bot.\n- No personal data such as your name, phone number, or location is collected.\n\n<b>3. Data Usage:</b>\n- The collected data (Telegram UserID, ChatID) is used strictly to provide the music streaming and interaction functionalities of the bot.\n- We do not use this data for any marketing or commercial purposes.\n\n<b>4. Data Sharing:</b>\n- We do not share any of your personal or chat data with any third parties, organizations, or individuals.\n- No sensitive data is sold, rented, or traded to any outside entities.\n\n<b>5. Data Security:</b>\n- We take reasonable security measures to protect the data we collect. This includes standard practices like encryption and safe storage.\n- However, we cannot guarantee the absolute security of your data, as no online service is 100%% secure.\n\n<b>6. Cookies and Tracking:</b>\n- %s does not use cookies or similar tracking technologies to collect personal information or track your behavior.\n\n<b>7. Third-Party Services:</b>\n- %s does not integrate with any third-party services that collect or process your personal information, aside from Telegram's own infrastructure.\n\n<b>8. Your Rights:</b>\n- You have the right to request the deletion of your data. Since we only store your Telegram ID and chat ID temporarily to function properly, these can be removed upon request.\n- You may also revoke access to the bot at any time by removing or blocking it from your chats.\n\n<b>9. Changes to the Privacy Policy:</b>\n- We may update this privacy policy from time to time. Any changes will be communicated through updates within the bot.\n\n<b>10. Contact Us:</b>\nIf you have any questions or concerns about our privacy policy, feel free to contact us at <a href=\"https://t.me/GuardxSupport\">Support Group</a>\n\n──────────────────\n<b>Note:</b> This privacy policy is in place to help you understand how your data is handled and to ensure that your experience with %s is safe and respectful.", botName, botName, botName, botName, botName)
+	text := fmt.Sprintf("<b>Privacy Policy for %s</b>\n\n<b>1. Data Storage:</b>\nWe do not store personal data on your device. We do not track your browsing activity.\n\n<b>2. Collection:</b>\nWe only collect your Telegram <b>User ID</b> and <b>Chat ID</b> to provide music services. No names, phone numbers, or locations are stored.\n\n<b>3. Usage:</b>\nData is used strictly for bot functionality. No marketing or commercial use.\n\n<b>4. Sharing:</b>\nWe do not share data with third parties. No data is sold or traded.\n\n<b>5. Security:</b>\nWe use standard encryption to protect data. However, no online service is 100%% secure.\n\n<b>6. Cookies:</b>\n%s does not use cookies or tracking technologies.\n\n<b>7. Third Parties:</b>\nWe do not integrate with third-party data collectors, other than Telegram itself.\n\n<b>8. Your Rights:</b>\nYou can request data deletion or block the bot to revoke access.\n\n<b>9. Updates:</b>\nPolicy changes will be announced in the bot.\n\n<b>10. Contact:</b>\nQuestions? Contact our <a href=\"https://t.me/GuardxSupport\">Support Group</a>.\n\n──────────────────\n<b>Note:</b> This policy ensures a safe and respectful experience with %s.", botName, botName, botName)
 
 	_, err := m.Reply(text, &telegram.SendOptions{LinkPreview: false})
 	return err

@@ -42,7 +42,7 @@ func reloadAdminCacheHandler(m *tg.NewMessage) error {
 	}
 
 	reloadRateLimit.Set(reloadKey, time.Now())
-	reply, err := m.Reply("🔄 Reloading the admin cache...")
+	reply, err := m.Reply("🔄 Reloading admin cache...")
 	if err != nil {
 		logger.Warn("Failed to send reloading message for chat %d: %v", chatID, err)
 		return tg.ErrEndGroup
@@ -54,11 +54,11 @@ func reloadAdminCacheHandler(m *tg.NewMessage) error {
 	admins, err := cache.GetAdmins(m.Client, chatID, true)
 	if err != nil {
 		logger.Warn("Failed to reload the admin cache for chat %d: %v", chatID, err)
-		_, _ = reply.Edit("⚠️ An error occurred while reloading the admin cache.")
+		_, _ = reply.Edit("⚠️ Error reloading admin cache.")
 		return nil
 	}
 
 	logger.Info("Reloaded %d admins for chat %d", len(admins), chatID)
-	_, _ = reply.Edit("✅ The admin cache has been successfully reloaded.")
+	_, _ = reply.Edit("✅ Admin cache reloaded.")
 	return nil
 }

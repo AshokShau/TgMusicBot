@@ -49,7 +49,7 @@ func settingsHandler(m *telegram.NewMessage) error {
 	getPlayMode := db.Instance.GetPlayMode(ctx, chatID)
 	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
 
-	text := fmt.Sprintf("<b>⚙️ Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
+	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
 		m.Chat.Title, getPlayMode, getAdminMode)
 
 	_, err = m.Reply(text, &telegram.SendOptions{
@@ -123,7 +123,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 		return nil
 	}
 
-	text := fmt.Sprintf("<b>⚙️ Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
+	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
 		chat.Title, getPlayMode, getAdminMode)
 
 	_, err = c.Edit(text, &telegram.SendOptions{

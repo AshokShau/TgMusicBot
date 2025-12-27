@@ -27,12 +27,12 @@ func queueHandler(m *tg.NewMessage) error {
 	chat := m.Channel
 	queue := cache.ChatCache.GetQueue(chatID)
 	if len(queue) == 0 {
-		_, _ = m.Reply("📭 The queue is currently empty.")
+		_, _ = m.Reply("📭 Queue is empty.")
 		return nil
 	}
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply("⏸ There is no active playback session.")
+		_, _ = m.Reply("⏸ Nothing is playing.")
 		return nil
 	}
 
@@ -40,19 +40,19 @@ func queueHandler(m *tg.NewMessage) error {
 	playedTime, _ := vc.Calls.PlayedTime(chatID)
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("<b>🎧 Queue for %s</b>\n\n", chat.Title))
+	b.WriteString(fmt.Sprintf("<b>Queue for %s</b>\n\n", chat.Title))
 
-	b.WriteString("<b>▶️ Now Playing:</b>\n")
-	b.WriteString(fmt.Sprintf("├ <b>Title:</b> <code>%s</code>\n", truncate(current.Name, 45)))
-	b.WriteString(fmt.Sprintf("├ <b>Requested by:</b> %s\n", current.User))
-	b.WriteString(fmt.Sprintf("├ <b>Duration:</b> %s min\n", utils.SecToMin(current.Duration)))
-	b.WriteString("├ <b>Loop:</b> ")
+	b.WriteString("<b>Now Playing:</b>\n")
+	b.WriteString(fmt.Sprintf("• <b>Title:</b> <code>%s</code>\n", truncate(current.Name, 45)))
+	b.WriteString(fmt.Sprintf("• <b>By:</b> %s\n", current.User))
+	b.WriteString(fmt.Sprintf("• <b>Duration:</b> %s min\n", utils.SecToMin(current.Duration)))
+	b.WriteString("• <b>Loop:</b> ")
 	if current.Loop > 0 {
-		b.WriteString("🔁 On\n")
+		b.WriteString("On\n")
 	} else {
-		b.WriteString("➡️ Off\n")
+		b.WriteString("Off\n")
 	}
-	b.WriteString("└ <b>Progress:</b> ")
+	b.WriteString("• <b>Progress:</b> ")
 	if playedTime > 0 && playedTime < math.MaxInt {
 		b.WriteString(utils.SecToMin(int(playedTime)))
 	} else {
@@ -61,7 +61,7 @@ func queueHandler(m *tg.NewMessage) error {
 	b.WriteString(" min\n")
 
 	if len(queue) > 1 {
-		b.WriteString(fmt.Sprintf("\n<b>⏭ Next Up (%d):</b>\n", len(queue)-1))
+		b.WriteString(fmt.Sprintf("\n<b>Next Up (%d):</b>\n", len(queue)-1))
 
 		for i, song := range queue[1:] {
 			if i >= 14 {
@@ -76,11 +76,11 @@ func queueHandler(m *tg.NewMessage) error {
 		}
 
 		if len(queue) > 15 {
-			b.WriteString(fmt.Sprintf("...and %d more track(s)\n", len(queue)-15))
+			b.WriteString(fmt.Sprintf("...and %d more tracks\n", len(queue)-15))
 		}
 	}
 
-	b.WriteString(fmt.Sprintf("\n<b>📊 Total:</b> %d track(s) in the queue", len(queue)))
+	b.WriteString(fmt.Sprintf("\n<b>Total:</b> %d tracks", len(queue)))
 
 	text := b.String()
 	if len(text) > 4096 {
@@ -89,7 +89,7 @@ func queueHandler(m *tg.NewMessage) error {
 		if playedTime > 0 && playedTime < math.MaxInt {
 			progress = utils.SecToMin(int(playedTime))
 		}
-		sb.WriteString(fmt.Sprintf("<b>🎧 Queue for %s</b>\n\n<b>▶️ Now Playing:</b>\n├ <code>%s</code>\n└ %s/%s min\n\n<b>📊 Total:</b> %d track(s) in the queue", chat.Title, truncate(current.Name, 45), progress, utils.SecToMin(current.Duration), len(queue)))
+		sb.WriteString(fmt.Sprintf("<b>Queue for %s</b>\n\n<b>Now Playing:</b>\n• <code>%s</code>\n• %s/%s min\n\n<b>Total:</b> %d tracks", chat.Title, truncate(current.Name, 45), progress, utils.SecToMin(current.Duration), len(queue)))
 		text = sb.String()
 	}
 

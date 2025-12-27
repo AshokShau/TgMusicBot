@@ -32,12 +32,12 @@ func createPlaylistHandler(m *telegram.NewMessage) error {
 
 	userPlaylists, err := db.Instance.GetUserPlaylists(ctx, userID)
 	if err != nil {
-		_, err := m.Reply("An error occurred while creating the playlist: %s")
+		_, err := m.Reply("Error creating playlist.")
 		return err
 	}
 
 	if len(userPlaylists) >= 10 {
-		_, _ = m.Reply(fmt.Sprintf("You have reached the maximum limit of %d playlists.", 10))
+		_, _ = m.Reply(fmt.Sprintf("You have reached the limit of %d playlists.", 10))
 		return telegram.ErrEndGroup
 	}
 
@@ -47,11 +47,11 @@ func createPlaylistHandler(m *telegram.NewMessage) error {
 
 	playlistID, err := db.Instance.CreatePlaylist(ctx, args, userID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf("An error occurred while creating the playlist: %s", err.Error()))
+		_, err := m.Reply(fmt.Sprintf("Error creating playlist: %s", err.Error()))
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ Playlist '%s' created with ID: <code>%s</code>", args, playlistID))
+	_, err = m.Reply(fmt.Sprintf("✅ Playlist '%s' created (ID: <code>%s</code>).", args, playlistID))
 	return telegram.ErrEndGroup
 }
 
@@ -70,17 +70,17 @@ func deletePlaylistHandler(m *telegram.NewMessage) error {
 		return err
 	}
 	if playlist.UserID != userID {
-		_, err := m.Reply("❌ You are not the owner of this playlist.")
+		_, err := m.Reply("❌ You don't own this playlist.")
 		return err
 	}
 
 	err = db.Instance.DeletePlaylist(ctx, args, userID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf("An error occurred while deleting the playlist: %s", err.Error()))
+		_, err := m.Reply(fmt.Sprintf("Error deleting playlist: %s", err.Error()))
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ Playlist '%s' has been deleted.", playlist.Name))
+	_, err = m.Reply(fmt.Sprintf("✅ Playlist '%s' deleted.", playlist.Name))
 	return err
 }
 
@@ -102,22 +102,22 @@ func addToPlaylistHandler(m *telegram.NewMessage) error {
 		return err
 	}
 	if playlist.UserID != userID {
-		_, err := m.Reply("❌ You are not the owner of this playlist.")
+		_, err := m.Reply("❌ You don't own this playlist.")
 		return err
 	}
 	wrapper := dl.NewDownloaderWrapper(songURL)
 	if !wrapper.IsValid() {
-		_, err := m.Reply("❌ Invalid URL or unsupported platform.\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music")
+		_, err := m.Reply("❌ Invalid URL or unsupported platform.")
 		return err
 	}
 	trackInfo, err := wrapper.GetInfo(ctx)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf("❌ Error fetching track information: %s", err.Error()))
+		_, err := m.Reply(fmt.Sprintf("❌ Error fetching track info: %s", err.Error()))
 		return err
 	}
 
 	if trackInfo.Results == nil {
-		_, err := m.Reply("❌ No tracks were found for the provided source.")
+		_, err := m.Reply("❌ No tracks found.")
 		return err
 	}
 
@@ -131,10 +131,10 @@ func addToPlaylistHandler(m *telegram.NewMessage) error {
 
 	err = db.Instance.AddSongToPlaylist(ctx, playlistID, song)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf("An error occurred while adding the song to the playlist: %s", err.Error()))
+		_, err := m.Reply(fmt.Sprintf("Error adding song: %s", err.Error()))
 		return err
 	}
-	_, err = m.Reply(fmt.Sprintf("✅ '%s' has been added to the playlist '%s'.", song.Name, playlist.Name))
+	_, err = m.Reply(fmt.Sprintf("✅ '%s' added to playlist '%s'.", song.Name, playlist.Name))
 	return err
 }
 
@@ -156,7 +156,7 @@ func removeFromPlaylistHandler(m *telegram.NewMessage) error {
 	}
 
 	if playlist.UserID != userID {
-		_, err := m.Reply("❌ You are not the owner of this playlist.")
+		_, err := m.Reply("❌ You don't own this playlist.")
 		return err
 	}
 
@@ -179,18 +179,18 @@ func removeFromPlaylistHandler(m *telegram.NewMessage) error {
 	}
 
 	if trackID == "" {
-		_, err := m.Reply("❌ Song not found in the playlist.")
+		_, err := m.Reply("❌ Song not found in playlist.")
 		return err
 	}
 
 	logger.Info("Removing song from playlist %s: %s", playlistID, trackID)
 	err = db.Instance.RemoveSongFromPlaylist(ctx, playlistID, trackID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf("An error occurred while removing the song from the playlist: %s", err.Error()))
+		_, err := m.Reply(fmt.Sprintf("Error removing song: %s", err.Error()))
 		return err
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ Song has been removed from the playlist '%s'.", playlist.Name))
+	_, err = m.Reply(fmt.Sprintf("✅ Song removed from playlist '%s'.", playlist.Name))
 	return err
 }
 
@@ -218,7 +218,7 @@ func playlistInfoHandler(m *telegram.NewMessage) error {
 		return telegram.ErrEndGroup
 	}
 
-	_, err = m.Reply(fmt.Sprintf("<b>🎵 Playlist Info</b>\n\n<b>Name:</b> %s\n<b>Owner:</b> %s\n<b>Songs:</b> %d\n\n%s", playlist.Name, owner.FirstName, len(playlist.Songs), strings.Join(songs, "\n")))
+	_, err = m.Reply(fmt.Sprintf("<b>Playlist Info</b>\n\n<b>Name:</b> %s\n<b>Owner:</b> %s\n<b>Songs:</b> %d\n\n%s", playlist.Name, owner.FirstName, len(playlist.Songs), strings.Join(songs, "\n")))
 	return telegram.ErrEndGroup
 }
 
@@ -228,7 +228,7 @@ func myPlaylistsHandler(m *telegram.NewMessage) error {
 	defer cancel()
 	playlists, err := db.Instance.GetUserPlaylists(ctx, userID)
 	if err != nil {
-		_, err := m.Reply(fmt.Sprintf("An error occurred while fetching your playlists: %s", err.Error()))
+		_, err := m.Reply(fmt.Sprintf("Error fetching playlists: %s", err.Error()))
 		return err
 	}
 	if len(playlists) == 0 {
@@ -239,6 +239,6 @@ func myPlaylistsHandler(m *telegram.NewMessage) error {
 	for _, playlist := range playlists {
 		playlistInfo = append(playlistInfo, fmt.Sprintf("- %s (<code>%s</code>)", playlist.Name, playlist.ID))
 	}
-	_, err = m.Reply(fmt.Sprintf("<b>🎵 My Playlists</b>\n\n%s", strings.Join(playlistInfo, "\n")))
+	_, err = m.Reply(fmt.Sprintf("<b>My Playlists</b>\n\n%s", strings.Join(playlistInfo, "\n")))
 	return err
 }
