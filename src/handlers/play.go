@@ -45,7 +45,21 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 	chatID := m.ChannelID()
 	ctx, cancel := db.Ctx()
 	defer cancel()
-	langCode := db.Instance.GetLang(ctx, chatID)	// Save chat/user to database for broadcast support
+	langCode := db.Instance.GetLang(ctx, chatID)
+
+	// Get the query first for fsub check
+	isReply := m.IsReply()
+	url := getUrl(m, isReply)
+	args := m.Args()
+	query := coalesce(url, args)
+
+	// Check force subscribe membership
+	// For anonymous users, this stores pending play and shows verification button
+	if !CheckFsubAndNotify(m, query, isVideo) {
+		return nil
+	}
+
+	// Save chat/user to database for broadcast support
 	go func() {
 		dbCtx, dbCancel := db.Ctx()
 		defer dbCancel()
@@ -61,13 +75,10 @@ func handlePlay(m *telegram.NewMessage, isVideo bool) error {
 		return telegram.ErrEndGroup
 	}
 
-	isReply := m.IsReply()
-	url := getUrl(m, isReply)
-	args := m.Args()
 	rMsg := m
 	var err error
 
-	input := coalesce(url, args)
+	input := query
 	if strings.HasPrefix(input, "tgpl_") {
 		playlist, err := db.Instance.GetPlaylist(ctx, input)
 		if err != nil {

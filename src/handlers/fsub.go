@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/db"
@@ -204,7 +205,21 @@ func fsubCallbackHandler(cb *telegram.CallbackQuery) error {
 		return nil
 	}
 
-	// User is verified
+	// User is verified - check if there's a pending play request
+	pendingPlay := GetPendingPlay(chatID)
+	if pendingPlay != nil && pendingPlay.Message != nil {
+		// Delete the verification message
+		_, _ = cb.Delete()
+
+		// Execute the pending play
+		_, _ = cb.Answer(lang.GetString(langCode, "fsub_joined"), &telegram.CallbackOptions{Alert: true})
+
+		// Call handlePlay directly with the original message
+		go handlePlay(pendingPlay.Message, pendingPlay.IsVideo)
+		return nil
+	}
+
+	// No pending play, just show verified message
 	_, _ = cb.Answer(lang.GetString(langCode, "fsub_joined"), &telegram.CallbackOptions{Alert: true})
 	_, _ = cb.Edit(lang.GetString(langCode, "fsub_joined"), &telegram.SendOptions{ReplyMarkup: core.CloseKeyboard()})
 
@@ -228,9 +243,43 @@ func checkUserMembership(client *telegram.Client, chatID, userID int64) bool {
 	}
 }
 
+// PendingPlay stores a pending play request for anonymous verification
+type PendingPlay struct {
+	Query   string
+	IsVideo bool
+	Message *telegram.NewMessage
+}
+
+// pendingPlays stores pending play requests indexed by chatID
+var pendingPlays = make(map[int64]*PendingPlay)
+var pendingPlaysMux = sync.RWMutex{}
+
+// StorePendingPlay stores a pending play request for later execution after verification
+func StorePendingPlay(chatID int64, query string, isVideo bool, m *telegram.NewMessage) {
+	pendingPlaysMux.Lock()
+	defer pendingPlaysMux.Unlock()
+	pendingPlays[chatID] = &PendingPlay{
+		Query:   query,
+		IsVideo: isVideo,
+		Message: m,
+	}
+}
+
+// GetPendingPlay retrieves and removes a pending play request
+func GetPendingPlay(chatID int64) *PendingPlay {
+	pendingPlaysMux.Lock()
+	defer pendingPlaysMux.Unlock()
+	if pp, ok := pendingPlays[chatID]; ok {
+		delete(pendingPlays, chatID)
+		return pp
+	}
+	return nil
+}
+
 // CheckFsubAndNotify checks fsub membership and sends notification if not joined.
 // Returns true if user is allowed to proceed, false otherwise.
-func CheckFsubAndNotify(m *telegram.NewMessage) bool {
+// For anonymous users, returns false and stores pending play for later execution.
+func CheckFsubAndNotify(m *telegram.NewMessage, query string, isVideo bool) bool {
 	chatID := m.ChannelID()
 	userID := m.SenderID()
 
@@ -245,9 +294,12 @@ func CheckFsubAndNotify(m *telegram.NewMessage) bool {
 		return true
 	}
 
-	// For anonymous users (channel posts), we can't check membership
-	// So we need to send a verification button
+	// For anonymous users (channel posts), we can't check membership directly
+	// Store the pending play and ask for verification
 	if userID == 0 || m.Sender == nil {
+		// Store pending play for this chat
+		StorePendingPlay(chatID, query, isVideo, m)
+
 		// Send verification message
 		fsubTitle := getFsubTitle(m.Client, fsubID, fsubLink)
 		msg := fmt.Sprintf(lang.GetString(langCode, "fsub_not_joined"), fsubTitle)
@@ -273,19 +325,46 @@ func CheckFsubAndNotify(m *telegram.NewMessage) bool {
 	return false
 }
 
+// CheckFsubOnly checks fsub membership without storing pending play (for non-play commands)
+func CheckFsubOnly(m *telegram.NewMessage) bool {
+	chatID := m.ChannelID()
+	userID := m.SenderID()
+
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, chatID)
+
+	// Get GLOBAL fsub settings (key 0)
+	fsubID, fsubLink, _ := db.Instance.GetFSub(ctx, 0)
+	if fsubID == 0 {
+		return true
+	}
+
+	// For anonymous users, allow
+	if userID == 0 || m.Sender == nil {
+		return true
+	}
+
+	// Check if user is member
+	isMember := checkUserMembership(m.Client, fsubID, userID)
+	if isMember {
+		return true
+	}
+
+	// User is not a member
+	fsubTitle := getFsubTitle(m.Client, fsubID, fsubLink)
+	msg := fmt.Sprintf(lang.GetString(langCode, "fsub_not_joined"), fsubTitle)
+	_, _ = m.Reply(msg, &telegram.SendOptions{
+		ReplyMarkup: core.FsubKeyboard(fsubLink, chatID, userID),
+	})
+
+	return false
+}
+
 // getFsubTitle gets the title of fsub chat for display.
 func getFsubTitle(client *telegram.Client, fsubID int64, fsubLink string) string {
-	peer, err := client.ResolveUsername("")
-	if err != nil {
-		return fsubLink
+	if fsubLink != "" {
+		return fmt.Sprintf("<a href='%s'>%s</a>", fsubLink, fsubLink)
 	}
-
-	if c, ok := peer.(*telegram.Channel); ok {
-		if fsubLink != "" {
-			return fmt.Sprintf("<a href='%s'>%s</a>", fsubLink, c.Title)
-		}
-		return c.Title
-	}
-
-	return fsubLink
+	return fmt.Sprintf("<code>%d</code>", fsubID)
 }
