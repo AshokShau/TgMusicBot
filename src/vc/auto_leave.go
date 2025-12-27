@@ -9,6 +9,8 @@
 package vc
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,10 +83,11 @@ func (c *TelegramCalls) checkInactiveChats() {
 			var chatID int64
 			switch p := peer.(type) {
 			case *telegram.PeerChannel:
-				// Channel IDs need -100 prefix for proper format
-				chatID = int64(-1000000000000) - p.ChannelID
+				// Channel IDs need -100 prefix - use string for proper formatting
+				chatIDStr := fmt.Sprintf("-100%d", p.ChannelID)
+				chatID, _ = strconv.ParseInt(chatIDStr, 10, 64)
 			case *telegram.PeerChat:
-				// Chat IDs need - prefix
+				// Regular group chats just need negative sign
 				chatID = -p.ChatID
 			case *telegram.PeerUser:
 				continue
