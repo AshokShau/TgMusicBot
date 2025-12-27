@@ -174,3 +174,25 @@ func AddMeMarkup(username string) *telegram.ReplyInlineMarkup {
 
 	return keyboard.Build()
 }
+
+// FsubKeyboard creates an inline keyboard with join and verify buttons for force subscribe.
+func FsubKeyboard(fsubLink string, chatID, userID int64) *telegram.ReplyInlineMarkup {
+	keyboard := telegram.NewKeyboard()
+
+	// Add join button if we have a link
+	if fsubLink != "" {
+		joinBtn := telegram.Button.URL("➕ Join Channel/Group", fsubLink)
+		keyboard.AddRow(joinBtn)
+	}
+
+	// Add verify button
+	verifyBtn := telegram.Button.Data("✅ Verify", fmt.Sprintf("fsub_verify_%d_%d", chatID, userID))
+	keyboard.AddRow(verifyBtn)
+
+	return keyboard.Build()
+}
+
+// CloseKeyboard creates a simple inline keyboard with just a close button.
+func CloseKeyboard() *telegram.ReplyInlineMarkup {
+	return telegram.NewKeyboard().AddRow(CloseBtn).Build()
+}

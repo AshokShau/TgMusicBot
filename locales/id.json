@@ -197,5 +197,17 @@
   "watcher_vc_ended": "🎧 Obrolan video berakhir!\nSemua antrian dihapus.",
   "watcher_vc_started": "🎙️ Obrolan video dimulai!\nGunakan /play <nama lagu> untuk memutar musik.",
   "play_song_too_long": "Maaf, lagu ini lebih panjang dari durasi maksimum yang diizinkan yaitu %d menit.",
-  "play_skipped_tracks": "\n\n<b>%d lagu dilewati</b> karena batas durasi."
+  "play_skipped_tracks": "\n\n<b>%d lagu dilewati</b> karena batas durasi.",
+  "fsub_set_success": "✅ Force subscribe telah diatur ke: %s",
+  "fsub_removed": "✅ Force subscribe telah dihapus.",
+  "fsub_not_set": "ℹ️ Tidak ada force subscribe yang diatur untuk chat ini.",
+  "fsub_current": "📋 Force subscribe saat ini: %s",
+  "fsub_usage": "❌ Penggunaan: /addfsub <username atau ID channel/grup>",
+  "fsub_not_joined": "⚠️ Anda harus bergabung ke %s sebelum menggunakan bot ini.\n\nKlik tombol di bawah untuk bergabung, lalu klik \"✅ Verifikasi\" untuk melanjutkan.",
+  "fsub_joined": "✅ Terverifikasi! Anda sekarang bisa menggunakan /play untuk memutar musik.",
+  "fsub_not_member": "❌ Anda belum bergabung. Silakan bergabung terlebih dahulu.",
+  "fsub_verify_btn": "✅ Verifikasi",
+  "fsub_join_btn": "➕ Gabung Channel/Grup",
+  "fsub_invalid_chat": "❌ Channel/grup tidak valid. Pastikan bot adalah admin di sana.",
+  "fsub_only_channel_group": "❌ Force subscribe hanya bekerja dengan channel atau grup."
 }

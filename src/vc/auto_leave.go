@@ -81,9 +81,11 @@ func (c *TelegramCalls) checkInactiveChats() {
 			var chatID int64
 			switch p := peer.(type) {
 			case *telegram.PeerChannel:
-				chatID = p.ChannelID
+				// Channel IDs need -100 prefix for proper format
+				chatID = int64(-1000000000000) - p.ChannelID
 			case *telegram.PeerChat:
-				chatID = p.ChatID
+				// Chat IDs need - prefix
+				chatID = -p.ChatID
 			case *telegram.PeerUser:
 				continue
 			default:

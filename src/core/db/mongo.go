@@ -606,6 +606,92 @@ func (db *Database) GetAllUsers(ctx context.Context) ([]int64, error) {
 	return users, nil
 }
 
+// ----------------- FORCE SUBSCRIBE -----------------
+
+// SetFSub sets the force subscribe channel/group for a chat.
+func (db *Database) SetFSub(ctx context.Context, chatID, fsubID int64, fsubLink string) error {
+	_, err := db.chatDB.UpdateOne(ctx,
+		bson.M{"_id": chatID},
+		bson.M{"$set": bson.M{"fsub_id": fsubID, "fsub_link": fsubLink}},
+		options.UpdateOne().SetUpsert(true),
+	)
+	if err != nil {
+		return err
+	}
+
+	db.chatCacheMux.Lock()
+	defer db.chatCacheMux.Unlock()
+
+	cacheKey := toKey(chatID)
+	cached, _ := db.chatCache.Get(cacheKey)
+	newCached := make(map[string]interface{})
+	if cached != nil {
+		for k, v := range cached {
+			newCached[k] = v
+		}
+	}
+	newCached["fsub_id"] = fsubID
+	newCached["fsub_link"] = fsubLink
+	db.chatCache.Set(cacheKey, newCached)
+
+	return nil
+}
+
+// GetFSub retrieves the force subscribe settings for a chat.
+// Returns fsubID (0 if not set), fsubLink, and error.
+func (db *Database) GetFSub(ctx context.Context, chatID int64) (int64, string, error) {
+	chat, err := db.getChat(ctx, chatID)
+	if err != nil {
+		return 0, "", err
+	}
+	if chat == nil {
+		return 0, "", nil
+	}
+
+	var fsubID int64
+	var fsubLink string
+
+	if val, ok := chat["fsub_id"].(int64); ok {
+		fsubID = val
+	} else if val, ok := chat["fsub_id"].(int32); ok {
+		fsubID = int64(val)
+	}
+
+	if val, ok := chat["fsub_link"].(string); ok {
+		fsubLink = val
+	}
+
+	return fsubID, fsubLink, nil
+}
+
+// RemoveFSub removes the force subscribe setting for a chat.
+func (db *Database) RemoveFSub(ctx context.Context, chatID int64) error {
+	_, err := db.chatDB.UpdateOne(ctx,
+		bson.M{"_id": chatID},
+		bson.M{"$unset": bson.M{"fsub_id": "", "fsub_link": ""}},
+	)
+	if err != nil {
+		return err
+	}
+
+	db.chatCacheMux.Lock()
+	defer db.chatCacheMux.Unlock()
+
+	cacheKey := toKey(chatID)
+	cached, _ := db.chatCache.Get(cacheKey)
+	if cached != nil {
+		newCached := make(map[string]interface{})
+		for k, v := range cached {
+			if k != "fsub_id" && k != "fsub_link" {
+				newCached[k] = v
+			}
+		}
+		db.chatCache.Set(cacheKey, newCached)
+	}
+
+	return nil
+}
+
 // Close gracefully closes the database connection.
 func (db *Database) Close(ctx context.Context) error {
 	log.Println("[DB] Closing the database connection...")

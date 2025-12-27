@@ -210,5 +210,10 @@ func playMode(m *telegram.NewMessage) bool {
 		}
 	}
 
+	// Check force subscribe membership
+	if !CheckFsubAndNotify(m) {
+		return false
+	}
+
 	return true
 }
