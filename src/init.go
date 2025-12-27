@@ -30,6 +30,9 @@ func Init(client *tg.Client) error {
 		}
 	}
 
+	// Leave all chats on startup (except logger group)
+	vc.Calls.LeaveAllOnStartup()
+
 	// Start auto leave service
 	vc.Calls.StartAutoLeaveService()
 

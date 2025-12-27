@@ -27,11 +27,11 @@ func (c *TelegramCalls) StartAutoLeaveService() {
 	go func() {
 		// Initial delay to ensure clients and logger are fully initialized
 		time.Sleep(30 * time.Second)
-		
+
 		if logger != nil {
 			logger.Infof("Starting auto leave service - userbot will leave chats with no queue and no music playing for 10 minutes")
 		}
-		
+
 		ticker := time.NewTicker(3 * time.Minute) // Check every 3 minutes
 		defer ticker.Stop()
 
@@ -57,7 +57,7 @@ func (c *TelegramCalls) checkInactiveChats() {
 		if call == nil || call.App == nil {
 			continue
 		}
-		
+
 		userBot := call.App
 
 		dialogs, err := userBot.GetDialogs(&telegram.DialogOptions{
@@ -109,14 +109,32 @@ func (c *TelegramCalls) checkInactiveChats() {
 			// Check last active time
 			lastActive, exists := activeChats[chatID]
 			if !exists {
-				// Never been active, skip
+				// Never been active (joined but never played music)
+				// This means userbot joined but never played music - should leave immediately
+				if logger != nil {
+					logger.Infof("Leaving chat %d (userbot joined but never played music)", chatID)
+				}
+
+				err = userBot.LeaveChannel(chatID)
+				if err != nil {
+					if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") ||
+						strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
+						continue
+					}
+					if logger != nil {
+						logger.Warn("Failed to leave inactive chat %d: %v", chatID, err)
+					}
+					continue
+				}
+
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
 			// Calculate inactive duration (10 minutes = 600 seconds)
 			inactiveDuration := time.Since(lastActive)
 			inactiveThreshold := 10 * time.Minute // 10 menit
-			
+
 			if inactiveDuration >= inactiveThreshold {
 				if logger != nil {
 					logger.Infof("Leaving inactive chat %d (no queue, no playing music for %v)", chatID, inactiveDuration)
@@ -124,8 +142,8 @@ func (c *TelegramCalls) checkInactiveChats() {
 
 				err = userBot.LeaveChannel(chatID)
 				if err != nil {
-					if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") || 
-					   strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
+					if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") ||
+						strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
 						continue
 					}
 					if logger != nil {
