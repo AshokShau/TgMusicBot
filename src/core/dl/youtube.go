@@ -36,6 +36,7 @@ var youtubePatterns = map[string]*regexp.Regexp{
 	"youtube":   regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([\w-]{11})(?:[&#?].*)?$`),
 	"youtu_be":  regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtu\.be/([\w-]{11})(?:[?#].*)?$`),
 	"yt_shorts": regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/shorts/([\w-]{11})(?:[?#].*)?$`),
+	"yt_live":   regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/live/([\w-]{11})(?:[?#].*)?$`),
 }
 
 // NewYouTubeData initializes a YouTubeData instance with pre-compiled regex patterns and a cleaned query.
@@ -226,6 +227,10 @@ func (y *YouTubeData) buildYtdlpParams(videoID string, video bool) []string {
 
 // downloadWithYtDlp downloads media from YouTube using the yt-dlp command-line tool.
 func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, video bool) (string, error) {
+	if videoID == "" {
+		return "", errors.New("videoID is empty")
+	}
+
 	ytdlpParams := y.buildYtdlpParams(videoID, video)
 	cmd := exec.CommandContext(ctx, ytdlpParams[0], ytdlpParams[1:]...)
 
