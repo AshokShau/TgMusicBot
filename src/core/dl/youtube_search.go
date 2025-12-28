@@ -79,10 +79,31 @@ func parseSearchResults(node interface{}, tracks *[]utils.MusicTrack) {
 		}
 	case map[string]interface{}:
 		if vid, ok := dig(v, "videoRenderer").(map[string]interface{}); ok {
+			isLive := false
+			if badges, ok := vid["badges"].([]interface{}); ok {
+				for _, badge := range badges {
+					if meta, ok := dig(badge, "metadataBadgeRenderer").(map[string]interface{}); ok {
+						style := safeString(meta["style"])
+						if style == "BADGE_STYLE_TYPE_LIVE_NOW" {
+							isLive = true
+							break
+						}
+					}
+				}
+			}
+
+			if isLive {
+				return
+			}
+
 			id := safeString(vid["videoId"])
 			title := safeString(dig(vid, "title", "runs", 0, "text"))
 			thumb := safeString(dig(vid, "thumbnail", "thumbnails", 0, "url"))
 			durationText := safeString(dig(vid, "lengthText", "simpleText"))
+			if durationText == "" {
+				return
+			}
+
 			views := safeString(dig(vid, "shortViewCountText", "simpleText"))
 			if views == "" {
 				views = safeString(dig(vid, "shortViewCountText", "runs", 0, "text"))
