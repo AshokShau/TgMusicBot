@@ -1,9 +1,9 @@
 module ashokshau/tgmusic
 
-go 1.25.0
+go 1.25.4
 
 require (
-	github.com/amarnathcjd/gogram v1.6.11-0.20251226182510-73ed5c1b0bc4
+	github.com/amarnathcjd/gogram v1.6.11-0.20251228132337-11022bc5b070
 	go.mongodb.org/mongo-driver/v2 v2.4.1
 )
 
