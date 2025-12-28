@@ -60,6 +60,7 @@ const (
 	Apple      = "apple_music"
 	SoundCloud = "soundcloud"
 	Deezer     = "Deezer"
+	Gaana      = "Gaana"
 	DirectLink = "direct_link"
 )
 
