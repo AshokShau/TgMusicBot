@@ -31,7 +31,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN wget -O /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux \
+RUN wget -O /usr/local/bin/yt-dlp \
+    https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp_linux \
     && chmod +x /usr/local/bin/yt-dlp \
     && curl -fsSL https://deno.land/install.sh | sh \
     && export DENO_INSTALL="/root/.deno" \
