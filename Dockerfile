@@ -1,4 +1,4 @@
-FROM golang:1.25.4 AS builder
+FROM golang:1.25.4-bookworm AS builder
 
 WORKDIR /app
 
@@ -10,16 +10,13 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
-
 RUN go mod download
 
 COPY . .
-
 RUN go generate
-
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main .
 
-FROM golang:1.25.4 AS runtime
+FROM debian:12-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
@@ -30,19 +27,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-
 RUN wget -O /usr/local/bin/yt-dlp \
     https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp_linux \
-    && chmod +x /usr/local/bin/yt-dlp \
-    && curl -fsSL https://deno.land/install.sh | sh \
-    && export DENO_INSTALL="/root/.deno" \
+    && chmod +x /usr/local/bin/yt-dlp
+
+RUN curl -fsSL https://deno.land/install.sh | sh \
+    && export DENO_INSTALL="/opt/deno" \
     && export PATH="$DENO_INSTALL/bin:$PATH" \
-    && ln -sf /root/.deno/bin/deno /usr/local/bin/deno
+    && mv /root/.deno /opt/deno \
+    && ln -sf /opt/deno/bin/deno /usr/local/bin/deno
 
-ENV DENO_INSTALL="/root/.deno"
+RUN groupadd -r app && useradd -r -g app -m -d /home/app app
+
+ENV DENO_INSTALL="/opt/deno"
 ENV PATH="${DENO_INSTALL}/bin:${PATH}"
+ENV HOME="/home/app"
 
-WORKDIR /root/
-COPY --from=builder /app/main .
+COPY --from=builder --chown=app:app /app/main /usr/local/bin/app
 
-ENTRYPOINT ["./main"]
+RUN chown -R app:app /opt/deno
+
+USER app
+
+WORKDIR /home/app
+ENTRYPOINT ["app"]
