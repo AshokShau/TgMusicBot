@@ -24,8 +24,8 @@ type ChatCacher struct {
 	chatCache map[int64]*ChatData
 }
 
-// NewChatCacher initializes and returns a new ChatCacher.
-func NewChatCacher() *ChatCacher {
+// newChatCacher initializes and returns a new ChatCacher.
+func newChatCacher() *ChatCacher {
 	return &ChatCacher{
 		chatCache: make(map[int64]*ChatData),
 	}
@@ -44,6 +44,22 @@ func (c *ChatCacher) AddSong(chatID int64, song *utils.CachedTrack) int {
 	}
 
 	data.Queue = append(data.Queue, song)
+	return len(data.Queue)
+}
+
+// AddSongs adds multiple songs to a chat's queue. If the chat does not exist, it creates a new one.
+// It takes a chat ID and a slice of CachedTracks to add, and returns the new length of the queue.
+func (c *ChatCacher) AddSongs(chatID int64, songs []*utils.CachedTrack) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		data = &ChatData{Queue: []*utils.CachedTrack{}}
+		c.chatCache[chatID] = data
+	}
+
+	data.Queue = append(data.Queue, songs...)
 	return len(data.Queue)
 }
 
@@ -213,4 +229,4 @@ func (c *ChatCacher) GetTrackIfExists(chatID int64, trackID string) *utils.Cache
 }
 
 // ChatCache is the global chat cacher.
-var ChatCache = NewChatCacher()
+var ChatCache = newChatCacher()

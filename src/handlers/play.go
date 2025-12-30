@@ -314,35 +314,51 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 	}
 
 	queueHeader := "<b>📥 Added to Queue:</b>\n<blockquote collapsed='true'>\n"
-	var queueItems []string
+	var tracksToAdd []*utils.CachedTrack
 	var skippedTracks []string
 
 	shouldPlayFirst := false
 	var firstTrack *utils.CachedTrack
 
-	for i, track := range tracks {
+	for _, track := range tracks {
 		if track.Duration > int(config.Conf.SongDurationLimit) {
 			skippedTracks = append(skippedTracks, track.Title)
 			continue
 		}
 
-		saveCache := utils.CachedTrack{
+		saveCache := &utils.CachedTrack{
 			Name: track.Title, TrackID: track.Id, Duration: track.Duration,
 			Thumbnail: track.Thumbnail, User: m.Sender.FirstName, Platform: track.Platform,
 			IsVideo: isVideo, URL: track.Url, Channel: track.Channel, Views: track.Views,
 		}
+		tracksToAdd = append(tracksToAdd, saveCache)
+	}
 
-		qLen := cache.ChatCache.AddSong(chatId, &saveCache)
-		if i == 0 && qLen == 1 {
-			shouldPlayFirst = true
-			firstTrack = &saveCache
-			saveCache.Loop = 1
+	if len(tracksToAdd) == 0 {
+		if len(skippedTracks) > 0 {
+			_, err := updater.Edit(fmt.Sprintf("❌ All tracks were skipped (max duration %d min).", config.Conf.SongDurationLimit/60))
+			return err
 		}
+		_, err := updater.Edit("❌ No valid tracks found.")
+		return err
+	}
 
-		queueItems = append(queueItems,
-			fmt.Sprintf("<b>%d.</b> %s\n└ Duration: %s",
-				qLen, track.Title, utils.SecToMin(track.Duration)),
-		)
+	qLenAfter := cache.ChatCache.AddSongs(chatId, tracksToAdd)
+	startLen := qLenAfter - len(tracksToAdd)
+
+	if startLen == 0 {
+		shouldPlayFirst = true
+		firstTrack = tracksToAdd[0]
+		firstTrack.Loop = 1
+	}
+
+	var sb strings.Builder
+	sb.WriteString(queueHeader)
+
+	for i, track := range tracksToAdd {
+		currentQLen := startLen + i + 1
+		fmt.Fprintf(&sb, "<b>%d.</b> %s\n└ Duration: %s\n",
+			currentQLen, track.Name, utils.SecToMin(track.Duration))
 	}
 
 	totalDuration := 0
@@ -352,47 +368,22 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 
 	queueSummary := fmt.Sprintf(
 		"</blockquote>\n<b>📋 Queue Total:</b> %d\n<b>⏱ Duration:</b> %s\n<b>👤 By:</b> %s",
-		cache.ChatCache.GetQueueLength(chatId), utils.SecToMin(totalDuration), m.Sender.FirstName,
+		qLenAfter, utils.SecToMin(totalDuration), m.Sender.FirstName,
 	)
 
-	fullMessage := queueHeader + strings.Join(queueItems, "\n") + queueSummary
+	sb.WriteString(queueSummary)
+
 	if len(skippedTracks) > 0 {
-		fullMessage += fmt.Sprintf("\n\n<b>Skipped %d tracks</b> (exceeded duration limit).", len(skippedTracks))
+		fmt.Fprintf(&sb, "\n\n<b>Skipped %d tracks</b> (exceeded duration limit).", len(skippedTracks))
 	}
 
+	fullMessage := sb.String()
 	if len(fullMessage) > 4096 {
 		fullMessage = queueSummary
 	}
 
 	if shouldPlayFirst && firstTrack != nil {
 		_ = vc.Calls.PlayNext(chatId)
-		/*
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				defer cancel()
-
-				dlPath, err := dl.DownloadSong(ctx, firstTrack, m.Client)
-				if err != nil {
-					cache.ChatCache.RemoveCurrentSong(chatId)
-					logger.Warn("failed to download song: %v", err)
-					_, _ = m.Client.SendMessage(chatId, "failed to download song")
-					return
-				}
-
-				firstTrack.FilePath = dlPath
-				if err := vc.Calls.PlayMedia(chatId, firstTrack.FilePath, firstTrack.IsVideo, ""); err != nil {
-					cache.ChatCache.RemoveCurrentSong(chatId)
-					return
-				}
-
-				nowPlaying := fmt.Sprintf(
-					"🎵 <b>Now Playing:</b>\n\n▫ <b>Track:</b> <a href='%s'>%s</a>\n▫ <b>Duration:</b> %s\n▫ <b>Requested by:</b> %s",
-					firstTrack.URL, firstTrack.Name, utils.SecToMin(firstTrack.Duration), firstTrack.User,
-				)
-				_, _ = m.Client.SendMessage(chatId, nowPlaying, &telegram.SendOptions{ReplyMarkup: core.ControlButtons("play")})
-			}()
-
-		*/
 	}
 
 	_, err := updater.Edit(fullMessage, &telegram.SendOptions{
