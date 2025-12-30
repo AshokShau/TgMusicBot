@@ -72,7 +72,6 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 	assignedClient, err := db.Instance.AssignAssistant(ctx, chatID, newClient)
 	if err != nil {
 		c.bot.Log.Info("[TelegramCalls] DB.AssignAssistant error: %v", err)
-		assignedClient, _ = db.Instance.GetAssistant(ctx, chatID)
 	}
 
 	if assignedClient != "" {
