@@ -59,28 +59,41 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 	copy(availableClients, c.availableClients)
 	c.mu.RUnlock()
 
-	ctx, cancel := db.Ctx()
-	defer cancel()
-
-	assistant, err := db.Instance.GetAssistant(ctx, chatID)
-	if err != nil {
-		c.bot.Log.Info("[TelegramCalls] DB.GetAssistant error: %v", err)
-	}
-
-	if assistant != "" {
-		for _, name := range availableClients {
-			if name == assistant {
-				return name, nil
-			}
-		}
-	}
-
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(availableClients))))
 	if err != nil {
 		log.Printf("[TelegramCalls] Could not generate a random number: %v", err)
 		return availableClients[0], nil
 	}
 	newClient := availableClients[n.Int64()]
+
+	ctx, cancel := db.Ctx()
+	defer cancel()
+
+	assignedClient, err := db.Instance.AssignAssistant(ctx, chatID, newClient)
+	if err != nil {
+		c.bot.Log.Info("[TelegramCalls] DB.AssignAssistant error: %v", err)
+		assignedClient, _ = db.Instance.GetAssistant(ctx, chatID)
+	}
+
+	if assignedClient != "" {
+		isAvailable := false
+		for _, name := range availableClients {
+			if name == assignedClient {
+				isAvailable = true
+				break
+			}
+		}
+
+		if isAvailable {
+			return assignedClient, nil
+		}
+
+		c.bot.Log.Info("[TelegramCalls] Assigned assistant %s is unavailable. Overwriting with %s.", assignedClient, newClient)
+		if err = db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
+			c.bot.Log.Info("[TelegramCalls] DB.SetAssistant error: %v", err)
+		}
+		return newClient, nil
+	}
 
 	if err = db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
 		c.bot.Log.Info("[TelegramCalls] DB.SetAssistant error: %v", err)

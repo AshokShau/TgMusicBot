@@ -232,9 +232,49 @@ func (db *Database) RemoveAssistant(ctx context.Context, chatID int64) error {
 	return db.updateChatField(ctx, chatID, "assistant", "")
 }
 
+// AssignAssistant attempts to set the assistant for a chat if it is not currently set.
+func (db *Database) AssignAssistant(ctx context.Context, chatID int64, proposedAssistant string) (string, error) {
+	filter := bson.M{
+		"_id": chatID,
+		"$or": []interface{}{
+			bson.M{"assistant": bson.M{"$exists": false}},
+			bson.M{"assistant": ""},
+		},
+	}
+	update := bson.M{"$set": bson.M{"assistant": proposedAssistant}}
+	opts := options.UpdateOne().SetUpsert(true)
+
+	result, err := db.chatDB.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			db.chatCache.Delete(toKey(chatID))
+			return db.GetAssistant(ctx, chatID)
+		}
+		return "", err
+	}
+
+	if result.ModifiedCount > 0 || result.UpsertedCount > 0 {
+		db.chatCacheMux.Lock()
+		defer db.chatCacheMux.Unlock()
+
+		cacheKey := toKey(chatID)
+		if cached, ok := db.chatCache.Get(cacheKey); ok {
+			newCached := make(map[string]interface{}, len(cached)+1)
+			for k, v := range cached {
+				newCached[k] = v
+			}
+			newCached["assistant"] = proposedAssistant
+			db.chatCache.Set(cacheKey, newCached)
+		}
+		return proposedAssistant, nil
+	}
+
+	db.chatCache.Delete(toKey(chatID))
+	return db.GetAssistant(ctx, chatID)
+}
+
 // ClearAllAssistants removes the assistant field from all chat documents in the database.
 func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
-	// Find all chat IDs with an assistant field
 	cursor, err := db.chatDB.Find(
 		ctx,
 		bson.M{"assistant": bson.M{"$exists": true}},
@@ -255,7 +295,7 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 			chatIDs = append(chatIDs, chatDoc.ID)
 		}
 	}
-	// Remove assistant field from all matching chats
+
 	result, err := db.chatDB.UpdateMany(
 		ctx,
 		bson.M{"assistant": bson.M{"$exists": true}},
