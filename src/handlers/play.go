@@ -355,15 +355,12 @@ func handleMultipleTracks(m *telegram.NewMessage, updater *telegram.NewMessage, 
 	var sb strings.Builder
 	sb.WriteString(queueHeader)
 
+	totalDuration := 0
 	for i, track := range tracksToAdd {
 		currentQLen := startLen + i + 1
 		fmt.Fprintf(&sb, "<b>%d.</b> %s\n└ Duration: %s\n",
 			currentQLen, track.Name, utils.SecToMin(track.Duration))
-	}
-
-	totalDuration := 0
-	for _, t := range tracks {
-		totalDuration += t.Duration
+		totalDuration += track.Duration
 	}
 
 	queueSummary := fmt.Sprintf(
