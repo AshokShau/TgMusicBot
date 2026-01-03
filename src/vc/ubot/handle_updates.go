@@ -203,16 +203,41 @@ func (ctx *Context) handleUpdates() {
 
 	ctx.App.AddRawHandler(&tg.UpdateGroupCall{}, func(m tg.Update, c *tg.Client) error {
 		updateGroupCall := m.(*tg.UpdateGroupCall)
-		if updateGroupCall.Peer == nil {
-			raw, _ := json.MarshalIndent(m, "", "  ")
-			ctx.App.Log.Errorf("Received UpdateGroupCall with nil Peer:%s", string(raw))
-			return nil
-		}
-
 		if groupCallRaw := updateGroupCall.Call; groupCallRaw != nil {
-			chatID, err := ctx.parseChatId(updateGroupCall.Peer)
-			if err != nil {
-				return err
+			var chatID int64
+			var err error
+
+			if updateGroupCall.Peer != nil {
+				chatID, err = ctx.parseChatId(updateGroupCall.Peer)
+				if err != nil {
+					return err
+				}
+			} else {
+				var callID int64
+				switch call := groupCallRaw.(type) {
+				case *tg.GroupCallObj:
+					callID = call.ID
+				case *tg.GroupCallDiscarded:
+					callID = call.ID
+				}
+
+				if callID != 0 {
+					ctx.inputGroupCallsMutex.RLock()
+					for id, inputCall := range ctx.inputGroupCalls {
+						if obj, ok := inputCall.(*tg.InputGroupCallObj); ok && obj.ID == callID {
+							chatID = id
+							ctx.App.Log.Infof("Update group call %v %v", chatID, callID)
+							break
+						}
+					}
+					ctx.inputGroupCallsMutex.RUnlock()
+				}
+			}
+
+			if chatID == 0 {
+				raw, _ := json.MarshalIndent(m, "", "  ")
+				ctx.App.Log.Errorf("Received UpdateGroupCall with nil Peer and unknown call ID:%s", string(raw))
+				return nil
 			}
 
 			switch groupCallRaw.(type) {
