@@ -11,6 +11,7 @@ package ubot
 import (
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 	"ashokshau/tgmusic/src/vc/ubot/types"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -203,6 +204,8 @@ func (ctx *Context) handleUpdates() {
 	ctx.App.AddRawHandler(&tg.UpdateGroupCall{}, func(m tg.Update, c *tg.Client) error {
 		updateGroupCall := m.(*tg.UpdateGroupCall)
 		if updateGroupCall.Peer == nil {
+			raw, _ := json.MarshalIndent(m, "", "  ")
+			ctx.App.Log.Errorf("Received UpdateGroupCall with nil Peer:%s", string(raw))
 			return nil
 		}
 
@@ -211,6 +214,7 @@ func (ctx *Context) handleUpdates() {
 			if err != nil {
 				return err
 			}
+
 			switch groupCallRaw.(type) {
 			case *tg.GroupCallObj:
 				groupCall := groupCallRaw.(*tg.GroupCallObj)
