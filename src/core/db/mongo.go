@@ -46,7 +46,12 @@ var Instance *Database
 // InitDatabase initializes the database connection and sets up the global instance.
 // It returns an error if the connection fails or pinging the database is unsuccessful.
 func InitDatabase(ctx context.Context) error {
-	client, err := mongo.Connect(options.Client().ApplyURI(config.Conf.MongoUri))
+	opts := options.Client().ApplyURI(config.Conf.MongoUri).
+		SetMinPoolSize(10).
+		SetMaxConnIdleTime(10 * time.Minute).
+		SetConnectTimeout(20 * time.Second)
+
+	client, err := mongo.Connect(opts)
 	if err != nil {
 		return err
 	}
@@ -80,10 +85,24 @@ func (db *Database) getChat(ctx context.Context, chatID int64) (map[string]inter
 	}
 
 	var chat map[string]interface{}
-	err := db.chatDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&chat)
-	if errors.Is(err, mongo.ErrNoDocuments) {
-		return nil, nil
-	} else if err != nil {
+	var err error
+
+	for i := 0; i < 3; i++ {
+		err = db.chatDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&chat)
+		if err == nil {
+			break
+		}
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if err != nil {
 		log.Printf("[DB] An error occurred while getting the chat: %v", err)
 		return nil, err
 	}

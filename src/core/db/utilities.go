@@ -89,8 +89,8 @@ func remove(list []int64, id int64) []int64 {
 	return newList
 }
 
-// Ctx creates a new context with a default timeout of 5 seconds.
+// Ctx creates a new context with a default timeout of 10 seconds.
 // It returns the context and a cancel function to release resources.
 func Ctx() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctxBg, 5*time.Second)
+	return context.WithTimeout(ctxBg, 10*time.Second)
 }
