@@ -25,6 +25,10 @@ import (
 // It takes a telegram.CallbackQuery object as input.
 // It returns an error if any.
 func playCallbackHandler(cb *telegram.CallbackQuery) error {
+	if cb == nil || cb.Sender == nil {
+		return fmt.Errorf("invalid callback query: missing sender information")
+	}
+
 	data := cb.DataString()
 	if strings.Contains(data, "settings_") {
 		return nil
