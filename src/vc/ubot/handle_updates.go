@@ -117,51 +117,79 @@ func (ctx *Context) handleUpdates() {
 				participantId := getParticipantId(participant.Peer)
 				if participant.Left {
 					delete(ctx.callParticipants[chatId].CallParticipants, participantId)
-					if ctx.callSources != nil && ctx.callSources[chatId] != nil {
-						delete(ctx.callSources[chatId].CameraSources, participantId)
-						delete(ctx.callSources[chatId].ScreenSources, participantId)
+					if ctx.callSources != nil {
+						ctx.callSourcesMutex.Lock()
+						if sources, exists := ctx.callSources[chatId]; exists && sources != nil {
+							delete(sources.CameraSources, participantId)
+							delete(sources.ScreenSources, participantId)
+						}
+						ctx.callSourcesMutex.Unlock()
 					}
 					continue
 				}
 
 				ctx.callParticipants[chatId].CallParticipants[participantId] = participant
-				if ctx.callSources != nil && ctx.callSources[chatId] != nil {
-					wasCamera := ctx.callSources[chatId].CameraSources[participantId] != ""
-					wasScreen := ctx.callSources[chatId].ScreenSources[participantId] != ""
+				if ctx.callSources != nil {
+					ctx.callSourcesMutex.RLock()
+					if sources, exists := ctx.callSources[chatId]; exists && sources != nil {
+						wasCamera := sources.CameraSources[participantId] != ""
+						wasScreen := sources.ScreenSources[participantId] != ""
 
-					if wasCamera != (participant.Video != nil) {
-						if participant.Video != nil {
-							ctx.callSources[chatId].CameraSources[participantId] = participant.Video.Endpoint
-							_, _ = ctx.binding.AddIncomingVideo(
-								chatId,
-								participant.Video.Endpoint,
-								parseVideoSources(participant.Video.SourceGroups),
-							)
-						} else {
-							_ = ctx.binding.RemoveIncomingVideo(
-								chatId,
-								ctx.callSources[chatId].CameraSources[participantId],
-							)
-							delete(ctx.callSources[chatId].CameraSources, participantId)
+						if wasCamera != (participant.Video != nil) {
+							if participant.Video != nil {
+								endpoint := participant.Video.Endpoint
+								sources.CameraSources[participantId] = endpoint
+								ctx.callSourcesMutex.RUnlock()
+
+								_, _ = ctx.binding.AddIncomingVideo(
+									chatId,
+									endpoint,
+									parseVideoSources(participant.Video.SourceGroups),
+								)
+								return nil
+							} else {
+								endpoint := sources.CameraSources[participantId]
+								ctx.callSourcesMutex.RUnlock()
+
+								if endpoint != "" {
+									_ = ctx.binding.RemoveIncomingVideo(chatId, endpoint)
+								}
+
+								ctx.callSourcesMutex.Lock()
+								delete(sources.CameraSources, participantId)
+								ctx.callSourcesMutex.Unlock()
+								return nil
+							}
+						}
+
+						if wasScreen != (participant.Presentation != nil) {
+							if participant.Presentation != nil {
+								endpoint := participant.Presentation.Endpoint
+								sources.ScreenSources[participantId] = endpoint
+								ctx.callSourcesMutex.RUnlock()
+
+								_, _ = ctx.binding.AddIncomingVideo(
+									chatId,
+									endpoint,
+									parseVideoSources(participant.Presentation.SourceGroups),
+								)
+								return nil
+							} else {
+								endpoint := sources.ScreenSources[participantId]
+								ctx.callSourcesMutex.RUnlock()
+
+								if endpoint != "" {
+									_ = ctx.binding.RemoveIncomingVideo(chatId, endpoint)
+								}
+
+								ctx.callSourcesMutex.Lock()
+								delete(sources.ScreenSources, participantId)
+								ctx.callSourcesMutex.Unlock()
+								return nil
+							}
 						}
 					}
-
-					if wasScreen != (participant.Presentation != nil) {
-						if participant.Presentation != nil {
-							ctx.callSources[chatId].ScreenSources[participantId] = participant.Presentation.Endpoint
-							_, _ = ctx.binding.AddIncomingVideo(
-								chatId,
-								participant.Presentation.Endpoint,
-								parseVideoSources(participant.Presentation.SourceGroups),
-							)
-						} else {
-							_ = ctx.binding.RemoveIncomingVideo(
-								chatId,
-								ctx.callSources[chatId].ScreenSources[participantId],
-							)
-							delete(ctx.callSources[chatId].ScreenSources, participantId)
-						}
-					}
+					ctx.callSourcesMutex.RUnlock()
 				}
 			}
 			ctx.callParticipants[chatId].LastMtprotoUpdate = time.Now()

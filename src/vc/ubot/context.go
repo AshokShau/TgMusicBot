@@ -30,6 +30,7 @@ type Context struct {
 	callParticipants      map[int64]*types.CallParticipantsCache
 	pendingConnections    map[int64]*types.PendingConnection
 	callSources           map[int64]*types.CallSources
+	callSourcesMutex      sync.RWMutex
 	waitConnect           map[int64]chan error
 	self                  *tg.UserObj
 	incomingCallCallbacks []func(client *Context, chatId int64)
