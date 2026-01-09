@@ -143,3 +143,120 @@ func loggerHandler(m *telegram.NewMessage) error {
 
 	return telegram.ErrEndGroup
 }
+
+// cleanupChatsHandler handles the /cleanupchats command.
+// It removes chat IDs with invalid format (like -207... instead of -100...)
+func cleanupChatsHandler(m *telegram.NewMessage) error {
+	ctx, cancel := db.Ctx()
+	defer cancel()
+	langCode := db.Instance.GetLang(ctx, m.ChannelID())
+
+	args := strings.ToLower(m.Args())
+	previewMode := strings.Contains(args, "-preview") || strings.Contains(args, "-dry")
+
+	chats, err := db.Instance.GetAllChats(ctx)
+	if err != nil {
+		_, _ = m.Reply(fmt.Sprintf("❌ Failed to get chats: %v", err))
+		return telegram.ErrEndGroup
+	}
+
+	var invalidChats []int64
+	var validChats []int64
+
+	for _, chatID := range chats {
+		// Valid supergroup/channel IDs should be < -1000000000000 (e.g., -1001234567890)
+		// Invalid IDs like -2072413383014 are > -3000000000000 but < -2000000000000
+		// This catches IDs that don't have proper -100 prefix
+		if chatID < -2000000000000 && chatID > -3000000000000 {
+			invalidChats = append(invalidChats, chatID)
+		} else if chatID < 0 {
+			validChats = append(validChats, chatID)
+		}
+	}
+
+	if len(invalidChats) == 0 {
+		_, _ = m.Reply(fmt.Sprintf(
+			"✅ <b>No Invalid Chats Found</b>\n\n"+
+				"📊 Total chats: <code>%d</code>\n"+
+				"✓ All chat IDs have valid format.",
+			len(chats),
+		))
+		return telegram.ErrEndGroup
+	}
+
+	// Preview mode - just show what would be deleted
+	if previewMode {
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf(
+			"🔍 <b>Preview Mode - Invalid Chats Found</b>\n\n"+
+				"📊 Total chats: <code>%d</code>\n"+
+				"❌ Invalid chats: <code>%d</code>\n"+
+				"✓ Valid chats: <code>%d</code>\n\n"+
+				"<b>Invalid Chat IDs:</b>\n",
+			len(chats), len(invalidChats), len(validChats),
+		))
+
+		// Show up to 20 invalid IDs
+		showCount := len(invalidChats)
+		if showCount > 20 {
+			showCount = 20
+		}
+		for i := 0; i < showCount; i++ {
+			sb.WriteString(fmt.Sprintf("• <code>%d</code>\n", invalidChats[i]))
+		}
+		if len(invalidChats) > 20 {
+			sb.WriteString(fmt.Sprintf("... and %d more\n", len(invalidChats)-20))
+		}
+
+		sb.WriteString("\n💡 Run <code>/cleanupchats</code> without -preview to delete these.")
+
+		text := sb.String()
+		if len(text) > 4096 {
+			text = fmt.Sprintf(
+				"🔍 <b>Preview Mode</b>\n\n"+
+					"📊 Total chats: <code>%d</code>\n"+
+					"❌ Invalid chats: <code>%d</code>\n"+
+					"✓ Valid chats: <code>%d</code>\n\n"+
+					"💡 Run <code>/cleanupchats</code> to delete invalid chats.",
+				len(chats), len(invalidChats), len(validChats),
+			)
+		}
+
+		_, _ = m.Reply(text)
+		return telegram.ErrEndGroup
+	}
+
+	// Delete invalid chats
+	reply, _ := m.Reply(fmt.Sprintf("🧹 Cleaning up %d invalid chats...", len(invalidChats)))
+
+	var removed int
+	var failed int
+	for _, chatID := range invalidChats {
+		dbCtx, dbCancel := db.Ctx()
+		if err := db.Instance.RemoveChat(dbCtx, chatID); err != nil {
+			failed++
+			logger.Warn("[Cleanup] Failed to remove chat %d: %v", chatID, err)
+		} else {
+			removed++
+		}
+		dbCancel()
+	}
+
+	result := fmt.Sprintf(
+		"🧹 <b>Cleanup Complete</b>\n\n"+
+			"📊 Total processed: <code>%d</code>\n"+
+			"✅ Removed: <code>%d</code>\n"+
+			"❌ Failed: <code>%d</code>\n"+
+			"📁 Remaining valid chats: <code>%d</code>",
+		len(invalidChats), removed, failed, len(validChats),
+	)
+
+	if reply != nil {
+		_, _ = reply.Edit(result)
+	} else {
+		_, _ = m.Reply(result)
+	}
+
+	_ = langCode // Suppress unused variable warning
+	return telegram.ErrEndGroup
+}

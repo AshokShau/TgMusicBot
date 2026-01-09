@@ -66,6 +66,8 @@ func LoadModules(c *tg.Client) {
 	c.On("command:broadcast", broadcastHandler, tg.Custom(isDev))
 	c.On("command:gCast", broadcastHandler, tg.Custom(isDev))
 	c.On("command:cancelBroadcast", cancelBroadcastHandler, tg.Custom(isDev))
+	c.On("command:cleanupchats", cleanupChatsHandler, tg.Custom(isDev))
+	c.On("command:cleanup", cleanupChatsHandler, tg.Custom(isDev))
 
 	c.On("command:settings", settingsHandler, tg.Custom(adminMode))
 
