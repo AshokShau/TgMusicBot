@@ -111,7 +111,7 @@ func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
 		return utils.PlatformTracks{}, errors.New("unable to extract the video ID")
 	}
 
-	tracks, err := searchYouTube(videoID)
+	tracks, err := searchYouTube(videoID, 10)
 	if err != nil {
 		return utils.PlatformTracks{}, err
 	}
@@ -127,7 +127,7 @@ func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
 
 // Search performs a search for a track on YouTube.
 func (y *YouTubeData) Search(_ context.Context) (utils.PlatformTracks, error) {
-	tracks, err := searchYouTube(y.Query)
+	tracks, err := searchYouTube(y.Query, 5)
 	if err != nil {
 		return utils.PlatformTracks{}, err
 	}

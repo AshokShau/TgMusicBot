@@ -10,147 +10,134 @@ package dl
 
 import (
 	"ashokshau/tgmusic/src/utils"
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"regexp"
 	"strings"
+	"time"
 )
 
-// searchYouTube scrapes YouTube results page
-func searchYouTube(query string) ([]utils.MusicTrack, error) {
-	encoded := url.QueryEscape(query)
-	searchURL := "https://www.youtube.com/results?search_query=" + encoded
+func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
+	endpoint := "https://www.youtube.com/youtubei/v1/search?key=AIzaSyBOti4mM-6x9WDnZIjIeyEU21OpBXqWBgw"
 
-	req, err := http.NewRequest("GET", searchURL, nil)
+	payload := map[string]interface{}{
+		"context": map[string]interface{}{
+			"client": map[string]interface{}{
+				"clientName":    "WEB",
+				"clientVersion": "2.20250101.01.00",
+				"hl":            "en",
+				"gl":            "IN",
+			},
+		},
+		"query": query,
+	}
+
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", endpoint, bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64)")
-	resp, err := http.DefaultClient.Do(req)
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	re := regexp.MustCompile(`(?s)var ytInitialData = (.*?);\s*</script>`)
-	match := re.FindSubmatch(body)
-	if len(match) < 2 {
-		return nil, fmt.Errorf("ytInitialData not found")
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal(match[1], &data); err != nil {
 		return nil, err
 	}
 
-	contents := dig(data, "contents", "twoColumnSearchResultsRenderer",
-		"primaryContents", "sectionListRenderer", "contents")
-
-	if contents == nil {
-		return nil, fmt.Errorf("no contents")
+	var data map[string]interface{}
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return nil, err
 	}
 
+	root := dig(
+		data,
+		"contents",
+		"twoColumnSearchResultsRenderer",
+		"primaryContents",
+		"sectionListRenderer",
+		"contents",
+	)
+
 	var tracks []utils.MusicTrack
-	parseSearchResults(contents, &tracks)
+	parseResults(root, &tracks, limit)
 
 	return tracks, nil
 }
 
-// Recursively find items
-func parseSearchResults(node interface{}, tracks *[]utils.MusicTrack) {
+func parseResults(node interface{}, tracks *[]utils.MusicTrack, limit int) {
+	if len(*tracks) >= limit {
+		return
+	}
+
 	switch v := node.(type) {
+
 	case []interface{}:
-		for _, item := range v {
-			parseSearchResults(item, tracks)
+		for _, i := range v {
+			parseResults(i, tracks, limit)
+			if len(*tracks) >= limit {
+				return
+			}
 		}
+
 	case map[string]interface{}:
-		if vid, ok := dig(v, "videoRenderer").(map[string]interface{}); ok {
-			isLive := false
-			if badges, ok := vid["badges"].([]interface{}); ok {
-				for _, badge := range badges {
-					if meta, ok := dig(badge, "metadataBadgeRenderer").(map[string]interface{}); ok {
-						style := safeString(meta["style"])
-						if style == "BADGE_STYLE_TYPE_LIVE_NOW" {
-							isLive = true
-							break
-						}
-					}
-				}
-			}
-
-			if isLive {
+		if vr, ok := dig(v, "videoRenderer").(map[string]interface{}); ok {
+			if dig(vr, "badges") != nil {
 				return
 			}
 
-			id := safeString(vid["videoId"])
-			title := safeString(dig(vid, "title", "runs", 0, "text"))
-			thumb := safeString(dig(vid, "thumbnail", "thumbnails", 0, "url"))
-			durationText := safeString(dig(vid, "lengthText", "simpleText"))
-			if durationText == "" {
+			id := safeString(vr["videoId"])
+			title := safeString(dig(vr, "title", "runs", 0, "text"))
+			durationText := safeString(dig(vr, "lengthText", "simpleText"))
+			if id == "" || title == "" || durationText == "" {
 				return
 			}
 
-			views := safeString(dig(vid, "shortViewCountText", "simpleText"))
-			if views == "" {
-				views = safeString(dig(vid, "shortViewCountText", "runs", 0, "text"))
-			}
-			channel := safeString(dig(vid, "ownerText", "runs", 0, "text"))
-			duration := parseDuration(durationText)
 			*tracks = append(*tracks, utils.MusicTrack{
+				Id:        id,
 				Url:       "https://www.youtube.com/watch?v=" + id,
 				Title:     title,
-				Id:        id,
-				Thumbnail: thumb,
-				Duration:  duration,
-				Views:     views,
-				Channel:   channel,
-				Platform:  "youtube",
+				Thumbnail: safeString(dig(vr, "thumbnail", "thumbnails", 0, "url")),
+				Duration:  parseDuration(durationText),
+				Views:     safeString(dig(vr, "viewCountText", "simpleText")),
+				Channel:   safeString(dig(vr, "ownerText", "runs", 0, "text")),
+				Platform:  utils.YouTube,
 			})
-		} else {
-			for _, child := range v {
-				parseSearchResults(child, tracks)
-			}
+		}
+
+		for _, c := range v {
+			parseResults(c, tracks, limit)
 		}
 	}
 }
 
-// safely dig into nested JSON
-func dig(m interface{}, path ...interface{}) interface{} {
-	curr := m
+func dig(v interface{}, path ...interface{}) interface{} {
+	cur := v
 	for _, p := range path {
-		switch key := p.(type) {
+		switch k := p.(type) {
 		case string:
-			if mm, ok := curr.(map[string]interface{}); ok {
-				curr = mm[key]
-			} else {
+			m, ok := cur.(map[string]interface{})
+			if !ok {
 				return nil
 			}
+			cur = m[k]
 		case int:
-			if arr, ok := curr.([]interface{}); ok && len(arr) > key {
-				curr = arr[key]
-			} else {
+			a, ok := cur.([]interface{})
+			if !ok || k >= len(a) {
 				return nil
 			}
+			cur = a[k]
 		}
 	}
-	return curr
+	return cur
 }
 
-// safely cast to string
 func safeString(v interface{}) string {
 	if s, ok := v.(string); ok {
 		return s
@@ -158,26 +145,19 @@ func safeString(v interface{}) string {
 	return ""
 }
 
-// parse duration like "3:45" -> 225 seconds
 func parseDuration(s string) int {
-	if s == "" {
-		return 0
-	}
 	parts := strings.Split(s, ":")
 	total := 0
-	multiplier := 1
-
-	// Process from right to left (seconds → minutes → hours)
+	mul := 1
 	for i := len(parts) - 1; i >= 0; i-- {
-		total += atoi(parts[i]) * multiplier
-		multiplier *= 60
+		total += atoi(parts[i]) * mul
+		mul *= 60
 	}
 	return total
 }
 
-// atoi converts a string to an integer
 func atoi(s string) int {
-	var n int
+	n := 0
 	for _, r := range s {
 		if r >= '0' && r <= '9' {
 			n = n*10 + int(r-'0')
