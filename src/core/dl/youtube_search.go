@@ -12,6 +12,7 @@ import (
 	"ashokshau/tgmusic/src/utils"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -45,6 +46,15 @@ func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return nil, fmt.Errorf(
+			"youtube search failed: status=%d %s body=%q",
+			resp.StatusCode,
+			resp.Status,
+			string(raw),
+		)
+	}
 
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -88,8 +98,14 @@ func parseResults(node interface{}, tracks *[]utils.MusicTrack, limit int) {
 
 	case map[string]interface{}:
 		if vr, ok := dig(v, "videoRenderer").(map[string]interface{}); ok {
-			if dig(vr, "badges") != nil {
-				return
+			if badges, ok := vr["badges"].([]interface{}); ok {
+				for _, badge := range badges {
+					if meta, ok := dig(badge, "metadataBadgeRenderer").(map[string]interface{}); ok {
+						if safeString(meta["style"]) == "BADGE_STYLE_TYPE_LIVE_NOW" {
+							return
+						}
+					}
+				}
 			}
 
 			id := safeString(vr["videoId"])
@@ -127,9 +143,10 @@ func dig(v interface{}, path ...interface{}) interface{} {
 				return nil
 			}
 			cur = m[k]
+
 		case int:
 			a, ok := cur.([]interface{})
-			if !ok || k >= len(a) {
+			if !ok || k < 0 || k >= len(a) {
 				return nil
 			}
 			cur = a[k]
