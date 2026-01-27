@@ -95,7 +95,7 @@ func (db *Database) getChat(ctx context.Context, chatID int64) (map[string]inter
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
 		}
-		
+
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
