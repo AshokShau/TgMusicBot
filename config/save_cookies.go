@@ -11,6 +11,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -89,13 +90,13 @@ func saveAllCookies(urls []string) {
 	for _, url := range urls {
 		content, err := fetchContent(url)
 		if err != nil {
-			fmt.Println("Error fetching:", err)
+			log.Printf("Error fetching cookies from %s: %v", url, err)
 			continue
 		}
 
 		path, err := saveContent(url, content)
 		if err != nil {
-			fmt.Println("Error saving:", err)
+			log.Printf("Error saving cookies for %s: %v", url, err)
 			continue
 		}
 
