@@ -16,7 +16,7 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-var CloseBtn = telegram.Button.Data("Close", "vcplay_close")
+var CloseBtn = telegram.Button.Data("Close", "vcplay_close").Danger()
 
 var HomeBtn = telegram.Button.Data("Home", "help_back")
 
@@ -32,7 +32,7 @@ var DevsBtn = telegram.Button.Data("Devs", "help_devs")
 
 var PlaylistBtn = telegram.Button.Data("Playlist", "help_playlist")
 
-var SourceCodeBtn = telegram.Button.URL("Source Code", "https://github.com/AshokShau/TgMusicBot")
+var SourceCodeBtn = telegram.Button.URL("Source Code", "https://github.com/AshokShau/TgMusicBot").Primary()
 
 func SupportKeyboard() *telegram.ReplyInlineMarkup {
 	channelBtn := telegram.Button.URL("Updates", config.Conf.SupportChannel)
@@ -92,8 +92,8 @@ func BackHelpMenuKeyboard() *telegram.ReplyInlineMarkup {
 }
 
 func ControlButtons(mode string) *telegram.ReplyInlineMarkup {
-	skipBtn := telegram.Button.Data("‣‣I", "play_skip")
-	stopBtn := telegram.Button.Data("▢", "play_stop")
+	skipBtn := telegram.Button.Data("‣‣I", "play_skip").Primary()
+	stopBtn := telegram.Button.Data("▢", "play_stop").Danger()
 	pauseBtn := telegram.Button.Data("II", "play_pause")
 	resumeBtn := telegram.Button.Data("▷", "play_resume")
 	muteBtn := telegram.Button.Data("🔇", "play_mute")
