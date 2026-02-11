@@ -49,8 +49,8 @@ func settingsHandler(m *telegram.NewMessage) error {
 	getPlayMode := db.Instance.GetPlayMode(ctx, chatID)
 	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
 
-	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
-		m.Chat.Title, getPlayMode, getAdminMode)
+	text := fmt.Sprintf("%s <b>Settings for %s</b>\n\n%s <b>Play Mode:</b> %s\n%s <b>Admin Mode:</b> %s",
+		utils.EmojiGear, m.Chat.Title, utils.EmojiPlay, getPlayMode, utils.EmojiGear, getAdminMode)
 
 	_, err = m.Reply(text, &telegram.SendOptions{
 		ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode),
@@ -100,7 +100,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 	}
 
 	if !validValues[settingValue] {
-		_, _ = c.Answer("Update your chat settings", &telegram.CallbackOptions{Alert: true})
+		_, _ = c.Answer(utils.EmojiReload+" Update your chat settings", &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
 
@@ -110,7 +110,7 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 	case "admin":
 		_ = db.Instance.SetAdminMode(ctx, chatID, settingValue)
 	default:
-		_, _ = c.Answer("Update your chat settings", &telegram.CallbackOptions{Alert: true})
+		_, _ = c.Answer(utils.EmojiReload+" Update your chat settings", &telegram.CallbackOptions{Alert: true})
 		return nil
 	}
 
@@ -123,8 +123,8 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 		return nil
 	}
 
-	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
-		chat.Title, getPlayMode, getAdminMode)
+	text := fmt.Sprintf("%s <b>Settings for %s</b>\n\n%s <b>Play Mode:</b> %s\n%s <b>Admin Mode:</b> %s",
+		utils.EmojiGear, chat.Title, utils.EmojiPlay, getPlayMode, utils.EmojiGear, getAdminMode)
 
 	_, err = c.Edit(text, &telegram.SendOptions{
 		ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode),
@@ -134,7 +134,6 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 		return err
 	}
 
-	_, _ = c.Answer("✅ Settings updated", &telegram.CallbackOptions{Alert: false})
-	_, _ = c.Edit("✅ Settings updated")
+	_, _ = c.Answer(" Settings updated", &telegram.CallbackOptions{Alert: false})
 	return nil
 }

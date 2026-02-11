@@ -8,3 +8,4 @@ libntgcalls.a
 libntgcalls.so
 /cache
 app
+/src/cookies

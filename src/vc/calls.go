@@ -250,13 +250,13 @@ func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *t
 
 	dlPath, err := dl.DownloadSong(ctx, song, c.bot)
 	if err != nil {
-		_, _ = reply.Edit("⚠️ Download failed. Skipping track...")
+		_, _ = reply.Edit(utils.EmojiWarning + " Download failed. Skipping track...")
 		return err
 	}
 
 	song.FilePath = dlPath
 	if song.FilePath == "" {
-		_, _ = reply.Edit("⚠️ Download failed. Skipping track...")
+		_, _ = reply.Edit(utils.EmojiWarning + " Download failed. Skipping track...")
 		return errors.New("download failed due to an empty file path")
 	}
 
@@ -286,14 +286,14 @@ func (c *TelegramCalls) PlayNext(chatID int64) error {
 // and sending a notification to the chat.
 func (c *TelegramCalls) handleNoSong(chatID int64) error {
 	_ = c.Stop(chatID)
-	_, _ = c.bot.SendMessage(chatID, "🎵 Queue finished. Add more songs with /play.")
+	_, _ = c.bot.SendMessage(chatID, utils.EmojiMusic+" Queue finished. Add more songs with /play.")
 	return nil
 }
 
 // playSong downloads and plays a single song. It sends a message to the chat to indicate the download status
 // and updates it with the song's information once playback begins.
 func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
-	reply, err := c.bot.SendMessage(chatID, fmt.Sprintf("Downloading %s...", song.Name))
+	reply, err := c.bot.SendMessage(chatID, fmt.Sprintf("%s Downloading %s...", utils.EmojiHourglass, song.Name))
 	if err != nil {
 		c.bot.Log.Info("[playSong] Failed to send message: %v", err)
 		return err
@@ -313,7 +313,8 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	}
 
 	text := fmt.Sprintf(
-		"<b>Now Playing:</b>\n\n<b>Track:</b> <a href='%s'>%s</a>\n<b>Duration:</b> %s\n<b>By:</b> %s",
+		"%s <b>Now Playing:</b>\n\n<b>Track:</b> <a href='%s'>%s</a>\n<b>Duration:</b> %s\n<b>By:</b> %s",
+		utils.EmojiPlay,
 		song.URL,
 		song.Name,
 		utils.SecToMin(song.Duration),
@@ -445,7 +446,7 @@ func (c *TelegramCalls) ChangeSpeed(chatID int64, speed float64) error {
 
 	playingSong := cache.ChatCache.GetPlayingTrack(chatID)
 	if playingSong == nil {
-		return errors.New("🔇 Nothing is playing")
+		return errors.New(utils.EmojiMute + " Nothing is playing")
 	}
 
 	videoPTS := 1 / speed
@@ -492,7 +493,7 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 		})
 
 		call.OnIncomingCall(func(ub *ubot.Context, chatID int64) {
-			_, _ = ub.App.SendMessage(chatID, "Incoming call detected. Playing music...")
+			_, _ = ub.App.SendMessage(chatID, utils.EmojiWarning+" Incoming call detected. Playing music...")
 			msg, err := utils.GetMessage(c.bot, DefaultStreamURL)
 			if err != nil {
 				c.bot.Log.Info("[OnIncomingCall] Failed to get the message: %v", err)

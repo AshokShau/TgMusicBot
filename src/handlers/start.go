@@ -15,6 +15,7 @@ import (
 
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/db"
+	"ashokshau/tgmusic/src/utils"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
@@ -24,7 +25,7 @@ func pingHandler(m *telegram.NewMessage) error {
 	start := time.Now()
 	updateLag := time.Since(time.Unix(int64(m.Date()), 0)).Milliseconds()
 
-	msg, err := m.Reply("⏱️ Pinging...")
+	msg, err := m.Reply(utils.EmojiSpeed + " Pinging...")
 	if err != nil {
 		return err
 	}
@@ -33,13 +34,18 @@ func pingHandler(m *telegram.NewMessage) error {
 	uptime := time.Since(startTime).Truncate(time.Second)
 	senders := m.Client.GetExportedSendersStatus()
 	response := fmt.Sprintf(
-		"<b>📊 System Performance Metrics</b>\n\n"+
-			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
-			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
-			"📩 <b>Update Lag:</b> <code>%d ms</code>\n"+
-			"⚙️ <b>Go Routines:</b> <code>%d</code>\n"+
-			"📨 <b>Senders:</b> <code>%d</code>\n",
-		latency, uptime, updateLag, runtime.NumGoroutine(), senders,
+		"%s <b>System Performance Metrics</b>\n\n"+
+			"%s <b>Bot Latency:</b> <code>%d ms</code>\n"+
+			"%s <b>Uptime:</b> <code>%s</code>\n"+
+			"%s <b>Update Lag:</b> <code>%d ms</code>\n"+
+			"%s <b>Go Routines:</b> <code>%d</code>\n"+
+			"%s <b>Senders:</b> <code>%d</code>\n",
+		utils.EmojiGear,
+		utils.EmojiSpeed, latency,
+		utils.EmojiHourglass, uptime,
+		utils.EmojiSearch, updateLag,
+		utils.EmojiGear, runtime.NumGoroutine(),
+		utils.EmojiTelegram, senders,
 	)
 
 	_, err = msg.Edit(response)
@@ -65,7 +71,7 @@ func startHandler(m *telegram.NewMessage) error {
 		}(chatID)
 	}
 
-	response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", m.Sender.FirstName, bot.FirstName)
+	response := fmt.Sprintf("%s Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", utils.EmojiMusic, m.Sender.FirstName, bot.FirstName)
 	_, err := m.Reply(response, &telegram.SendOptions{
 		ReplyMarkup: core.AddMeMarkup(m.Client.Me().Username),
 	})
