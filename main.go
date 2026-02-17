@@ -22,7 +22,7 @@ import (
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
-//go:generate go run setup_ntgcalls.go static
+//go:generate go run setup_ntgcalls.go
 
 // main serves as the entry point for the application.
 func main() {

@@ -8,7 +8,6 @@
  *  See https://github.com/AshokShau/TgMusicBot
  */
 
-// Usage: go run setup_ntgcalls.go [shared|static]
 package main
 
 import (
@@ -39,13 +38,6 @@ type Release struct {
 }
 
 func main() {
-	if len(os.Args) > 1 && (os.Args[1] == "-h" || os.Args[1] == "--help") {
-		fmt.Println("Usage: go run setup_ntgcalls.go [static|shared]")
-		fmt.Println("  static: Download static library build")
-		fmt.Println("  shared: Download shared library build (default)")
-		return
-	}
-
 	start := time.Now()
 	defer func() {
 		fmt.Printf("\nTime elapsed: %v\n", time.Since(start))
@@ -60,27 +52,22 @@ func main() {
 }
 
 func run() error {
-	buildType := "shared"
-	if len(os.Args) > 1 {
-		buildType = os.Args[1]
-		if buildType != "shared" && buildType != "static" {
-			return fmt.Errorf("invalid build type: %s (use 'shared' or 'static')", buildType)
-		}
-	}
+	fmt.Printf("Looking for %s/%s static build...\n", runtime.GOOS, runtime.GOARCH)
 
-	fmt.Printf("Looking for %s/%s %s build...\n", runtime.GOOS, runtime.GOARCH, buildType)
 	release, err := getLatestRelease()
 	if err != nil {
 		return fmt.Errorf("failed to get latest release: %w", err)
 	}
 
 	fmt.Printf("Latest release: %s\n", release.TagName)
-	targetAsset := pickAsset(release, buildType)
+
+	targetAsset := pickStaticAsset(release)
 	if targetAsset == "" {
-		return fmt.Errorf("no matching asset found for your platform")
+		return fmt.Errorf("no matching static asset found for your platform")
 	}
 
 	fmt.Printf("Downloading: %s\n", filepath.Base(targetAsset))
+
 	tmpZip := "ntgcalls.zip"
 	if err := downloadFile(tmpZip, targetAsset); err != nil {
 		return fmt.Errorf("download failed: %w", err)
@@ -117,7 +104,7 @@ func getLatestRelease() (Release, error) {
 	return r, nil
 }
 
-func pickAsset(r Release, buildType string) string {
+func pickStaticAsset(r Release) string {
 	goos := runtime.GOOS
 	arch := runtime.GOARCH
 
@@ -126,21 +113,23 @@ func pickAsset(r Release, buildType string) string {
 		"arm64": "arm64",
 	}
 
-	if mappedArch, ok := archMap[arch]; ok {
-		arch = mappedArch
+	if v, ok := archMap[arch]; ok {
+		arch = v
 	}
 
 	osMap := map[string]string{
 		"darwin":  "macos",
 		"windows": "windows",
 	}
-	if mappedOS, ok := osMap[goos]; ok {
-		goos = mappedOS
+
+	if v, ok := osMap[goos]; ok {
+		goos = v
 	}
 
-	pattern := fmt.Sprintf("ntgcalls.%s-%s-%s_libs.zip", goos, arch, buildType)
+	pattern := fmt.Sprintf("ntgcalls.%s-%s-static_libs.zip", goos, arch)
+
 	for _, asset := range r.Assets {
-		if strings.Contains(strings.ToLower(asset.Name), strings.ToLower(pattern)) {
+		if strings.EqualFold(asset.Name, pattern) {
 			fmt.Printf("Found: %s\n", asset.Name)
 			return asset.BrowserDownloadURL
 		}
@@ -215,6 +204,7 @@ func unzip(src, dest string) error {
 	defer r.Close()
 
 	os.MkdirAll(dest, 0755)
+
 	for _, f := range r.File {
 		fp := filepath.Join(dest, f.Name)
 		if !strings.HasPrefix(fp, filepath.Clean(dest)+string(os.PathSeparator)) {
@@ -255,9 +245,10 @@ func unzip(src, dest string) error {
 
 func organizeFiles(tmpDir string) error {
 	var filesCopied []string
+
 	err := filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("walk error: %w", err)
+			return err
 		}
 
 		if info.IsDir() {
@@ -270,21 +261,20 @@ func organizeFiles(tmpDir string) error {
 		switch {
 		case name == "ntgcalls.h":
 			dest = filepath.Join(destHeader, name)
-			filesCopied = append(filesCopied, dest)
 
-			if err := copyFile(path, dest); err != nil {
-				return fmt.Errorf("failed to copy header: %w", err)
-			}
-
-		case strings.HasPrefix(name, "libntgcalls.") || strings.HasPrefix(name, "ntgcalls."):
+		case strings.HasPrefix(name, "libntgcalls.") ||
+			strings.HasPrefix(name, "ntgcalls."):
 			dest = filepath.Join(destLib, name)
-			filesCopied = append(filesCopied, dest)
 
-			if err := copyFile(path, dest); err != nil {
-				return fmt.Errorf("failed to copy library: %w", err)
-			}
+		default:
+			return nil
 		}
 
+		if err := copyFile(path, dest); err != nil {
+			return err
+		}
+
+		filesCopied = append(filesCopied, dest)
 		return nil
 	})
 
@@ -298,8 +288,8 @@ func organizeFiles(tmpDir string) error {
 
 	fmt.Println("Files copied:")
 	for _, file := range filesCopied {
-		relPath, _ := filepath.Rel(".", file)
-		fmt.Printf("   ✓ %s\n", relPath)
+		rel, _ := filepath.Rel(".", file)
+		fmt.Printf("   ✓ %s\n", rel)
 	}
 
 	return nil
@@ -308,24 +298,26 @@ func organizeFiles(tmpDir string) error {
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("failed to open source: %w", err)
+		return err
 	}
 	defer in.Close()
 
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+
 	out, err := os.Create(dst)
 	if err != nil {
-		return fmt.Errorf("failed to create destination: %w", err)
+		return err
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, in)
-	if err != nil {
-		return fmt.Errorf("failed to copy data: %w", err)
+	if _, err := io.Copy(out, in); err != nil {
+		return err
 	}
 
-	info, err := in.Stat()
-	if err == nil {
-		os.Chmod(dst, info.Mode())
+	if info, err := in.Stat(); err == nil {
+		_ = os.Chmod(dst, info.Mode())
 	}
 
 	return nil
