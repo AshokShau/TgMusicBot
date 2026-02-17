@@ -76,6 +76,11 @@
    ./app
    ```
 
+5. **Run in Background**
+   - **Quick Start**: Use `screen` or `tmux`.
+   - **Production**: Use `systemd`.
+     See [installation.md](installation.md#running-in-background) for details.
+
 For detailed instructions, see [installation.md](installation.md).
 
 </details>

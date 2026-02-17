@@ -6,10 +6,10 @@ Welcome to the TgMusicBot installation guide! This document provides detailed, s
 - [Prerequisites](#-prerequisites)
 - [Configuration](#-configuration)
 - [Deployment Methods](#-deployment-methods)
-  - [🐳 Docker (Recommended)](#-docker-recommended)
-  - [🔧 Manual Installation](#-manual-installation)
-    - [Linux / macOS](#-linux--macos)
-    - [Windows](#-windows)
+    - [🐳 Docker (Recommended)](#-docker-recommended)
+    - [🔧 Manual Installation](#-manual-installation)
+        - [Linux / macOS](#-linux--macos)
+        - [Windows](#-windows)
 
 ---
 
@@ -18,8 +18,8 @@ Welcome to the TgMusicBot installation guide! This document provides detailed, s
 Before you begin, ensure you have the following:
 
 - **Telegram API Credentials**:
-  - `API_ID` and `API_HASH`: Get these from [my.telegram.org](https://my.telegram.org).
-  - `BOT_TOKEN`: Get this from [@BotFather](https://t.me/BotFather) on Telegram.
+    - `API_ID` and `API_HASH`: Get these from [my.telegram.org](https://my.telegram.org).
+    - `BOT_TOKEN`: Get this from [@BotFather](https://t.me/BotFather) on Telegram.
 - **MongoDB URI**: A connection string for your MongoDB database. You can get a free cluster from [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
 
 ---
@@ -43,23 +43,23 @@ The bot is configured using a `.env` file. You'll need to create this file and f
     Choose one of the following methods to edit the `.env` file and add your credentials.
 
     - **For beginners (using `nano`):**
-      1.  Open the file:
-          ```sh
-          nano .env
-          ```
-      2.  Edit the values for `API_ID`, `API_HASH`, `TOKEN`, `MONGO_URI`, etc.
-      3.  Save the file by pressing `Ctrl+O`, then `Enter`.
-      4.  Exit nano by pressing `Ctrl+X`.
+        1.  Open the file:
+            ```sh
+            nano .env
+            ```
+        2.  Edit the values for `API_ID`, `API_HASH`, `TOKEN`, `MONGO_URI`, etc.
+        3.  Save the file by pressing `Ctrl+O`, then `Enter`.
+        4.  Exit nano by pressing `Ctrl+X`.
 
     - **For advanced users (using `vim`):**
-      1.  Open the file:
-          ```sh
-          vi .env
-          ```
-      2.  Press `i` to enter insert mode.
-      3.  Edit the values for `API_ID`, `API_HASH`, `TOKEN`, `MONGO_URI`, etc.
-      4.  Press `Esc` to exit insert mode.
-      5.  Type `:wq` and press `Enter` to save and quit.
+        1.  Open the file:
+            ```sh
+            vi .env
+            ```
+        2.  Press `i` to enter insert mode.
+        3.  Edit the values for `API_ID`, `API_HASH`, `TOKEN`, `MONGO_URI`, etc.
+        4.  Press `Esc` to exit insert mode.
+        5.  Type `:wq` and press `Enter` to save and quit.
 
 ---
 
@@ -111,7 +111,7 @@ Deploying with Docker is the easiest and recommended method.
   docker build -t tgmusicbot .
   docker run -d --name tgmusicbot --env-file .env --restart unless-stopped tgmusicbot
   ```
-  
+
 ### 🔧 Manual Installation
 
 #### 🐧 Linux / macOS
@@ -144,6 +144,86 @@ Deploying with Docker is the easiest and recommended method.
     ```sh
     go mod tidy
     go run main.go
+    ```
+
+##### 🏃 Running in Background
+
+###### Quick Start (Screen/Tmux)
+You can use `screen` or `tmux` to keep the bot running even after you close the terminal.
+
+**Using Screen:**
+1. Create a new session:
+   ```sh
+   screen -S tgmusicbot
+   ```
+2. Run the bot:
+   ```sh
+   go run main.go
+   ```
+3. Detach from the session by pressing `Ctrl+A`, then `d`.
+4. To resume the session later:
+   ```sh
+   screen -r tgmusicbot
+   ```
+
+**Using Tmux:**
+1. Create a new session:
+   ```sh
+   tmux new -s tgmusicbot
+   ```
+2. Run the bot:
+   ```sh
+   go run main.go
+   ```
+3. Detach from the session by pressing `Ctrl+B`, then `d`.
+4. To resume the session later:
+   ```sh
+   tmux attach -t tgmusicbot
+   ```
+
+###### Production Setup (Systemd)
+For a more robust setup, use `systemd` to manage the bot as a service. This ensures the bot restarts automatically if it crashes or the server reboots.
+
+1.  **Build the bot binary:**
+    ```sh
+    go build -o tgmusicbot main.go
+    ```
+
+2.  **Create a service file:**
+    ```sh
+    sudo nano /etc/systemd/system/tgmusicbot.service
+    ```
+
+3.  **Add the following content:**
+    Replace `/path/to/TgMusicBot` with the actual path to your bot directory.
+
+    ```ini
+    [Unit]
+    Description=TgMusicBot Service
+    After=network.target
+
+    [Service]
+    User=root
+    WorkingDirectory=/path/to/TgMusicBot
+    ExecStart=/path/to/TgMusicBot/tgmusicbot
+    Restart=always
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+4.  **Reload systemd and start the service:**
+    ```sh
+    sudo systemctl daemon-reload
+    sudo systemctl start tgmusicbot
+    sudo systemctl enable tgmusicbot
+    ```
+
+5.  **Check status and logs:**
+    ```sh
+    sudo systemctl status tgmusicbot
+    journalctl -u tgmusicbot -f
     ```
 
 #### 🪟 Windows
