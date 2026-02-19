@@ -353,10 +353,4 @@ func (ctx *Context) handleUpdates() {
 			go callback(chatId, streamType, streamDevice)
 		}
 	})
-
-	ctx.binding.OnFrame(func(chatId int64, mode ntgcalls.StreamMode, device ntgcalls.StreamDevice, frames []ntgcalls.Frame) {
-		for _, callback := range ctx.frameCallbacks {
-			go callback(chatId, mode, device, frames)
-		}
-	})
 }

@@ -516,10 +516,6 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 			return
 		})
 
-		call.OnFrame(func(chatId int64, mode ntgcalls.StreamMode, device ntgcalls.StreamDevice, frames []ntgcalls.Frame) {
-			c.bot.Log.Debug("Received frames for chatId: %d, mode: %v, device: %v", chatId, mode, device)
-		})
-
 		_, _ = call.App.SendMessage(client.Me().Username, "/start")
 		_, err := call.App.SendMessage(config.Conf.LoggerId, "Userbot started.")
 		if err != nil {

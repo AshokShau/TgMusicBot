@@ -71,6 +71,13 @@ func (ctx *Context) OnStreamEnd(callback ntgcalls.StreamEndCallback) {
 
 func (ctx *Context) OnFrame(callback ntgcalls.FrameCallback) {
 	ctx.frameCallbacks = append(ctx.frameCallbacks, callback)
+	if len(ctx.frameCallbacks) == 1 {
+		ctx.binding.OnFrame(func(chatId int64, mode ntgcalls.StreamMode, device ntgcalls.StreamDevice, frames []ntgcalls.Frame) {
+			for _, callback := range ctx.frameCallbacks {
+				go callback(chatId, mode, device, frames)
+			}
+		})
+	}
 }
 
 func (ctx *Context) Close() {
