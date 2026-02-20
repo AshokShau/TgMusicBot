@@ -43,7 +43,7 @@ func LoadConfig() error {
 		MaxFileSize:       getEnvInt64("MAX_FILE_SIZE"),
 		SongDurationLimit: getEnvInt64("SONG_DURATION_LIMIT"),
 		DownloadsDir:      getEnvStr("DOWNLOADS_DIR", "downloads"),
-		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/GuardxSupport"),
+		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/FallenSupport"),
 		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
 		Port:              getEnvStr("PORT", "6060"),

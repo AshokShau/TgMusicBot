@@ -137,9 +137,6 @@ func handleConnectionChange(_ C.uintptr_t, chatID C.int64_t, networkInfo C.ntg_n
 //export handleFrames
 func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_enum, streamDevice C.ntg_stream_device_enum, frames *C.ntg_frame_struct, size C.int, ptr unsafe.Pointer) {
 	self := (*Client)(ptr)
-	if len(self.frameCallbacks) == 0 {
-		return
-	}
 	goChatID := int64(chatID)
 	var goStreamMode StreamMode
 	switch streamMode {
