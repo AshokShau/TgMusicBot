@@ -9,47 +9,74 @@
 package ntgcalls
 
 import (
+	"fmt"
 	"sync"
+	"time"
 )
 
 // #include "ntgcalls.h"
-// extern void unlockMutex(void*);
+// extern void futureCallback(void*);
 import "C"
 import (
 	"unsafe"
 )
 
+var (
+	futuresMu sync.Mutex
+	futures   = make(map[uintptr]*Future)
+	futureID  uintptr
+)
+
 type Future struct {
-	mutex      *sync.Mutex
+	id         uintptr
+	done       chan struct{}
 	errCode    *C.int
 	errMessage **C.char
 }
 
 func CreateFuture() *Future {
-	res := &Future{
-		mutex:      &sync.Mutex{},
+	f := &Future{
+		done:       make(chan struct{}),
 		errCode:    new(C.int),
 		errMessage: new(*C.char),
 	}
-	res.mutex.Lock()
-	return res
+
+	futuresMu.Lock()
+	futureID++
+	f.id = futureID
+	futures[f.id] = f
+	futuresMu.Unlock()
+
+	return f
 }
 
 func (ctx *Future) ParseToC() C.ntg_async_struct {
 	var x C.ntg_async_struct
-	x.userData = unsafe.Pointer(ctx.mutex)
-	x.promise = (C.ntg_async_callback)(unsafe.Pointer(C.unlockMutex))
+	x.userData = unsafe.Pointer(ctx.id)
+	x.promise = (C.ntg_async_callback)(unsafe.Pointer(C.futureCallback))
 	x.errorCode = (*C.int)(unsafe.Pointer(ctx.errCode))
 	x.errorMessage = ctx.errMessage
 	return x
 }
 
-func (ctx *Future) wait() {
-	ctx.mutex.Lock()
+func (ctx *Future) wait() error {
+	select {
+	case <-ctx.done:
+		return nil
+	case <-time.After(15 * time.Second):
+		return fmt.Errorf("ntgcalls timeout")
+	}
 }
 
-//export unlockMutex
-func unlockMutex(p unsafe.Pointer) {
-	m := (*sync.Mutex)(p)
-	m.Unlock()
+//export futureCallback
+func futureCallback(p unsafe.Pointer) {
+	id := uintptr(p)
+
+	futuresMu.Lock()
+	defer futuresMu.Unlock()
+
+	if f, ok := futures[id]; ok {
+		close(f.done)
+		delete(futures, id)
+	}
 }
