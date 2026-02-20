@@ -223,9 +223,10 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 		_, _ = call.App.ResolvePeer(chatID)
 	}
 
-	c.bot.Log.Info("Playing media in chat %d: %s", chatID, filePath)
+	c.bot.Log.Debugf("Playing media in chat %d: %s", chatID, filePath)
+
 	mediaDesc := getMediaDescription(filePath, video, ffmpegParameters)
-	if err := call.Play(chatID, mediaDesc); err != nil {
+	if err = call.Play(chatID, mediaDesc); err != nil {
 		logger.Error("Failed to play the media: %v", err)
 		cache.ChatCache.ClearChat(chatID)
 		return fmt.Errorf("playback failed: %w", err)
@@ -299,11 +300,11 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 		return err
 	}
 
-	if err := c.downloadAndPrepareSong(song, reply); err != nil {
+	if err = c.downloadAndPrepareSong(song, reply); err != nil {
 		return c.PlayNext(chatID)
 	}
 
-	if err := c.PlayMedia(chatID, song.FilePath, song.IsVideo, ""); err != nil {
+	if err = c.PlayMedia(chatID, song.FilePath, song.IsVideo, ""); err != nil {
 		_, err := reply.Edit(err.Error())
 		return err
 	}
