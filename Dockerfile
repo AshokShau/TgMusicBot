@@ -14,7 +14,7 @@ RUN go mod download
 
 COPY . .
 RUN go generate
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-w -s" -o main .
+RUN CGO_ENABLED=1 GOOS=linux go build -o main .
 
 FROM debian:12-slim AS runtime
 
