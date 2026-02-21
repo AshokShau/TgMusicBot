@@ -168,8 +168,12 @@ func (a *ApiData) downloadTrack(ctx context.Context, info utils.TrackInfo, video
 		if info.Platform == utils.YouTube {
 			return yt.downloadTrack(ctx, info, video)
 		}
-
 		return "", fmt.Errorf("the download process failed: %w", err)
 	}
+
+	if strings.Contains(a.ApiUrl, filePath) {
+		return DownloadFile(filePath, "", false)
+	}
+
 	return filePath, nil
 }

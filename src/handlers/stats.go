@@ -21,6 +21,9 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 
 	"github.com/amarnathcjd/gogram/telegram"
+
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 type AppStats struct {
@@ -36,6 +39,9 @@ type AppStats struct {
 	MemLimit  string
 	DiskUsed  string
 	DiskTotal string
+
+	SystemCPU string
+	AppCPU    string
 }
 
 func humanBytes(bytes uint64) string {
@@ -51,7 +57,6 @@ func humanBytes(bytes uint64) string {
 	return fmt.Sprintf("%.2f %ciB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// Docker / cgroup memory limit
 func readContainerMemLimit() uint64 {
 	if data, err := os.ReadFile("/sys/fs/cgroup/memory.max"); err == nil {
 		val := strings.TrimSpace(string(data))
@@ -70,7 +75,6 @@ func readContainerMemLimit() uint64 {
 	return 0
 }
 
-// Disk usage using syscall
 func diskUsage(path string) (used, total string) {
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(path, &stat); err != nil {
@@ -92,6 +96,28 @@ func appMemoryStats() (used, heap string, gc uint32, pause string) {
 		humanBytes(ms.HeapAlloc),
 		ms.NumGC,
 		(time.Duration(ms.PauseTotalNs) * time.Nanosecond).String()
+}
+
+func systemCPUPercent() string {
+	p, err := cpu.Percent(500*time.Millisecond, false)
+	if err != nil || len(p) == 0 {
+		return "N/A"
+	}
+	return fmt.Sprintf("%.2f%%", p[0])
+}
+
+func appCPUPercent() string {
+	p, err := process.NewProcess(int32(os.Getpid()))
+	if err != nil {
+		return "N/A"
+	}
+
+	v, err := p.CPUPercent()
+	if err != nil {
+		return "N/A"
+	}
+
+	return fmt.Sprintf("%.2f%%", v)
 }
 
 func gatherAppStats() *AppStats {
@@ -116,6 +142,9 @@ func gatherAppStats() *AppStats {
 
 		DiskUsed:  dUsed,
 		DiskTotal: dTotal,
+
+		SystemCPU: systemCPUPercent(),
+		AppCPU:    appCPUPercent(),
 	}
 
 	if limit := readContainerMemLimit(); limit > 0 {
@@ -140,6 +169,7 @@ func sysStatsHandler(msg *telegram.NewMessage) error {
 	users, _ := db.Instance.GetAllUsers(ctx)
 
 	var sb strings.Builder
+
 	sb.WriteString(fmt.Sprintf(
 		"📊 <b>%s — Runtime Status</b>\n",
 		msg.Client.Me().FirstName,
@@ -152,6 +182,13 @@ func sysStatsHandler(msg *telegram.NewMessage) error {
 		stats.Uptime,
 		stats.Goroutines,
 		stats.GoVersion,
+	))
+
+	sb.WriteString("🖥 <b>CPU</b>\n")
+	sb.WriteString(fmt.Sprintf(
+		"• Server CPU: %s\n• App CPU: %s\n\n",
+		stats.SystemCPU,
+		stats.AppCPU,
 	))
 
 	sb.WriteString("🧠 <b>Memory Usage</b>\n")
@@ -167,6 +204,7 @@ func sysStatsHandler(msg *telegram.NewMessage) error {
 			stats.AppMemUsed,
 		))
 	}
+
 	sb.WriteString(fmt.Sprintf(
 		"• Heap: %s\n• GC Runs: %d (pause %s)\n\n",
 		stats.AppHeap,

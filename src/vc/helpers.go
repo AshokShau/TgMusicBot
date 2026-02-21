@@ -59,7 +59,7 @@ var isURLRegex = regexp.MustCompile(`^https?://`)
 func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string) ntgcalls.MediaDescription {
 	audioDescription := &ntgcalls.AudioDescription{
 		MediaSource:  ntgcalls.MediaSourceShell,
-		SampleRate:   96000,
+		SampleRate:   48000,
 		ChannelCount: 2,
 	}
 

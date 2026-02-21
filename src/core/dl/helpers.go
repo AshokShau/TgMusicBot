@@ -19,12 +19,11 @@ import (
 )
 
 const (
-	downloadTimeout        = 150 * time.Second
+	downloadTimeout        = 40 * time.Second
 	defaultDownloadDirPerm = 0755
 )
 
 var (
-	tgURLRegex       = regexp.MustCompile(`^https?://t\.me/`)
 	errMissingCDNURL = errors.New("missing cdn url")
 )
 
