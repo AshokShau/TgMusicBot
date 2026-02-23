@@ -67,7 +67,7 @@ func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string)
 	isURL := isURLRegex.MatchString(filePath)
 
 	var audioCmd strings.Builder
-	audioCmd.WriteString("ffmpeg ")
+	audioCmd.WriteString("ffmpeg -threads 1 ")
 	if isURL {
 		audioCmd.WriteString("-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 ")
 	}
@@ -136,7 +136,7 @@ func getMediaDescription(filePath string, isVideo bool, ffmpegParameters string)
 	}
 
 	var videoCmd strings.Builder
-	videoCmd.WriteString("ffmpeg ")
+	videoCmd.WriteString("ffmpeg -threads 1 ")
 
 	if isURL {
 		videoCmd.WriteString("-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 ")
