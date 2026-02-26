@@ -62,7 +62,7 @@ func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
 	}
 
 	var data map[string]interface{}
-	if err := json.Unmarshal(raw, &data); err != nil {
+	if err = json.Unmarshal(raw, &data); err != nil {
 		return nil, err
 	}
 

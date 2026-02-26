@@ -142,12 +142,12 @@ func writeToFile(filename string, data io.Reader) error {
 }
 
 // DownloadFile downloads a file from a URL and saves it to a local path.
-func DownloadFile(ctx context.Context, urlStr, fileName string, overwrite bool) (string, error) {
+func DownloadFile(urlStr, fileName string, overwrite bool) (string, error) {
 	if urlStr == "" {
 		return "", errors.New("an empty URL was provided")
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
