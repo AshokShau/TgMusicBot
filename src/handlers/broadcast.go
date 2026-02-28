@@ -124,44 +124,75 @@ func broadcastHandler(m *tg.NewMessage) error {
 	var success int32
 	var failed int32
 
+	type QueueItem struct {
+		ID         int64
+		RetryCount int
+	}
+
+	queue := make([]QueueItem, len(targets))
+	for i, id := range targets {
+		queue[i] = QueueItem{ID: id, RetryCount: 0}
+	}
+	var queueMutex sync.Mutex
+
+	interval := time.Second / 25
+	if delay > 0 {
+		interval = delay
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
 	workers := 20
-	jobs := make(chan int64, workers)
 	wg := sync.WaitGroup{}
 
 	worker := func() {
-		for id := range jobs {
+		for {
+			queueMutex.Lock()
+			if len(queue) == 0 {
+				queueMutex.Unlock()
+				break
+			}
+			item := queue[0]
+			queue = queue[1:]
+			queueMutex.Unlock()
+
 			if broadcastCancelFlag.Load() {
 				atomic.AddInt32(&failed, 1)
 				continue
 			}
 
-			for {
-				var errSend error
-				if copyMode {
-					_, errSend = m.Client.SendMessage(m.ChatID(), reply)
-				} else {
-					_, errSend = reply.ForwardTo(id, &tg.ForwardOptions{HideAuthor: copyMode})
-				}
+			<-ticker.C
 
-				if errSend == nil {
-					atomic.AddInt32(&success, 1)
-					break
-				}
+			var errSend error
+			if copyMode {
+				_, errSend = m.Client.SendMessage(item.ID, reply)
+			} else {
+				_, errSend = reply.ForwardTo(item.ID, &tg.ForwardOptions{HideAuthor: copyMode})
+			}
 
-				if wait := tg.GetFloodWait(errSend); wait > 0 {
-					logger.Warn("FloodWait %ds for chatID=%d", wait, id)
+			if errSend == nil {
+				atomic.AddInt32(&success, 1)
+				continue
+			}
+
+			if wait := tg.GetFloodWait(errSend); wait > 0 {
+				logger.Warn("FloodWait %ds for chatID=%d", wait, item.ID)
+
+				if item.RetryCount < 2 {
+					item.RetryCount++
+					queueMutex.Lock()
+					queue = append(queue, item)
+					queueMutex.Unlock()
+
 					time.Sleep(time.Duration(wait) * time.Second)
 					continue
+				} else {
+					logger.Warn("[Broadcast] max retries reached for chatID: %d", item.ID)
 				}
-
-				atomic.AddInt32(&failed, 1)
-				logger.Warn("[Broadcast] chatID: %d error: %v", id, errSend)
-				break
 			}
 
-			if delay > 0 {
-				time.Sleep(delay)
-			}
+			atomic.AddInt32(&failed, 1)
+			logger.Warn("[Broadcast] chatID: %d error: %v", item.ID, errSend)
 		}
 		wg.Done()
 	}
@@ -170,11 +201,6 @@ func broadcastHandler(m *tg.NewMessage) error {
 	for i := 0; i < workers; i++ {
 		go worker()
 	}
-
-	for _, id := range targets {
-		jobs <- id
-	}
-	close(jobs)
 
 	wg.Wait()
 
