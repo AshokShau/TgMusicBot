@@ -37,12 +37,11 @@ func main() {
 	}()
 
 	clientConfig := tg.ClientConfig{
-		AppID:           config.Conf.ApiId,
-		AppHash:         config.Conf.ApiHash,
-		FloodHandler:    handleFlood,
-		SessionName:     "bot",
-		LogLevel:        tg.InfoLevel,
-		DisableGapFetch: true,
+		AppID:        config.Conf.ApiId,
+		AppHash:      config.Conf.ApiHash,
+		FloodHandler: handleFlood,
+		SessionName:  "bot",
+		LogLevel:     tg.InfoLevel,
 	}
 
 	client, err := tg.NewClient(clientConfig)
