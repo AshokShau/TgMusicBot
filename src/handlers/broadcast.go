@@ -46,16 +46,11 @@ func broadcastHandler(m *tg.NewMessage) error {
 
 	reply, err := m.GetReplyMessage()
 	if err != nil {
-		_, _ = m.Reply("❗ Reply to a message to broadcast.\nExample:\n`/broadcast -copy -limit 100 -delay 2s optional preview text`")
+		_, _ = m.Reply("❗ Reply to a message to broadcast.\nExample:\n`/broadcast -copy -limit 100 -delay 2s`")
 		return tg.ErrEndGroup
 	}
 
 	args := strings.Fields(m.Args())
-	if len(args) == 0 {
-		_, _ = m.Reply("Provide flags.\nExample: `/broadcast -copy -limit 50 -delay 1s`")
-		return tg.ErrEndGroup
-	}
-
 	copyMode := false
 	noChats := false
 	noUsers := false
