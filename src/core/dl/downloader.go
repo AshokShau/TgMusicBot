@@ -9,14 +9,12 @@
 package dl
 
 import (
-	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/utils"
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 func exists(path string) bool {
@@ -24,7 +22,7 @@ func exists(path string) bool {
 	return err == nil
 }
 
-func DownloadSong(ctx context.Context, cached *utils.CachedTrack, bot *tg.Client) (string, error) {
+func DownloadSong(ctx context.Context, cached *utils.CachedTrack, bot *td.Client) (string, error) {
 	if cached.Platform == utils.DirectLink {
 		return cached.URL, nil
 	}
@@ -36,7 +34,7 @@ func DownloadSong(ctx context.Context, cached *utils.CachedTrack, bot *tg.Client
 	return downloadViaWrapper(ctx, cached, bot)
 }
 
-func downloadViaWrapper(ctx context.Context, cached *utils.CachedTrack, bot *tg.Client) (string, error) {
+func downloadViaWrapper(ctx context.Context, cached *utils.CachedTrack, bot *td.Client) (string, error) {
 	wrapper := NewDownloaderWrapper(cached.URL)
 	if !wrapper.IsValid() {
 		return "", fmt.Errorf("invalid cached URL: %s", cached.URL)
@@ -59,52 +57,34 @@ func downloadViaWrapper(ctx context.Context, cached *utils.CachedTrack, bot *tg.
 	return path, nil
 }
 
-func downloadTelegramFile(cached *utils.CachedTrack, bot *tg.Client) (string, error) {
-	file, err := tg.ResolveBotFileID(cached.TrackID)
+func downloadTelegramFile(cached *utils.CachedTrack, bot *td.Client) (string, error) {
+	file, err := bot.GetRemoteFile(cached.TrackID, nil)
 	if err != nil {
-		return "", fmt.Errorf("resolve telegram file id: %w", err)
+		return "", err
 	}
 
-	fileName := filepath.Base(cached.Name)
-	dst := filepath.Join(config.Conf.DownloadsDir, fileName)
-
-	if exists(dst) {
-		return dst, nil
-	}
-
-	path, err := bot.DownloadMedia(file, &tg.DownloadOptions{
-		FileName: dst,
-	})
-
+	download, err := file.Download(bot, 0, 0, 1, &td.DownloadFileOpts{Synchronous: true})
 	if err != nil {
-		return "", fmt.Errorf("telegram download failed: %w", err)
+		return "", err
 	}
 
-	return path, nil
+	return download.Local.Path, nil
 }
 
-func downloadFromTelegramMessage(bot *tg.Client, msgURL string) (string, error) {
+func downloadFromTelegramMessage(bot *td.Client, msgURL string) (string, error) {
 	msg, err := utils.GetMessage(bot, msgURL)
 	if err != nil {
 		return "", fmt.Errorf("get telegram message: %w", err)
 	}
 
-	if msg.File == nil {
-		return "", fmt.Errorf("telegram message has no downloadable file")
-	}
-
-	safeName := filepath.Base(msg.File.Name)
-	dst := filepath.Join(config.Conf.DownloadsDir, safeName)
-	if exists(dst) {
-		return dst, nil
-	}
-
-	path, err := msg.Download(&tg.DownloadOptions{
-		FileName: dst,
-	})
+	download, err := msg.Download(bot, 1, 0, 0, true)
 	if err != nil {
-		return "", fmt.Errorf("telegram message download failed: %w", err)
+		return "", err
 	}
 
-	return path, nil
+	if download == nil || download.Local == nil {
+		return "", fmt.Errorf("failed to download file from Telegram message")
+	}
+
+	return download.Local.Path, nil
 }

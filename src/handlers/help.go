@@ -14,18 +14,18 @@ import (
 
 	"ashokshau/tgmusic/src/core"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 func getHelpCategories() map[string]struct {
 	Title   string
 	Content string
-	Markup  *telegram.ReplyInlineMarkup
+	Markup  *td.ReplyMarkupInlineKeyboard
 } {
 	return map[string]struct {
 		Title   string
 		Content string
-		Markup  *telegram.ReplyInlineMarkup
+		Markup  *td.ReplyMarkupInlineKeyboard
 	}{
 		"help_user": {
 			Title:   "🎧 User Commands",
@@ -56,45 +56,37 @@ func getHelpCategories() map[string]struct {
 }
 
 // helpCallbackHandler handles callbacks from the help keyboard.
-// It takes a telegram.CallbackQuery object as input.
 // It returns an error if any.
-func helpCallbackHandler(cb *telegram.CallbackQuery) error {
+func helpCallbackHandler(c *td.Client, ctx *td.Context) error {
+	cb := ctx.Update.UpdateNewCallbackQuery
 	data := cb.DataString()
+	user, err := c.GetUser(cb.SenderUserId)
+	if err != nil {
+		user = &td.User{FirstName: "User", Id: cb.SenderUserId}
+	}
 
 	helpCategories := getHelpCategories()
 	if strings.Contains(data, "help_all") {
-		_, _ = cb.Answer("📚 Opening Help Menu...", &telegram.CallbackOptions{Alert: false})
-		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", cb.Sender.FirstName, cb.Client.Me().FirstName)
-		_, _ = cb.Edit(response, &telegram.SendOptions{ReplyMarkup: core.HelpMenuKeyboard()})
+		_ = cb.Answer(c, 300, false, "📖 Displaying all help categories...", "")
+		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me().FirstName)
+		_, _ = cb.EditMessageText(c, response, &td.EditTextMessageOpts{ReplyMarkup: core.HelpMenuKeyboard(), ParseMode: "HTML"})
 		return nil
 	}
 
 	if strings.Contains(data, "help_back") {
-		_, _ = cb.Answer("🏠 Returning to home...", &telegram.CallbackOptions{Alert: false})
-		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", cb.Sender.FirstName, cb.Client.Me().FirstName)
-		_, _ = cb.Edit(response, &telegram.SendOptions{ReplyMarkup: core.AddMeMarkup(cb.Client.Me().Username)})
+		_ = cb.Answer(c, 300, false, "🏠 Returning to home...", "")
+		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me().FirstName)
+		_, _ = cb.EditMessageText(c, response, &td.EditTextMessageOpts{ReplyMarkup: core.AddMeMarkup(c.Me().Usernames.EditableUsername), ParseMode: "HTML"})
 		return nil
 	}
 
 	if category, ok := helpCategories[data]; ok {
-		_, _ = cb.Answer(fmt.Sprintf("📖 %s", category.Title), &telegram.CallbackOptions{Alert: false})
+		_ = cb.Answer(c, 300, false, category.Title, "")
 		text := fmt.Sprintf("<b>%s</b>\n\n%s\n\n🔙 <i>Use buttons below to go back.</i>", category.Title, category.Content)
-		_, _ = cb.Edit(text, &telegram.SendOptions{ReplyMarkup: category.Markup})
+		_, _ = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: category.Markup, ParseMode: "HTML"})
 		return nil
 	}
 
-	_, _ = cb.Answer("⚠️ Unknown command category.", &telegram.CallbackOptions{Alert: false})
+	_ = cb.Answer(c, 300, true, "Unknown help category.", "")
 	return nil
-}
-
-// privacyHandler handles the /privacy command.
-// It takes a telegram.NewMessage object as input.
-// It returns an error if any.
-func privacyHandler(m *telegram.NewMessage) error {
-	botName := m.Client.Me().FirstName
-
-	text := fmt.Sprintf("<b>Privacy Policy for %s</b>\n\n<b>1. Data Storage:</b>\nWe do not store personal data on your device. We do not track your browsing activity.\n\n<b>2. Collection:</b>\nWe only collect your Telegram <b>User ID</b> and <b>Chat ID</b> to provide music services. No names, phone numbers, or locations are stored.\n\n<b>3. Usage:</b>\nData is used strictly for bot functionality. No marketing or commercial use.\n\n<b>4. Sharing:</b>\nWe do not share data with third parties. No data is sold or traded.\n\n<b>5. Security:</b>\nWe use standard encryption to protect data. However, no online service is 100%% secure.\n\n<b>6. Cookies:</b>\n%s does not use cookies or tracking technologies.\n\n<b>7. Third Parties:</b>\nWe do not integrate with third-party data collectors, other than Telegram itself.\n\n<b>8. Your Rights:</b>\nYou can request data deletion or block the bot to revoke access.\n\n<b>9. Updates:</b>\nPolicy changes will be announced in the bot.\n\n<b>10. Contact:</b>\nQuestions? Contact our <a href=\"https://t.me/GuardxSupport\">Support Group</a>.\n\n──────────────────\n<b>Note:</b> This policy ensures a safe and respectful experience with %s.", botName, botName, botName)
-
-	_, err := m.Reply(text, &telegram.SendOptions{LinkPreview: false})
-	return err
 }

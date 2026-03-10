@@ -14,56 +14,35 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // GetFileDur extracts the duration of a media file from a Telegram message.
-func GetFileDur(m *tg.NewMessage) int {
-	if !m.IsMedia() {
+func GetFileDur(m *td.Message) int {
+	if m.Content == nil {
 		return 0
 	}
 
-	switch media := m.Media().(type) {
-	case *tg.MessageMediaDocument:
-		return getDocumentDuration(media)
-	case *tg.MessageMediaPhoto:
+	switch media := m.Content.(type) {
+	case *td.MessageAudio:
+		return int(media.Audio.Duration)
+	case *td.MessageVoiceNote:
+		return int(media.VoiceNote.Duration)
+	case *td.MessageVideo:
+		return int(media.Video.Duration)
+	case *td.MessageVideoNote:
+		return int(media.VideoNote.Duration)
+	case *td.MessageDocument:
 		return 0
 	default:
-		m.Client.Logger.Info("Unsupported media type: %T", media)
 		return 0
 	}
-}
-
-// getDocumentDuration extracts the duration from a document's attributes.
-func getDocumentDuration(media *tg.MessageMediaDocument) int {
-	doc, ok := media.Document.(*tg.DocumentObj)
-	if !ok {
-		log.Printf("Unsupported document type: %T", media.Document)
-		return 0
-	}
-
-	for _, attr := range doc.Attributes {
-		switch a := attr.(type) {
-		case *tg.DocumentAttributeAudio:
-			return int(a.Duration)
-		case *tg.DocumentAttributeVideo:
-			return int(a.Duration)
-		}
-	}
-
-	if len(doc.Attributes) > 0 {
-		log.Printf("No supported duration attributes found: %T", media)
-	} else {
-		log.Print("No attributes found in the document.")
-	}
-
-	return 0
 }
 
 type ffprobeOutput struct {
@@ -93,7 +72,7 @@ func GetMediaDuration(input string) int {
 	err := cmd.Run()
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		log.Printf("ffprobe timeout exceeded for %s", input)
+		slog.Info("ffprobe timeout exceeded for", "arg1", input)
 		return 0
 	}
 
@@ -102,24 +81,24 @@ func GetMediaDuration(input string) int {
 		if msg == "" {
 			msg = err.Error()
 		}
-		log.Printf("ffprobe failed: %s", msg)
+		slog.Info("ffprobe failed", "arg1", msg)
 		return 0
 	}
 
 	var out ffprobeOutput
 	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
-		log.Printf("ffprobe failed: %s", err)
+		slog.Info("ffprobe failed", "error", err)
 		return 0
 	}
 
 	if out.Format.Duration == "" {
-		log.Print("ffprobe succeeded but duration not found")
+		slog.Info("ffprobe succeeded but duration not found")
 		return 0
 	}
 
 	dur, err := strconv.ParseFloat(out.Format.Duration, 64)
 	if err != nil {
-		log.Printf("ffprobe failed: %s", err)
+		slog.Info("ffprobe failed", "error", err)
 		return 0
 	}
 

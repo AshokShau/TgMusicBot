@@ -9,20 +9,18 @@
 package handlers
 
 import (
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
-// getUrl gets a URL from a message.
-// It takes a telegram.NewMessage object and a boolean indicating whether it is a reply.
-// It returns the URL from the message.
-func getUrl(m *telegram.NewMessage, isReply bool) string {
-	text := m.Text()
-	entities := m.Message.Entities
+func getUrl(c *td.Client, m *td.Message, isReply bool) string {
+	text := m.GetText()
+	entities := m.GetEntities()
+
 	if isReply {
-		reply, err := m.GetReplyMessage()
+		reply, err := m.GetRepliedMessage(c)
 		if err == nil && reply != nil {
 			text = reply.Text()
-			entities = reply.Message.Entities
+			entities = reply.GetEntities()
 		}
 	}
 
@@ -31,33 +29,61 @@ func getUrl(m *telegram.NewMessage, isReply bool) string {
 	}
 
 	for _, entity := range entities {
-		switch e := entity.(type) {
-		case *telegram.MessageEntityTextURL:
-			return e.URL
-		case *telegram.MessageEntityURL:
-			url := text[e.Offset : e.Offset+e.Length]
-			return url
-		default:
-			logger.Debug("Ignoring entity type: %T", e)
+		switch t := entity.Type.(type) {
+
+		case *td.TextEntityTypeUrl:
+			start := entity.Offset
+			end := entity.Offset + entity.Length
+			if int(end) <= len(text) {
+				return text[start:end]
+			}
+
+		case *td.TextEntityTypeTextUrl:
+			return t.Url
 		}
 	}
 
 	return ""
 }
 
-// isValidMedia checks if a message contains valid media.
-// It takes a telegram.NewMessage object as input.
-// It returns true if the message contains valid media, otherwise false.
-func isValidMedia(reply *telegram.NewMessage) bool {
-	if !reply.IsMedia() {
+func isValidMedia(reply *td.Message) bool {
+	if reply == nil || reply.Content == nil {
 		return false
 	}
 
-	if reply.Audio() == nil && reply.Video() == nil && reply.Document() == nil {
+	switch reply.Content.(type) {
+	case *td.MessageAudio,
+		*td.MessageVoiceNote,
+		*td.MessageVideo,
+		*td.MessageVideoNote:
+		return true
+	case *td.MessageDocument:
+		// TODO : return true for some MimeType
 		return false
 	}
 
-	return true
+	return false
+}
+
+func getFile(m *td.Message) (*td.File, string) {
+	if m == nil || m.Content == nil {
+		return nil, ""
+	}
+
+	switch content := m.Content.(type) {
+	case *td.MessageAudio:
+		return content.Audio.Audio, content.Audio.Title
+	case *td.MessageVoiceNote:
+		return content.VoiceNote.Voice, "voice_note.ogg"
+	case *td.MessageVideo:
+		return content.Video.Video, content.Video.FileName
+	case *td.MessageVideoNote:
+		return content.VideoNote.Video, "video_note.mp4"
+	case *td.MessageDocument:
+		return content.Document.Document, content.Document.FileName
+	default:
+		return nil, ""
+	}
 }
 
 // coalesce returns the first non-empty string.

@@ -9,85 +9,74 @@
 package handlers
 
 import (
+	"log/slog"
 	"time"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/handlers"
+	"github.com/AshokShau/gotdbot/handlers/filters/callbackquery"
 )
 
 var startTime = time.Now()
-var logger tg.Logger
 
 // LoadModules loads all the handlers.
-// It takes a telegram client as input.
-func LoadModules(c *tg.Client) {
-	_, _ = c.UpdatesGetState()
-	logger = c.Log
+// It takes a telegram gotdbot.Dispatcher as input.
+func LoadModules(d *gotdbot.Dispatcher) {
+	d.AddHandler(handlers.NewCommand("reload", reloadAdminCacheHandler))
+	d.AddHandler(handlers.NewCommand("authList", authListHandler))
+	d.AddHandler(handlers.NewCommand("auths", authListHandler))
+	d.AddHandler(handlers.NewCommand("auth", addAuthHandler))
+	d.AddHandler(handlers.NewCommand("addAuth", addAuthHandler))
+	d.AddHandler(handlers.NewCommand("removeAuth", removeAuthHandler))
+	d.AddHandler(handlers.NewCommand("rmAuth", removeAuthHandler))
+	d.AddHandler(handlers.NewCommand("broadcast", broadcastHandler))
+	d.AddHandler(handlers.NewCommand("gCast", broadcastHandler))
+	d.AddHandler(handlers.NewCommand("cancelBroadcast", cancelBroadcastHandler))
+	d.AddHandler(handlers.NewCommand("cancel", cancelBroadcastHandler))
+	d.AddHandler(handlers.NewCommand("av", activeVcHandler))
+	d.AddHandler(handlers.NewCommand("active_vc", activeVcHandler))
+	d.AddHandler(handlers.NewCommand("clearass", clearAssistantsHandler))
+	d.AddHandler(handlers.NewCommand("clearAssistants", clearAssistantsHandler))
+	d.AddHandler(handlers.NewCommand("leaveAll", leaveAllHandler))
+	d.AddHandler(handlers.NewCommand("logger", loggerHandler))
+	d.AddHandler(handlers.NewCommand("privacy", privacyHandler))
+	d.AddHandler(handlers.NewCommand("loop", loopHandler))
+	d.AddHandler(handlers.NewCommand("pause", pauseHandler))
+	d.AddHandler(handlers.NewCommand("resume", resumeHandler))
+	d.AddHandler(handlers.NewCommand("cplist", createPlaylistHandler))
+	d.AddHandler(handlers.NewCommand("createplaylist", createPlaylistHandler))
+	d.AddHandler(handlers.NewCommand("deleteplaylist", deletePlaylistHandler))
+	d.AddHandler(handlers.NewCommand("queue", queueHandler))
+	d.AddHandler(handlers.NewCommand("seek", seekHandler))
+	d.AddHandler(handlers.NewCommand("sh", shellCommand))
+	d.AddHandler(handlers.NewCommand("skip", skipHandler))
+	d.AddHandler(handlers.NewCommand("speed", speedHandler))
+	d.AddHandler(handlers.NewCommand("stop", stopHandler))
+	d.AddHandler(handlers.NewCommand("end", stopHandler))
+	d.AddHandler(handlers.NewCommand("start", startHandler))
+	d.AddHandler(handlers.NewCommand("ping", pingHandler))
+	d.AddHandler(handlers.NewCommand("play", playHandler))
+	d.AddHandler(handlers.NewCommand("remove", removeHandler))
+	d.AddHandler(handlers.NewCommand("mute", muteHandler))
+	d.AddHandler(handlers.NewCommand("unmute", unmuteHandler))
+	d.AddHandler(handlers.NewCommand("settings", settingsHandler))
+	d.AddHandler(handlers.NewCommand("addtoplaylist", addToPlaylistHandler))
+	d.AddHandler(handlers.NewCommand("addtoplist", addToPlaylistHandler))
+	d.AddHandler(handlers.NewCommand("removefromplaylist", removeFromPlaylistHandler))
+	d.AddHandler(handlers.NewCommand("rmplist", removeFromPlaylistHandler))
+	d.AddHandler(handlers.NewCommand("plistinfo", playlistInfoHandler))
+	d.AddHandler(handlers.NewCommand("playlistinfo", playlistInfoHandler))
+	d.AddHandler(handlers.NewCommand("myplaylists", myPlaylistsHandler))
+	d.AddHandler(handlers.NewCommand("myplist", myPlaylistsHandler))
+	d.AddHandler(handlers.NewCommand("stats", statsHandler))
 
-	c.On("command:ping", pingHandler)
-	c.On("command:start", startHandler)
-	c.On("command:help", startHandler)
-	c.On("command:reload", reloadAdminCacheHandler)
-	c.On("command:privacy", privacyHandler)
-	c.On("command:setRtmp ", setRtmpHandler)
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("help_"), helpCallbackHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("play_"), playCallbackHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("vcplay_"), vcPlayHandler))
+	d.AddHandler(handlers.NewUpdateNewCallbackQuery(callbackquery.Prefix("settings_"), settingsCallbackHandler))
 
-	c.On("command:play", playHandler, tg.CustomFilter(playMode))
-	c.On("command:vPlay", vPlayHandler, tg.CustomFilter(playMode))
-	c.On("command:stream", streamHandler, tg.CustomFilter(playMode))
+	d.AddHandler(handlers.NewUpdateChatMember(nil, handleParticipant))
+	d.AddHandler(handlers.NewUpdateNewMessage(nil, handleVoiceChatMessage))
 
-	c.On("command:stopStream", stopStreamHandler, tg.CustomFilter(adminMode))
-	c.On("command:loop", loopHandler, tg.CustomFilter(adminMode))
-	c.On("command:remove", removeHandler, tg.CustomFilter(adminMode))
-	c.On("command:skip", skipHandler, tg.CustomFilter(adminMode))
-	c.On("command:stop", stopHandler, tg.CustomFilter(adminMode))
-	c.On("command:end", stopHandler, tg.CustomFilter(adminMode))
-	c.On("command:mute", muteHandler, tg.CustomFilter(adminMode))
-	c.On("command:unmute", unmuteHandler, tg.CustomFilter(adminMode))
-	c.On("command:pause", pauseHandler, tg.CustomFilter(adminMode))
-	c.On("command:resume", resumeHandler, tg.CustomFilter(adminMode))
-	c.On("command:queue", queueHandler, tg.CustomFilter(adminMode))
-	c.On("command:seek", seekHandler, tg.CustomFilter(adminMode))
-	c.On("command:speed", speedHandler, tg.CustomFilter(adminMode))
-	c.On("command:authList", authListHandler, tg.CustomFilter(adminMode))
-	c.On("command:addAuth", addAuthHandler, tg.CustomFilter(adminMode))
-	c.On("command:auth", addAuthHandler, tg.CustomFilter(adminMode))
-	c.On("command:removeAuth", removeAuthHandler, tg.CustomFilter(adminMode))
-	c.On("command:unAuth", removeAuthHandler, tg.CustomFilter(adminMode))
-	c.On("command:rmAuth", removeAuthHandler, tg.CustomFilter(adminMode))
-
-	c.On("command:active_vc", activeVcHandler, tg.CustomFilter(isDev))
-	c.On("command:av", activeVcHandler, tg.CustomFilter(isDev))
-	c.On("command:stats", sysStatsHandler, tg.CustomFilter(isDev))
-	c.On("command:streams", listStreamsHandler, tg.CustomFilter(isDev))
-	c.On("command:clear_assistants", clearAssistantsHandler, tg.CustomFilter(isDev))
-	c.On("command:clearAss", clearAssistantsHandler, tg.CustomFilter(isDev))
-	c.On("command:leaveAll", leaveAllHandler, tg.CustomFilter(isDev))
-	c.On("command:logger", loggerHandler, tg.CustomFilter(isDev))
-	c.On("command:broadcast", broadcastHandler, tg.CustomFilter(isDev))
-	c.On("command:gCast", broadcastHandler, tg.CustomFilter(isDev))
-	c.On("command:cancelBroadcast", cancelBroadcastHandler, tg.CustomFilter(isDev))
-	c.On("command:sh", shellCommand, tg.CustomFilter(isDev))
-
-	c.On("command:settings", settingsHandler, tg.CustomFilter(adminMode))
-
-	c.On("command:cplist", createPlaylistHandler)
-	c.On("command:createplaylist", createPlaylistHandler)
-	c.On("command:dlplist", deletePlaylistHandler)
-	c.On("command:deleteplaylist", deletePlaylistHandler)
-	c.On("command:addtoplist", addToPlaylistHandler)
-	c.On("command:addtoplaylist", addToPlaylistHandler)
-	c.On("command:rmplist", removeFromPlaylistHandler)
-	c.On("command:removefromplaylist", removeFromPlaylistHandler)
-	c.On("command:plistinfo", playlistInfoHandler)
-	c.On("command:playlistinfo", playlistInfoHandler)
-	c.On("command:myplist", myPlaylistsHandler)
-	c.On("command:myplaylists", myPlaylistsHandler)
-
-	c.On("callback:play_\\w+", playCallbackHandler, tg.CustomCallback(adminModeCB))
-	c.On("callback:vcplay_\\w+", vcPlayHandler)
-	c.On("callback:help_\\w+", helpCallbackHandler)
-	c.On("callback:settings_\\w+", settingsCallbackHandler)
-
-	c.AddParticipantHandler(handleParticipant)
-	c.AddActionHandler(handleVoiceChatMessage)
-	logger.Debug("Handlers loaded successfully.")
+	slog.Debug("Handlers loaded successfully")
 }

@@ -15,7 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/http"
@@ -48,7 +48,7 @@ var client = &http.Client{
 func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, headers map[string]string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
 	if err != nil {
-		log.Printf("Error creating request: %v", err)
+		slog.Info("Error creating request", "error", err)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -75,11 +75,11 @@ func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, he
 				return resp, nil // Success
 			}
 			if err := resp.Body.Close(); err != nil {
-				log.Printf("failed to close response body: %v", err)
+				slog.Info("failed to close response body", "error", err)
 			}
 			reqErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		} else if isTemporaryError(reqErr) {
-			log.Printf("Temporary error on attempt %d/%d: %v", attempt+1, maxRetries, reqErr)
+			slog.Info("Temporary error on attempt /", "arg1", attempt+1, "arg2", maxRetries, "error", reqErr)
 			continue // Retry on temporary errors
 		} else {
 			break // Do not retry on permanent errors

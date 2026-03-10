@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -45,7 +45,7 @@ func (d *Download) processSpotify() (string, error) {
 
 	outputFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
 	if _, err := os.Stat(outputFile); err == nil {
-		log.Printf("The file already exists: %s", outputFile)
+		slog.Info("The file already exists", "arg1", outputFile)
 		return outputFile, nil
 	}
 
@@ -55,7 +55,7 @@ func (d *Download) processSpotify() (string, error) {
 
 	startTime := time.Now()
 	defer func() {
-		log.Printf("The process was completed in %s.", time.Since(startTime))
+		slog.Info("The process was completed in .", "duration", time.Since(startTime))
 	}()
 
 	encryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.encrypted", sanitizedTrackID))
@@ -67,12 +67,12 @@ func (d *Download) processSpotify() (string, error) {
 	}()
 
 	if err := d.downloadAndDecrypt(encryptedFile, decryptedFile); err != nil {
-		log.Printf("Failed to download and decrypt the file: %v", err)
+		slog.Info("Failed to download and decrypt the file", "error", err)
 		return "", err
 	}
 
 	if err := rebuildOGG(decryptedFile); err != nil {
-		log.Printf("Failed to rebuild the OGG headers: %v", err)
+		slog.Info("Failed to rebuild the OGG headers", "error", err)
 	}
 
 	return fixOGG(decryptedFile, track)
@@ -105,7 +105,7 @@ func (d *Download) downloadAndDecrypt(encryptedPath, decryptedPath string) error
 	if err != nil {
 		return fmt.Errorf("failed to decrypt the audio file: %w", err)
 	}
-	log.Printf("Decryption was completed in %s.", decryptTime)
+	slog.Info("Decryption was completed in .", "duration", decryptTime)
 
 	return os.WriteFile(decryptedPath, decryptedData, defaultFilePerm)
 }

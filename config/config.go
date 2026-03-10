@@ -10,7 +10,7 @@ package config
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -23,7 +23,7 @@ var Conf *BotConfig
 func LoadConfig() error {
 	envFiles := []string{".env.local", ".env"}
 	if err := loadEnvFiles(envFiles...); err != nil {
-		log.Printf("Warning loading env files: %v", err)
+		slog.Info("Warning loading env files", "error", err)
 	}
 
 	Conf = &BotConfig{
@@ -62,7 +62,7 @@ func LoadConfig() error {
 			if id, err := strconv.ParseInt(idStr, 10, 64); err == nil {
 				Conf.DEVS = append(Conf.DEVS, id)
 			} else {
-				log.Printf("Invalid DEV ID '%s': %v", idStr, err)
+				slog.Info("Invalid DEV ID ''", "id", idStr, "error", err)
 			}
 		}
 	}

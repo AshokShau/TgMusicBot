@@ -18,7 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 var (
@@ -26,31 +26,40 @@ var (
 	broadcastInProgress atomic.Bool
 )
 
-func cancelBroadcastHandler(m *tg.NewMessage) error {
+func cancelBroadcastHandler(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
+	}
+	m := ctx.EffectiveMessage
 	broadcastCancelFlag.Store(true)
-	_, _ = m.Reply("🚫 Broadcast cancelled.")
-	return tg.ErrEndGroup
+	_, _ = m.ReplyText(c, "🚫 Broadcast cancelled.", nil)
+	return td.EndGroups
 }
 
-func broadcastHandler(m *tg.NewMessage) error {
+func broadcastHandler(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
+	}
+
+	m := ctx.EffectiveMessage
 	if broadcastInProgress.Load() {
-		_, _ = m.Reply("❗ A broadcast is already in progress. Please wait for it to complete or cancel it with /cancelbroadcast")
-		return tg.ErrEndGroup
+		_, _ = m.ReplyText(c, "❗ A broadcast is already in progress. Please wait for it to complete or cancel it with /cancelbroadcast", nil)
+		return td.EndGroups
 	}
 
 	broadcastInProgress.Store(true)
 	defer broadcastInProgress.Store(false)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	reply, err := m.GetReplyMessage()
+	reply, err := m.GetRepliedMessage(c)
 	if err != nil {
-		_, _ = m.Reply("❗ Reply to a message to broadcast.\nExample:\n`/broadcast -copy -limit 100 -delay 2s`")
-		return tg.ErrEndGroup
+		_, _ = m.ReplyText(c, "❗ Reply to a message to broadcast.\nExample:\n<code> /broadcast -copy -limit 100 -delay 2s</code>", &td.SendTextMessageOpts{ParseMode: "HTMl"})
+		return td.EndGroups
 	}
 
-	args := strings.Fields(m.Args())
+	args := strings.Fields(Args(m))
 	copyMode := false
 	noChats := false
 	noUsers := false
@@ -71,8 +80,8 @@ func broadcastHandler(m *tg.NewMessage) error {
 			val = strings.TrimSpace(val)
 			n, err := strconv.Atoi(val)
 			if err != nil || n <= 0 {
-				_, _ = m.Reply("❗ Invalid limit value. Example: `-limit 100`")
-				return tg.ErrEndGroup
+				_, _ = m.ReplyText(c, "❗ Invalid limit value. Example: <code>-limit 100</code>", &td.SendTextMessageOpts{ParseMode: "HTMl"})
+				return td.EndGroups
 			}
 			limit = n
 
@@ -81,16 +90,16 @@ func broadcastHandler(m *tg.NewMessage) error {
 			val = strings.TrimSpace(val)
 			d, err := time.ParseDuration(val)
 			if err != nil {
-				_, _ = m.Reply("❗ Invalid delay. Example: `-delay 2s`")
-				return tg.ErrEndGroup
+				_, _ = m.ReplyText(c, "❗ Invalid delay. Example: <code>-delay 2s</code>", &td.SendTextMessageOpts{ParseMode: "HTMl"})
+				return td.EndGroups
 			}
 			delay = d
 		}
 	}
 
 	broadcastCancelFlag.Store(false)
-	chats, _ := db.Instance.GetAllChats(ctx)
-	users, _ := db.Instance.GetAllUsers(ctx)
+	chats, _ := db.Instance.GetAllChats(ctx2)
+	users, _ := db.Instance.GetAllUsers(ctx2)
 
 	var targets []int64
 	if !noChats {
@@ -101,20 +110,21 @@ func broadcastHandler(m *tg.NewMessage) error {
 	}
 
 	if len(targets) == 0 {
-		_, _ = m.Reply("❗ No targets found.")
-		return tg.ErrEndGroup
+		_, _ = m.ReplyText(c, "❗ No targets found.", nil)
+		return td.EndGroups
 	}
 
 	if limit > 0 && limit < len(targets) {
 		targets = targets[:limit]
 	}
 
-	sentMsg, _ := m.Reply(fmt.Sprintf(
-		"🚀 <b>Broadcast Started</b>\nTargets: %d\nMode: %s\nDelay: %v\n\nSend <code>/cancelbroadcast</code> to stop.",
-		len(targets),
-		map[bool]string{true: "Copy", false: "Forward"}[copyMode],
-		delay,
-	))
+	sentMsg, _ := m.ReplyText(c,
+		fmt.Sprintf(
+			"🚀 <b>Broadcast Started</b>\nTargets: %d\nMode: %s\nDelay: %v\n\nSend <code>/cancelbroadcast</code> to stop.",
+			len(targets),
+			map[bool]string{true: "Copy", false: "Forward"}[copyMode],
+			delay,
+		), &td.SendTextMessageOpts{ParseMode: "HTML"})
 
 	var success int32
 	var failed int32
@@ -160,9 +170,11 @@ func broadcastHandler(m *tg.NewMessage) error {
 
 			var errSend error
 			if copyMode {
-				_, errSend = m.Client.SendMessage(item.ID, reply)
+				_, errSend = reply.Copy(c, item.ID, &td.SendCopyOpts{
+					ReplyMarkup: reply.ReplyMarkup,
+				})
 			} else {
-				_, errSend = reply.ForwardTo(item.ID, &tg.ForwardOptions{HideAuthor: copyMode})
+				_, errSend = reply.Forward(c, item.ID, &td.ForwardMessageOpts{})
 			}
 
 			if errSend == nil {
@@ -170,24 +182,27 @@ func broadcastHandler(m *tg.NewMessage) error {
 				continue
 			}
 
-			if wait := tg.GetFloodWait(errSend); wait > 0 {
-				logger.Warn("FloodWait %ds for chatID=%d", wait, item.ID)
+			/*
+				if wait := td.GetFloodWait(errSend); wait > 0 {
+					c.Logger.Warn("FloodWait s for chatID=", "arg1", wait, "id", item.ID)
 
-				if item.RetryCount < 2 {
-					item.RetryCount++
-					queueMutex.Lock()
-					queue = append(queue, item)
-					queueMutex.Unlock()
+					if item.RetryCount < 2 {
+						item.RetryCount++
+						queueMutex.Lock()
+						queue = append(queue, item)
+						queueMutex.Unlock()
 
-					time.Sleep(time.Duration(wait) * time.Second)
-					continue
-				} else {
-					logger.Warn("[Broadcast] max retries reached for chatID: %d", item.ID)
+						time.Sleep(time.Duration(wait) * time.Second)
+						continue
+					} else {
+
+					}
 				}
-			}
+			*/
 
+			c.Logger.Warn("[Broadcast] max retries reached for chatID", "id", item.ID)
 			atomic.AddInt32(&failed, 1)
-			logger.Warn("[Broadcast] chatID: %d error: %v", item.ID, errSend)
+			c.Logger.Warn("[Broadcast] chatID:  error", "id", item.ID, "error", errSend)
 		}
 		wg.Done()
 	}
@@ -216,7 +231,7 @@ func broadcastHandler(m *tg.NewMessage) error {
 		broadcastCancelFlag.Load(),
 	)
 
-	_, _ = sentMsg.Edit(result)
+	_, _ = sentMsg.EditText(c, result, &td.EditTextMessageOpts{ParseMode: "HTML"})
 	broadcastInProgress.Store(false)
-	return tg.ErrEndGroup
+	return td.EndGroups
 }

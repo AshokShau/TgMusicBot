@@ -14,50 +14,47 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
-func handleVoiceChatMessage(m *telegram.NewMessage) error {
-	if m.Action == nil {
-		return nil
-	}
-
-	chatID := m.ChannelID()
-	client := m.Client
+func handleVoiceChatMessage(c *td.Client, ctx *td.Context) error {
+	update := ctx.Update.UpdateNewMessage
+	m := update.Message
+	chatID := ctx.EffectiveChatId
 
 	// Chat is not a Supergroup
-	if m.Channel == nil {
+	if m.IsGroup() {
 		text := fmt.Sprintf(
 			"This chat (%d) is not a supergroup yet.\n<b>⚠️ Please convert this chat to a supergroup and add me as admin.</b>\n\nIf you don't know how to convert, use this guide:\n🔗 https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\n\nIf you have any questions, join our support group:",
 			chatID,
 		)
 
-		_, _ = client.SendMessage(chatID, text, &telegram.SendOptions{
-			ReplyMarkup: core.AddMeMarkup(client.Me().Username),
-			LinkPreview: false,
+		_, _ = c.SendTextMessage(chatID, text, &td.SendTextMessageOpts{
+			ReplyMarkup:           core.AddMeMarkup(c.Me().Usernames.EditableUsername),
+			DisableWebPagePreview: true,
+			ParseMode:             "HTML",
 		})
 
 		time.Sleep(1 * time.Second)
-		_ = client.LeaveChannel(chatID)
+		_ = c.LeaveChat(chatID)
 		return nil
 	}
 
-	action, ok := m.Action.(*telegram.MessageActionGroupCall)
-	if !ok {
-		return telegram.ErrEndGroup
+	if m.Content == nil {
+		return nil
 	}
-
 	var message string
-
-	if action.Duration == 0 {
+	switch m.Content.(type) {
+	case *td.MessageVideoChatStarted:
 		cache.ChatCache.ClearChat(chatID)
 		message = "🎙️ Video chat started!\nUse /play <song name> to play music."
-	} else {
+	case *td.MessageVideoChatEnded:
 		cache.ChatCache.ClearChat(chatID)
-		logger.Info("Voice chat ended. Duration: %d seconds", action.Duration)
 		message = "🎧 Video chat ended!\nAll queues cleared."
+	default:
+		return nil
 	}
 
-	_, _ = m.Client.SendMessage(chatID, message)
-	return telegram.ErrEndGroup
+	_, _ = c.SendTextMessage(chatID, message, nil)
+	return td.EndGroups
 }

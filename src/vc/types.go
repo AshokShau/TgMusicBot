@@ -9,16 +9,18 @@
 package vc
 
 import (
+"log/slog"
 	"sync"
 	"time"
 
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/vc/ubot"
 
+	td "github.com/AshokShau/gotdbot"
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
-var logger tg.Logger
+var logger = slog.Default()
 
 // TelegramCalls manages the state and operations for voice calls, including userbots and the main bot client.
 type TelegramCalls struct {
@@ -27,8 +29,8 @@ type TelegramCalls struct {
 	clients          map[string]*tg.Client
 	availableClients []string
 	clientCounter    int
-	bot              *tg.Client
-	statusCache      *cache.Cache[string]
+	bot              *td.Client
+	statusCache      *cache.Cache[td.ChatMemberStatus]
 	inviteCache      *cache.Cache[string]
 }
 
@@ -44,7 +46,7 @@ func getCalls() *TelegramCalls {
 			uBContext:     make(map[string]*ubot.Context),
 			clients:       make(map[string]*tg.Client),
 			clientCounter: 1,
-			statusCache:   cache.NewCache[string](2 * time.Hour),
+			statusCache:   cache.NewCache[td.ChatMemberStatus](2 * time.Hour),
 			inviteCache:   cache.NewCache[string](2 * time.Hour),
 		}
 	})

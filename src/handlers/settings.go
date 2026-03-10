@@ -17,19 +17,20 @@ import (
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
-func settingsHandler(m *telegram.NewMessage) error {
-	if m.IsPrivate() {
-		return nil
+func settingsHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
 	}
 
-	ctx, cancel := db.Ctx()
+	m := ctx.EffectiveMessage
+	ctx2, cancel := db.Ctx()
 	defer cancel()
 
-	chatID := m.ChannelID()
-	admins, err := cache.GetAdmins(m.Client, chatID, false)
+	chatID := ctx.EffectiveChatId
+	admins, err := cache.GetAdmins(c, chatID, false)
 	if err != nil {
 		return err
 	}
@@ -37,53 +38,62 @@ func settingsHandler(m *telegram.NewMessage) error {
 	// Check if user is admin
 	var isAdmin bool
 	for _, admin := range admins {
-		if admin.User.ID == m.Sender.ID {
+		if SenderID(admin.MemberId) == m.SenderID() {
 			isAdmin = true
 			break
 		}
 	}
+
 	if !isAdmin {
 		return nil
 	}
+
 	// Get current settings
-	getPlayMode := db.Instance.GetPlayMode(ctx, chatID)
-	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
+	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
+	getAdminMode := db.Instance.GetAdminMode(ctx2, chatID)
+
+	chat, err := m.GetChat(c)
+	if err != nil {
+		c.Logger.Warn("Failed to get chat", "error", err)
+		return nil
+	}
 
 	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
-		m.Chat.Title, getPlayMode, getAdminMode)
+		chat.Title, getPlayMode, getAdminMode)
 
-	_, err = m.Reply(text, &telegram.SendOptions{
-		ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode),
-	})
+	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode)})
 	return err
 }
 
-func settingsCallbackHandler(c *telegram.CallbackQuery) error {
-	chatID := c.ChannelID()
-	ctx, cancel := db.Ctx()
+func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
+	chatID := ctx.EffectiveChatId
+	cb := ctx.Update.UpdateNewCallbackQuery
+
+	ctx2, cancel := db.Ctx()
 	defer cancel()
 
 	// Check admin permissions
-	admins, err := cache.GetAdmins(c.Client, chatID, false)
+	admins, err := cache.GetAdmins(c, chatID, false)
 	if err != nil {
 		return err
 	}
 
 	var hasPerms bool
 	for _, admin := range admins {
-		if admin.User.ID == c.Sender.ID {
-			hasPerms = (admin.Rights != nil && admin.Rights.ManageCall) || admin.Status == telegram.Creator
+		if SenderID(admin.MemberId) == cb.SenderUserId {
+			rights, _ := cache.GetRights(c, chatID, cb.SenderUserId, false)
+			hasPerms = (rights != nil && rights.CanManageVideoChats) || admin.Status == td.ChatMemberStatusCreator{}
 			break
 		}
 	}
 
 	if !hasPerms {
-		_, err := c.Answer("You don't have permission to change settings.", &telegram.CallbackOptions{Alert: true})
+		err = cb.Answer(c, 300, true, "You don't have permission to change settings.", "")
 		return err
 	}
 
 	// Process the callback data
-	parts := strings.Split(c.DataString(), "_")
+	parts := strings.Split(cb.DataString(), "_")
 	if len(parts) < 3 {
 		return nil
 	}
@@ -100,41 +110,38 @@ func settingsCallbackHandler(c *telegram.CallbackQuery) error {
 	}
 
 	if !validValues[settingValue] {
-		_, _ = c.Answer("Update your chat settings", &telegram.CallbackOptions{Alert: true})
+		_ = cb.Answer(c, 300, true, "Update your chat settings", "")
 		return nil
 	}
 
 	switch settingType {
 	case "play":
-		_ = db.Instance.SetPlayMode(ctx, chatID, settingValue)
+		_ = db.Instance.SetPlayMode(ctx2, chatID, settingValue)
 	case "admin":
-		_ = db.Instance.SetAdminMode(ctx, chatID, settingValue)
+		_ = db.Instance.SetAdminMode(ctx2, chatID, settingValue)
 	default:
-		_, _ = c.Answer("Update your chat settings", &telegram.CallbackOptions{Alert: true})
+		_ = cb.Answer(c, 300, true, "Update your chat settings", "")
 		return nil
 	}
 
 	// Get updated settings
-	getPlayMode := db.Instance.GetPlayMode(ctx, chatID)
-	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
-	chat, err := c.GetChannel()
+	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
+	getAdminMode := db.Instance.GetAdminMode(ctx2, chatID)
+	chat, err := c.GetChat(chatID)
 	if err != nil {
-		logger.Warn("Failed to get chat: %v", err)
+		c.Logger.Warn("Failed to get chat", "error", err)
 		return nil
 	}
 
 	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
 		chat.Title, getPlayMode, getAdminMode)
 
-	_, err = c.Edit(text, &telegram.SendOptions{
-		ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode),
-	})
+	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode)})
 	if err != nil {
-		logger.Warn("Failed to edit message: %v", err)
 		return err
 	}
 
-	_, _ = c.Answer("✅ Settings updated", &telegram.CallbackOptions{Alert: false})
-	_, _ = c.Edit("✅ Settings updated")
+	_ = cb.Answer(c, 200, false, "Settings updated", "")
+	_, _ = cb.EditMessageText(c, text, nil)
 	return nil
 }

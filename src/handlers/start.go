@@ -16,40 +16,41 @@ import (
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/db"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // pingHandler handles the /ping command.
-func pingHandler(m *telegram.NewMessage) error {
+func pingHandler(c *td.Client, ctx *td.Context) error {
+	m := ctx.EffectiveMessage
 	start := time.Now()
-	updateLag := time.Since(time.Unix(int64(m.Date()), 0)).Milliseconds()
 
-	msg, err := m.Reply("⏱️ Pinging...")
+	updateLag := time.Since(time.Unix(int64(m.Date), 0)).Milliseconds()
+
+	msg, err := m.ReplyText(c, "⏱️ Pinging...", nil)
 	if err != nil {
 		return err
 	}
 
 	latency := time.Since(start).Milliseconds()
 	uptime := time.Since(startTime).Truncate(time.Second)
-	senders := m.Client.GetExportedSendersStatus()
+
 	response := fmt.Sprintf(
 		"<b>📊 System Performance Metrics</b>\n\n"+
 			"⏱️ <b>Bot Latency:</b> <code>%d ms</code>\n"+
 			"🕒 <b>Uptime:</b> <code>%s</code>\n"+
 			"📩 <b>Update Lag:</b> <code>%d ms</code>\n"+
-			"⚙️ <b>Go Routines:</b> <code>%d</code>\n"+
-			"📨 <b>Senders:</b> <code>%d</code>\n",
-		latency, uptime, updateLag, runtime.NumGoroutine(), senders,
+			"⚙️ <b>Go Routines:</b> <code>%d</code>\n",
+		latency, uptime, updateLag, runtime.NumGoroutine(),
 	)
 
-	_, err = msg.Edit(response)
+	_, err = msg.EditText(c, response, &td.EditTextMessageOpts{ParseMode: "HTML"})
 	return err
 }
 
 // startHandler handles the /start command.
-func startHandler(m *telegram.NewMessage) error {
-	bot := m.Client.Me()
-	chatID := m.ChannelID()
+func startHandler(c *td.Client, ctx *td.Context) error {
+	chatID := ctx.EffectiveChatId
+	m := ctx.EffectiveMessage
 
 	if m.IsPrivate() {
 		go func(chatID int64) {
@@ -65,9 +66,15 @@ func startHandler(m *telegram.NewMessage) error {
 		}(chatID)
 	}
 
-	response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", m.Sender.FirstName, bot.FirstName)
-	_, err := m.Reply(response, &telegram.SendOptions{
-		ReplyMarkup: core.AddMeMarkup(m.Client.Me().Username),
+	user, err := c.GetUser(m.SenderID())
+	if err != nil {
+		user = &td.User{FirstName: "Unknown"}
+	}
+
+	response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me().FirstName)
+	_, err = m.ReplyText(c, response, &td.SendTextMessageOpts{
+		ParseMode:   "HTML",
+		ReplyMarkup: core.AddMeMarkup(c.Me().Usernames.EditableUsername),
 	})
 
 	return err

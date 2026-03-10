@@ -15,7 +15,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"os"
 	"os/exec"
@@ -86,7 +86,7 @@ func (y *YouTubeData) extractVideoID(url string) string {
 // IsValid checks if the query string matches any of the known YouTube URL patterns.
 func (y *YouTubeData) IsValid() bool {
 	if y.Query == "" {
-		log.Println("The query or patterns are empty.")
+		slog.Info("The query or patterns are empty.")
 		return false
 	}
 
@@ -270,7 +270,7 @@ func (y *YouTubeData) getCookieFile() string {
 	}
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(cookiesPath))))
 	if err != nil {
-		log.Printf("Could not generate a random number: %v", err)
+		slog.Info("Could not generate a random number", "error", err)
 		return cookiesPath[0]
 	}
 
@@ -288,7 +288,7 @@ func (y *YouTubeData) downloadWithApi(ctx context.Context, videoID string, _ boo
 
 	down, err := NewDownload(ctx, track)
 	if err != nil {
-		log.Println("Error creating download: " + err.Error())
+		slog.Info("Error creating download: " + err.Error())
 		return "", err
 	}
 

@@ -11,7 +11,7 @@ package config
 import (
 	"bufio"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strings"
 )
@@ -62,7 +62,7 @@ func loadSingleEnvFile(path string) error {
 
 		idx := strings.Index(line, "=")
 		if idx == -1 {
-			log.Printf("Skipping invalid line in %s: %s", path, line)
+			slog.Info("Skipping invalid line in", "arg1", path, "arg2", line)
 			continue
 		}
 

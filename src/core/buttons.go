@@ -13,122 +13,185 @@ import (
 	"ashokshau/tgmusic/src/utils"
 	"fmt"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
 )
 
-var CloseBtn = telegram.Button.Data("Close", "vcplay_close")
-
-var HomeBtn = telegram.Button.Data("Home", "help_back")
-
-var HelpBtn = telegram.Button.Data("Help", "help_all")
-
-var UserBtn = telegram.Button.Data("Users", "help_user")
-
-var AdminBtn = telegram.Button.Data("Admins", "help_admin")
-
-var OwnerBtn = telegram.Button.Data("Owner", "help_owner")
-
-var DevsBtn = telegram.Button.Data("Devs", "help_devs")
-
-var PlaylistBtn = telegram.Button.Data("Playlist", "help_playlist")
-
-var SourceCodeBtn = telegram.Button.URL("Source Code", "https://github.com/AshokShau/TgMusicBot")
-
-func SupportKeyboard() *telegram.ReplyInlineMarkup {
-	channelBtn := telegram.Button.URL("Updates", config.Conf.SupportChannel)
-	groupBtn := telegram.Button.URL("Group", config.Conf.SupportGroup)
-	keyboard := telegram.NewKeyboard().
-		AddRow(channelBtn, groupBtn).
-		AddRow(CloseBtn)
-
-	return keyboard.Build()
+func cb(text, data string) gotdbot.InlineKeyboardButton {
+	return gotdbot.InlineKeyboardButton{
+		Text: text,
+		Type: &gotdbot.InlineKeyboardButtonTypeCallback{
+			Data: []byte(data),
+		},
+	}
 }
 
-func SettingsKeyboard(playMode, adminMode string) *telegram.ReplyInlineMarkup {
-	createButton := func(label, settingType, settingValue, currentValue string) *telegram.KeyboardButtonCallback {
+func url(text, link string) gotdbot.InlineKeyboardButton {
+	return gotdbot.InlineKeyboardButton{
+		Text: text,
+		Type: &gotdbot.InlineKeyboardButtonTypeUrl{
+			Url: link,
+		},
+	}
+}
+
+var CloseBtn = cb("Close", "vcplay_close")
+var HomeBtn = cb("Home", "help_back")
+var HelpBtn = cb("Help", "help_all")
+var UserBtn = cb("Users", "help_user")
+var AdminBtn = cb("Admins", "help_admin")
+var OwnerBtn = cb("Owner", "help_owner")
+var DevsBtn = cb("Devs", "help_devs")
+var PlaylistBtn = cb("Playlist", "help_playlist")
+
+var SourceCodeBtn = url("Source Code", "https://github.com/AshokShau/TgMusicBot")
+
+func SupportKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
+
+	channelBtn := url("Updates", config.Conf.SupportChannel)
+	groupBtn := url("Group", config.Conf.SupportGroup)
+
+	return &gotdbot.ReplyMarkupInlineKeyboard{
+		Rows: [][]gotdbot.InlineKeyboardButton{
+			{channelBtn, groupBtn},
+			{CloseBtn},
+		},
+	}
+}
+
+func SettingsKeyboard(playMode, adminMode string) *gotdbot.ReplyMarkupInlineKeyboard {
+
+	createButton := func(label, settingType, settingValue, currentValue string) gotdbot.InlineKeyboardButton {
+
 		text := label
 		if settingValue == currentValue {
 			text += " ✅"
 		}
-		return telegram.Button.Data(text, fmt.Sprintf("settings_%s_%s", settingType, settingValue))
+
+		return cb(text, fmt.Sprintf("settings_%s_%s", settingType, settingValue))
 	}
 
-	keyboard := telegram.NewKeyboard()
+	return &gotdbot.ReplyMarkupInlineKeyboard{
+		Rows: [][]gotdbot.InlineKeyboardButton{
 
-	keyboard.AddRow(telegram.Button.Data("🎵 Play Mode", "settings_xxx_noop"))
-	keyboard.AddRow(
-		createButton("Admins", "play", utils.Admins, playMode),
-		createButton("Auth", "play", utils.Auth, playMode),
-		createButton("Everyone", "play", utils.Everyone, playMode),
-	)
+			{cb("🎵 Play Mode", "settings_xxx_noop")},
 
-	keyboard.AddRow(telegram.Button.Data("🛡️ Admin Mode", "settings_xxx_none"))
-	keyboard.AddRow(
-		createButton("Admins", "admin", utils.Admins, adminMode),
-		createButton("Auth", "admin", utils.Auth, adminMode),
-		createButton("Everyone", "admin", utils.Everyone, adminMode),
-	)
+			{
+				createButton("Admins", "play", utils.Admins, playMode),
+				createButton("Auth", "play", utils.Auth, playMode),
+				createButton("Everyone", "play", utils.Everyone, playMode),
+			},
 
-	keyboard.AddRow(CloseBtn)
+			{cb("🛡️ Admin Mode", "settings_xxx_none")},
 
-	return keyboard.Build()
+			{
+				createButton("Admins", "admin", utils.Admins, adminMode),
+				createButton("Auth", "admin", utils.Auth, adminMode),
+				createButton("Everyone", "admin", utils.Everyone, adminMode),
+			},
+
+			{CloseBtn},
+		},
+	}
 }
 
-func HelpMenuKeyboard() *telegram.ReplyInlineMarkup {
-	keyboard := telegram.NewKeyboard().
-		AddRow(UserBtn, AdminBtn, OwnerBtn).
-		AddRow(PlaylistBtn, DevsBtn, CloseBtn).
-		AddRow(HomeBtn)
+func HelpMenuKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 
-	return keyboard.Build()
+	return &gotdbot.ReplyMarkupInlineKeyboard{
+		Rows: [][]gotdbot.InlineKeyboardButton{
+			{UserBtn, AdminBtn, OwnerBtn},
+			{PlaylistBtn, DevsBtn, CloseBtn},
+			{HomeBtn},
+		},
+	}
 }
 
-func BackHelpMenuKeyboard() *telegram.ReplyInlineMarkup {
-	keyboard := telegram.NewKeyboard().
-		AddRow(HelpBtn, HomeBtn).
-		AddRow(CloseBtn, SourceCodeBtn)
+func BackHelpMenuKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 
-	return keyboard.Build()
+	return &gotdbot.ReplyMarkupInlineKeyboard{
+		Rows: [][]gotdbot.InlineKeyboardButton{
+			{HelpBtn, HomeBtn},
+			{CloseBtn, SourceCodeBtn},
+		},
+	}
 }
 
-func ControlButtons(mode string) *telegram.ReplyInlineMarkup {
-	skipBtn := telegram.Button.Data("‣‣I", "play_skip")
-	stopBtn := telegram.Button.Data("▢", "play_stop")
-	pauseBtn := telegram.Button.Data("II", "play_pause")
-	resumeBtn := telegram.Button.Data("▷", "play_resume")
-	muteBtn := telegram.Button.Data("🔇", "play_mute")
-	unmuteBtn := telegram.Button.Data("🔊", "play_unmute")
-	addToPlaylistBtn := telegram.Button.Data("➕", "play_add_to_list")
+func ControlButtons(mode string) *gotdbot.ReplyMarkupInlineKeyboard {
 
-	var keyboard *telegram.KeyboardBuilder
+	skipBtn := cb("‣‣I", "play_skip")
+	stopBtn := cb("▢", "play_stop")
+	pauseBtn := cb("II", "play_pause")
+	resumeBtn := cb("▷", "play_resume")
+	muteBtn := cb("🔇", "play_mute")
+	unmuteBtn := cb("🔊", "play_unmute")
+	addToPlaylistBtn := cb("➕", "play_add_to_list")
 
 	switch mode {
-	case "play":
-		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, pauseBtn, resumeBtn).AddRow(addToPlaylistBtn, CloseBtn)
-	case "pause":
-		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, resumeBtn).AddRow(CloseBtn)
-	case "resume":
-		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, pauseBtn).AddRow(CloseBtn)
-	case "mute":
-		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, unmuteBtn).AddRow(CloseBtn)
-	case "unmute":
-		keyboard = telegram.NewKeyboard().AddRow(skipBtn, stopBtn, muteBtn).AddRow(CloseBtn)
-	default:
-		keyboard = telegram.NewKeyboard().AddRow(CloseBtn)
-	}
 
-	return keyboard.Build()
+	case "play":
+		return &gotdbot.ReplyMarkupInlineKeyboard{
+			Rows: [][]gotdbot.InlineKeyboardButton{
+				{skipBtn, stopBtn, pauseBtn, resumeBtn},
+				{addToPlaylistBtn, CloseBtn},
+			},
+		}
+
+	case "pause":
+		return &gotdbot.ReplyMarkupInlineKeyboard{
+			Rows: [][]gotdbot.InlineKeyboardButton{
+				{skipBtn, stopBtn, resumeBtn},
+				{CloseBtn},
+			},
+		}
+
+	case "resume":
+		return &gotdbot.ReplyMarkupInlineKeyboard{
+			Rows: [][]gotdbot.InlineKeyboardButton{
+				{skipBtn, stopBtn, pauseBtn},
+				{CloseBtn},
+			},
+		}
+
+	case "mute":
+		return &gotdbot.ReplyMarkupInlineKeyboard{
+			Rows: [][]gotdbot.InlineKeyboardButton{
+				{skipBtn, stopBtn, unmuteBtn},
+				{CloseBtn},
+			},
+		}
+
+	case "unmute":
+		return &gotdbot.ReplyMarkupInlineKeyboard{
+			Rows: [][]gotdbot.InlineKeyboardButton{
+				{skipBtn, stopBtn, muteBtn},
+				{CloseBtn},
+			},
+		}
+
+	default:
+		return &gotdbot.ReplyMarkupInlineKeyboard{
+			Rows: [][]gotdbot.InlineKeyboardButton{
+				{CloseBtn},
+			},
+		}
+	}
 }
 
-func AddMeMarkup(username string) *telegram.ReplyInlineMarkup {
-	addMeBtn := telegram.Button.URL(fmt.Sprintf("Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ"), fmt.Sprintf("https://t.me/%s?startgroup=true", username))
-	channelBtn := telegram.Button.URL("Updates", config.Conf.SupportChannel)
-	groupBtn := telegram.Button.URL("Group", config.Conf.SupportGroup)
-	keyboard := telegram.NewKeyboard().
-		AddRow(addMeBtn).
-		AddRow(HelpBtn).
-		AddRow(channelBtn, groupBtn).
-		AddRow(SourceCodeBtn)
+func AddMeMarkup(username string) *gotdbot.ReplyMarkupInlineKeyboard {
 
-	return keyboard.Build()
+	addMeBtn := url(
+		"Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ",
+		fmt.Sprintf("https://t.me/%s?startgroup=true", username),
+	)
+
+	channelBtn := url("Updates", config.Conf.SupportChannel)
+	groupBtn := url("Group", config.Conf.SupportGroup)
+
+	return &gotdbot.ReplyMarkupInlineKeyboard{
+		Rows: [][]gotdbot.InlineKeyboardButton{
+			{addMeBtn},
+			{HelpBtn},
+			{channelBtn, groupBtn},
+			{SourceCodeBtn},
+		},
+	}
 }

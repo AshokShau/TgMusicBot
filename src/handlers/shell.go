@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 func runShellCommand(cmd string, timeout time.Duration) (string, string, int) {
@@ -62,16 +62,18 @@ func runShellCommand(cmd string, timeout time.Duration) (string, string, int) {
 	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), exitCode
 }
 
-func shellRunner(m *tg.NewMessage) error {
-	args := strings.TrimSpace(m.Args())
+func shellRunner(c *td.Client, ctx *td.Context) error {
+	m := ctx.EffectiveMessage
+
+	args := strings.TrimSpace(Args(m))
 	if args == "" {
-		_, _ = m.Reply("Usage: /sh cmd")
-		return tg.ErrEndGroup
+		_, _ = m.ReplyText(c, "Usage: /sh cmd", nil)
+		return td.EndGroups
 	}
 
-	msg, err := m.Reply("Running...")
+	msg, err := m.ReplyText(c, "Running...", nil)
 	if err != nil {
-		return tg.ErrEndGroup
+		return td.EndGroups
 	}
 
 	commands := strings.Split(args, "\n")
@@ -102,37 +104,34 @@ func shellRunner(m *tg.NewMessage) error {
 	}
 
 	if len(finalOutput) <= 3500 {
-		_, _ = msg.Edit(finalOutput)
-		return tg.ErrEndGroup
+		_, _ = msg.EditText(c, finalOutput, &td.EditTextMessageOpts{ParseMode: "HTML"})
+		return td.EndGroups
 	}
 
 	file := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%d.txt", time.Now().UnixNano()))
 	if err := os.WriteFile(file, []byte(finalOutput), 0644); err != nil {
-		_, _ = msg.Edit(fmt.Sprintf("Failed to write output: %v", err))
-		return tg.ErrEndGroup
+		_, _ = msg.EditText(c, fmt.Sprintf("Failed to write output: %v", err), nil)
+		return td.EndGroups
 	}
 	defer os.Remove(file)
 
-	_, err = msg.Edit("sending as file", &tg.SendOptions{
-		Media:   file,
-		Caption: "📁 Output too large, sending as file:",
-	})
+	_, err = msg.EditMedia(c, td.InputMessageDocument{
+		Document: td.InputFileLocal{Path: file},
+	}, nil)
 
 	if err != nil {
-		_, _ = msg.Edit("Error: " + err.Error())
-		return tg.ErrEndGroup
+		_, _ = msg.EditText(c, "Error: "+err.Error(), nil)
+		return td.EndGroups
 	}
 
-	return tg.ErrEndGroup
+	return td.EndGroups
 }
 
 // shellCommand handles /sh commands
-func shellCommand(m *tg.NewMessage) error {
-	// i don't trust gogram filters
-	if !isDev(m) {
-		_, _ = m.Reply("WTF ?")
-		return tg.ErrEndGroup
+func shellCommand(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
 	}
 
-	return shellRunner(m)
+	return shellRunner(c, ctx)
 }

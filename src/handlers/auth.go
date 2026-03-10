@@ -9,34 +9,25 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/core/cache"
 	"errors"
 	"fmt"
 
 	"ashokshau/tgmusic/src/core/db"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // getTargetUserID gets the user ID from a message.
-func getTargetUserID(m *tg.NewMessage) (int64, error) {
+func getTargetUserID(c *td.Client, m *td.Message) (int64, error) {
 	var userID int64
 
-	if m.IsReply() {
-		replyMsg, err := m.GetReplyMessage()
+	if m.ReplyToMessageID() != 0 {
+		replyMsg, err := m.GetRepliedMessage(c)
 		if err != nil {
 			return 0, err
 		}
 		userID = replyMsg.SenderID()
-	} else if len(m.Args()) > 0 {
-		user, err := m.Client.ResolveUsername(m.Args())
-		if err != nil {
-			return 0, err
-		}
-		ux, ok := user.(*tg.UserObj)
-		if !ok {
-			return 0, errors.New("user not found")
-		}
-		userID = ux.ID
 	}
 
 	if userID == 0 {
@@ -51,88 +42,134 @@ func getTargetUserID(m *tg.NewMessage) (int64, error) {
 }
 
 // authListHandler handles the /auth command.
-func authListHandler(m *tg.NewMessage) error {
+func authListHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
+	}
+
+	m := ctx.EffectiveMessage
 	if m.IsPrivate() {
 		return nil
 	}
 
-	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
+	chatID := m.ChatId
+	ctx2, cancel := db.Ctx()
 	defer cancel()
 
-	authUser := db.Instance.GetAuthUsers(ctx, chatID)
+	authUser := db.Instance.GetAuthUsers(ctx2, chatID)
 	if authUser == nil || len(authUser) == 0 {
-		_, _ = m.Reply("ℹ️ No authorized users.")
+		_, _ = m.ReplyText(c, "ℹ️ No authorized users.", nil)
 		return nil
 	}
 
 	text := "<b>Authorized Users:</b>\n\n"
 	for _, uid := range authUser {
-		text += fmt.Sprintf("• <code>%d</code>\n", uid)
+		text += fmt.Sprintf("• <a href=\"tg://user?id=%d\">%d</a>\n", uid, uid)
 	}
 
-	_, err := m.Reply(text)
-	return err
+	_, _ = m.ReplyText(c, text, &td.SendTextMessageOpts{ParseMode: "HTML"})
+	return td.EndGroups
 }
 
 // addAuthHandler handles the /addauth command.
-func addAuthHandler(m *tg.NewMessage) error {
-	if m.IsPrivate() {
-		return nil
+func addAuthHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
 	}
 
-	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
+	m := ctx.EffectiveMessage
+	if m.IsPrivate() {
+		return td.EndGroups
+	}
+
+	chatID := m.ChatId
+
+	UserStatus, err := cache.GetUserAdmin(c, chatID, m.SenderID(), false)
+	if err != nil {
+		c.Logger.Warn("GetUserAdmin error", "error", err)
+		_, _ = m.ReplyText(c, "⚠️ Failed to get user admin status (cache or fetch failed).", nil)
+		return td.EndGroups
+	}
+
+	switch UserStatus.Status.(type) {
+	case *td.ChatMemberStatusCreator, *td.ChatMemberStatusAdministrator:
+		// User is an admin, proceed
+	default:
+		_, _ = m.ReplyText(c, "❌ You must be an admin to use this command.", nil)
+		return td.EndGroups
+	}
+
+	ctx2, cancel := db.Ctx()
 	defer cancel()
 
-	userID, err := getTargetUserID(m)
+	userID, err := getTargetUserID(c, m)
 	if err != nil {
-		_, _ = m.Reply(err.Error())
+		_, _ = m.ReplyText(c, err.Error(), nil)
 		return nil
 	}
 
-	if db.Instance.IsAuthUser(ctx, chatID, userID) {
-		_, _ = m.Reply("User is already authorized.")
+	if db.Instance.IsAuthUser(ctx2, chatID, userID) {
+		_, _ = m.ReplyText(c, "User is already authorized.", nil)
 		return nil
 	}
 
-	if err := db.Instance.AddAuthUser(ctx, chatID, userID); err != nil {
-		logger.Error("Failed to add authorized user:", err)
-		_, _ = m.Reply("Error adding user.")
+	if err = db.Instance.AddAuthUser(ctx2, chatID, userID); err != nil {
+		c.Logger.Error("Failed to add authorized user", "error", err)
+		_, _ = m.ReplyText(c, "Error adding user.", nil)
 		return nil
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ User %d authorized.", userID))
+	_, err = m.ReplyText(c, fmt.Sprintf("✅ User %d authorized.", userID), nil)
 	return err
 }
 
 // removeAuthHandler handles the /removeauth command.
-func removeAuthHandler(m *tg.NewMessage) error {
-	if m.IsPrivate() {
-		return nil
+func removeAuthHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
 	}
 
-	chatID := m.ChannelID()
-	ctx, cancel := db.Ctx()
+	m := ctx.EffectiveMessage
+	if m.IsPrivate() {
+		return td.EndGroups
+	}
+
+	chatID := m.ChatId
+	UserStatus, err := cache.GetUserAdmin(c, chatID, m.SenderID(), false)
+	if err != nil {
+		c.Logger.Warn("GetUserAdmin error", "error", err)
+		_, _ = m.ReplyText(c, "⚠️ Failed to get user admin status (cache or fetch failed).", nil)
+		return td.EndGroups
+	}
+
+	switch UserStatus.Status.(type) {
+	case *td.ChatMemberStatusCreator, *td.ChatMemberStatusAdministrator:
+		// User is an admin, proceed
+	default:
+		_, _ = m.ReplyText(c, "❌ You must be an admin to use this command.", nil)
+		return td.EndGroups
+	}
+
+	ctx2, cancel := db.Ctx()
 	defer cancel()
 
-	userID, err := getTargetUserID(m)
+	userID, err := getTargetUserID(c, m)
 	if err != nil {
-		_, _ = m.Reply(err.Error())
+		_, _ = m.ReplyText(c, err.Error(), nil)
 		return nil
 	}
 
-	if !db.Instance.IsAuthUser(ctx, chatID, userID) {
-		_, _ = m.Reply("User is not authorized.")
+	if !db.Instance.IsAuthUser(ctx2, chatID, userID) {
+		_, _ = m.ReplyText(c, "User is not authorized.", nil)
 		return nil
 	}
 
-	if err := db.Instance.RemoveAuthUser(ctx, chatID, userID); err != nil {
-		logger.Error("Failed to remove authorized user:", err)
-		_, _ = m.Reply("Error removing user.")
+	if err := db.Instance.RemoveAuthUser(ctx2, chatID, userID); err != nil {
+		c.Logger.Error("Failed to remove authorized user", "error", err)
+		_, _ = m.ReplyText(c, "Error removing user.", nil)
 		return nil
 	}
 
-	_, err = m.Reply(fmt.Sprintf("✅ User %d removed from authorized list.", userID))
+	_, err = m.ReplyText(c, fmt.Sprintf("✅ User %d removed from authorized list.", userID), nil)
 	return err
 }

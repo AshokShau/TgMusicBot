@@ -12,14 +12,19 @@ import (
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/vc"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // skipHandler handles the /skip command.
-func skipHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
+func skipHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
+	}
+	m := ctx.EffectiveMessage
+	chatID := ctx.EffectiveChatId
+
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply("⏸ Nothing is playing.")
+		_, _ = m.ReplyText(c, "⏸ Nothing is playing.", nil)
 		return nil
 	}
 

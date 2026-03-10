@@ -13,12 +13,12 @@ import (
 	"ashokshau/tgmusic/src/utils"
 	"fmt"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // sendLogger sends a formatted log message to the designated logger chat.
 // It includes details about the song being played, such as its title, duration, and the user who requested it.
-func sendLogger(client *tg.Client, chatID int64, song *utils.CachedTrack) {
+func sendLogger(client *td.Client, chatID int64, song *utils.CachedTrack) {
 	if chatID == 0 || song == nil || chatID == config.Conf.LoggerId {
 		return
 	}
@@ -34,8 +34,8 @@ func sendLogger(client *tg.Client, chatID int64, song *utils.CachedTrack) {
 		song.IsVideo,
 	)
 
-	_, err := client.SendMessage(config.Conf.LoggerId, text, &tg.SendOptions{LinkPreview: false})
+	_, err := client.SendTextMessage(config.Conf.LoggerId, text, &td.SendTextMessageOpts{DisableWebPagePreview: false, ParseMode: "HTML"})
 	if err != nil {
-		logger.Warn("Failed to send the message: %v", err)
+		logger.Warn("Failed to send the message", "error", err)
 	}
 }

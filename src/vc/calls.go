@@ -30,10 +30,9 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/big"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -43,6 +42,7 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/core/dl"
 
+	td "github.com/AshokShau/gotdbot"
 	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -61,7 +61,7 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(availableClients))))
 	if err != nil {
-		log.Printf("[TelegramCalls] Could not generate a random number: %v", err)
+		slog.Info("[TelegramCalls] Could not generate a random number", "error", err)
 		return availableClients[0], nil
 	}
 	newClient := availableClients[n.Int64()]
@@ -71,7 +71,7 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 
 	assignedClient, err := db.Instance.AssignAssistant(ctx, chatID, newClient)
 	if err != nil {
-		c.bot.Log.Info("[TelegramCalls] DB.AssignAssistant error: %v", err)
+		slog.Info("[TelegramCalls] DB.AssignAssistant error", "error", err)
 	}
 
 	if assignedClient != "" {
@@ -87,18 +87,18 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 			return assignedClient, nil
 		}
 
-		c.bot.Log.Info("[TelegramCalls] Assigned assistant %s is unavailable. Overwriting with %s.", assignedClient, newClient)
+		slog.Info("[TelegramCalls] Assigned assistant  is unavailable. Overwriting with .", "arg1", assignedClient, "arg2", newClient)
 		if err = db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
-			c.bot.Log.Info("[TelegramCalls] DB.SetAssistant error: %v", err)
+			slog.Info("[TelegramCalls] DB.SetAssistant error", "error", err)
 		}
 		return newClient, nil
 	}
 
 	if err = db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
-		c.bot.Log.Info("[TelegramCalls] DB.SetAssistant error: %v", err)
+		slog.Info("[TelegramCalls] DB.SetAssistant error", "error", err)
 	}
 
-	c.bot.Log.Info("[TelegramCalls] An assistant has been set for chat %d -> %s", chatID, newClient)
+	slog.Info("[TelegramCalls] An assistant has been set for chat  ->", "id", chatID, "arg2", newClient)
 	return newClient, nil
 }
 
@@ -199,7 +199,7 @@ func (c *TelegramCalls) StopAllClients() {
 	}
 
 	for name, client := range c.clients {
-		c.bot.Log.Info("[TelegramCalls] Stopping the client: %s", name)
+		slog.Info("[TelegramCalls] Stopping the client", "arg1", name)
 		_ = client.Stop()
 	}
 }
@@ -223,16 +223,16 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 		_, _ = call.App.ResolvePeer(chatID)
 	}
 
-	c.bot.Log.Debugf("Playing media in chat %d: %s", chatID, filePath)
+	//slog.Info("Playing media in chat", "id", chatID, "arg2", filePath)
 
 	mediaDesc := getMediaDescription(filePath, video, ffmpegParameters)
 	if err = call.Play(chatID, mediaDesc); err != nil {
-		logger.Error("Failed to play the media: %v", err)
+		logger.Error("Failed to play the media", "error", err)
 		cache.ChatCache.ClearChat(chatID)
 		return fmt.Errorf("playback failed: %w", err)
 	}
 
-	if db.Instance.GetLoggerStatus(ctx, c.bot.Me().ID) {
+	if db.Instance.GetLoggerStatus(ctx, c.bot.Me().Id) {
 		go sendLogger(c.bot, chatID, cache.ChatCache.GetPlayingTrack(chatID))
 	}
 
@@ -241,7 +241,7 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 
 // downloadAndPrepareSong handles the download and preparation of a song for playback.
 // It returns an error if the download or preparation fails.
-func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *tg.NewMessage) error {
+func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *td.Message) error {
 	if song.FilePath != "" {
 		return nil
 	}
@@ -251,13 +251,13 @@ func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *t
 
 	dlPath, err := dl.DownloadSong(ctx, song, c.bot)
 	if err != nil {
-		_, _ = reply.Edit("⚠️ Download failed. Skipping track...")
+		_, _ = reply.EditText(c.bot, "⚠️ Download failed. Skipping track...", nil)
 		return err
 	}
 
 	song.FilePath = dlPath
 	if song.FilePath == "" {
-		_, _ = reply.Edit("⚠️ Download failed. Skipping track...")
+		_, _ = reply.EditText(c.bot, "⚠️ Download failed. Skipping track...", nil)
 		return errors.New("download failed due to an empty file path")
 	}
 
@@ -287,16 +287,16 @@ func (c *TelegramCalls) PlayNext(chatID int64) error {
 // and sending a notification to the chat.
 func (c *TelegramCalls) handleNoSong(chatID int64) error {
 	_ = c.Stop(chatID)
-	_, _ = c.bot.SendMessage(chatID, "🎵 Queue finished. Add more songs with /play.")
+	_, _ = c.bot.SendTextMessage(chatID, "🎵 Queue finished. Add more songs with /play.", nil)
 	return nil
 }
 
 // playSong downloads and plays a single song. It sends a message to the chat to indicate the download status
 // and updates it with the song's information once playback begins.
 func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
-	reply, err := c.bot.SendMessage(chatID, fmt.Sprintf("Downloading %s...", song.Name))
+	reply, err := c.bot.SendTextMessage(chatID, fmt.Sprintf("Downloading %s...", song.Name), nil)
 	if err != nil {
-		c.bot.Log.Info("[playSong] Failed to send message: %v", err)
+		slog.Info("[playSong] Failed to send message", "error", err)
 		return err
 	}
 
@@ -305,7 +305,7 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	}
 
 	if err = c.PlayMedia(chatID, song.FilePath, song.IsVideo, ""); err != nil {
-		_, err := reply.Edit(err.Error())
+		_, err := reply.EditText(c.bot, err.Error(), nil)
 		return err
 	}
 
@@ -321,11 +321,13 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 		song.User,
 	)
 
-	_, err = reply.Edit(text, &tg.SendOptions{
+	_, err = reply.EditText(c.bot, text, &td.EditTextMessageOpts{
 		ReplyMarkup: core.ControlButtons("play"),
+		ParseMode:   "HTMl",
 	})
+
 	if err != nil {
-		c.bot.Log.Warn("[playSong] Failed to edit message: %v", err)
+		slog.Info("[playSong] Failed to edit message", "error", err)
 		return nil
 	}
 
@@ -341,7 +343,7 @@ func (c *TelegramCalls) Stop(chatId int64) error {
 	cache.ChatCache.ClearChat(chatId)
 	err = call.Stop(chatId)
 	if err != nil {
-		c.bot.Log.Error("[Stop] Failed to stop the call: %v", err)
+		slog.Info("[Stop] Failed to stop the call", "error", err)
 		return err
 	}
 	return nil
@@ -357,7 +359,7 @@ func (c *TelegramCalls) Pause(chatId int64) (bool, error) {
 
 	res, err := call.Pause(chatId)
 	if err != nil {
-		c.bot.Log.Error("[Pause] Failed to pause the call: %v", err)
+		slog.Info("[Pause] Failed to pause the call", "error", err)
 	}
 	return res, err
 }
@@ -371,7 +373,7 @@ func (c *TelegramCalls) Resume(chatId int64) (bool, error) {
 	}
 	res, err := call.Resume(chatId)
 	if err != nil {
-		c.bot.Log.Error("[Resume] Failed to resume the call: %v", err)
+		slog.Info("[Resume] Failed to resume the call", "error", err)
 	}
 	return res, err
 }
@@ -385,7 +387,7 @@ func (c *TelegramCalls) Mute(chatId int64) (bool, error) {
 	}
 	res, err := call.Mute(chatId)
 	if err != nil {
-		c.bot.Log.Error("[Mute] Failed to mute the call: %v", err)
+		slog.Info("[Mute] Failed to mute the call", "error", err)
 	}
 	return res, err
 }
@@ -399,7 +401,7 @@ func (c *TelegramCalls) Unmute(chatId int64) (bool, error) {
 	}
 	res, err := call.Unmute(chatId)
 	if err != nil {
-		c.bot.Log.Error("[Unmute] Failed to unmute the call: %v", err)
+		slog.Info("[Unmute] Failed to unmute the call", "error", err)
 	}
 	return res, err
 }
@@ -470,25 +472,24 @@ func (c *TelegramCalls) ChangeSpeed(chatID int64, speed float64) error {
 }
 
 // RegisterHandlers sets up the event handlers for the voice call client.
-func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
+func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.bot = client
-	logger = client.Log
 
 	for _, call := range c.uBContext {
 
 		//_, _ = call.App.UpdatesGetState()
 		call.OnStreamEnd(func(chatID int64, streamType ntgcalls.StreamType, device ntgcalls.StreamDevice) {
-			client.Log.Info("[TelegramCalls] The stream has ended in chat %d (type=%v, device=%v)", chatID, streamType, device)
+			call.App.Logger.Warnf("[TelegramCalls] The stream has ended in chat %d (type=%v, device=%v)", chatID, streamType, device)
 			if streamType == ntgcalls.VideoStream {
-				client.Log.Info("Ignoring video stream end for chat %d", chatID)
+				call.App.Logger.Warnf("Ignoring video stream end for chat %d", chatID)
 				return
 			}
 
 			if err := c.PlayNext(chatID); err != nil {
-				client.Log.Error("[OnStreamEnd] Failed to play the song: %v", err)
+				call.App.Logger.Warnf("[OnStreamEnd] Failed to play the song: %v", err)
 			}
 		})
 
@@ -496,21 +497,19 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 			_, _ = ub.App.SendMessage(chatID, "Incoming call detected. Playing music...")
 			msg, err := utils.GetMessage(c.bot, DefaultStreamURL)
 			if err != nil {
-				c.bot.Log.Info("[OnIncomingCall] Failed to get the message: %v", err)
+				call.App.Logger.Warnf("[OnIncomingCall] Failed to get the message: %v", err)
 				return
 			}
 
-			dCtx, dCancel := context.WithTimeout(context.Background(), 1*time.Minute)
-			defer dCancel()
-			filePath, err := msg.Download(&tg.DownloadOptions{FileName: filepath.Join(config.Conf.DownloadsDir, msg.File.Name), Ctx: dCtx})
+			file, err := msg.Download(c.bot, 1, 0, 0, true)
 			if err != nil {
-				c.bot.Log.Info("[OnIncomingCall] Failed to download the message: %v", err)
+				call.App.Logger.Warnf("[OnIncomingCall] Failed to download the message: %v", err)
 				return
 			}
 
-			err = c.PlayMedia(chatID, filePath, false, "")
+			err = c.PlayMedia(chatID, file.Local.Path, false, "")
 			if err != nil {
-				c.bot.Log.Info("[OnIncomingCall] Failed to play the media: %v", err)
+				call.App.Logger.Warnf("[OnIncomingCall] Failed to play the media: %v", err)
 				return
 			}
 
@@ -518,13 +517,13 @@ func (c *TelegramCalls) RegisterHandlers(client *tg.Client) {
 		})
 
 		//call.OnFrame(func(chatId int64, mode ntgcalls.StreamMode, device ntgcalls.StreamDevice, frames []ntgcalls.Frame) {
-		//	c.bot.Log.Debug("Received frames for chatId: %d, mode: %v, device: %v", chatId, mode, device)
+		//	call.App.Logger.Infof("Received frames for chatId: %d, mode: %v, device: %v", chatId, mode, device)
 		//})
 
-		_, _ = call.App.SendMessage(client.Me().Username, "/start")
+		_, _ = call.App.SendMessage(client.Me().Usernames.EditableUsername, "/start")
 		_, err := call.App.SendMessage(config.Conf.LoggerId, "Userbot started.")
 		if err != nil {
-			c.bot.Log.Info("[TelegramCalls - SendMessage] Failed to send message: %v", err)
+			call.App.Logger.Infof("[TelegramCalls - SendMessage] Failed to send message: %v", err)
 		}
 	}
 }

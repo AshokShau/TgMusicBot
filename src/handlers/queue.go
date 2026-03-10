@@ -18,21 +18,31 @@ import (
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/vc"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // queueHandler displays the current playback queue with detailed information.
-func queueHandler(m *tg.NewMessage) error {
-	chatID := m.ChannelID()
-	chat := m.Channel
+func queueHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
+	}
+	m := ctx.EffectiveMessage
+	chatID := ctx.EffectiveChatId
+
+	chat, err := c.GetChat(chatID)
+	if err != nil {
+		_, _ = m.ReplyText(c, "Error fetching chat information.", nil)
+		return nil
+	}
+
 	queue := cache.ChatCache.GetQueue(chatID)
 	if len(queue) == 0 {
-		_, _ = m.Reply("📭 Queue is empty.")
+		_, _ = m.ReplyText(c, "📭 Queue is empty.", nil)
 		return nil
 	}
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply("⏸ Nothing is playing.")
+		_, _ = m.ReplyText(c, "⏸ Nothing is playing.", nil)
 		return nil
 	}
 
@@ -93,6 +103,6 @@ func queueHandler(m *tg.NewMessage) error {
 		text = sb.String()
 	}
 
-	_, err := m.Reply(text)
+	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ParseMode: "HTML"})
 	return err
 }

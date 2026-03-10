@@ -12,7 +12,7 @@ import (
 	"ashokshau/tgmusic/config"
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -73,7 +73,7 @@ func InitDatabase(ctx context.Context) error {
 		return errors.New("failed to ping database: " + err.Error())
 	}
 
-	log.Println("[DB] The database connection has been successfully established.")
+	slog.Info("[DB] The database connection has been successfully established.")
 	return nil
 }
 
@@ -103,7 +103,7 @@ func (db *Database) getChat(ctx context.Context, chatID int64) (map[string]inter
 	}
 
 	if err != nil {
-		log.Printf("[DB] An error occurred while getting the chat: %v", err)
+		slog.Info("[DB] An error occurred while getting the chat", "error", err)
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (db *Database) AddChat(ctx context.Context, chatID int64) error {
 
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
-		log.Printf("[DB] A new chat has been added: %d", chatID)
+		slog.Info("[DB] A new chat has been added", "id", chatID)
 	}
 	return err
 }
@@ -299,7 +299,7 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		bson.M{"assistant": bson.M{"$exists": true}},
 	)
 	if err != nil {
-		log.Printf("[DB] Error finding chats with assistants: %v", err)
+		slog.Info("[DB] Error finding chats with assistants", "error", err)
 		return 0, err
 	}
 	defer func(cursor *mongo.Cursor, ctx context.Context) {
@@ -321,30 +321,13 @@ func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
 		bson.M{"$unset": bson.M{"assistant": ""}},
 	)
 	if err != nil {
-		log.Printf("[DB] Error clearing assistants: %v", err)
+		slog.Info("[DB] Error clearing assistants", "error", err)
 		return 0, err
 	}
 	for _, chatID := range chatIDs {
 		db.chatCache.Delete(toKey(chatID))
 	}
 	return result.ModifiedCount, nil
-}
-
-// GetRtmpUrl retrieves the rtmp_url for a chat.
-func (db *Database) GetRtmpUrl(ctx context.Context, chatID int64) (string, error) {
-	chat, _ := db.getChat(ctx, chatID)
-	if chat == nil {
-		return "", nil
-	}
-	if val, ok := chat["rtmp_url"].(string); ok {
-		return val, nil
-	}
-	return "", nil
-}
-
-// SetRtmpUrl sets the rtmp_url for a given chat.
-func (db *Database) SetRtmpUrl(ctx context.Context, chatID int64, url string) error {
-	return db.updateChatField(ctx, chatID, "rtmp_url", url)
 }
 
 // ----------------- AUTH USERS -----------------
@@ -591,6 +574,6 @@ func (db *Database) GetAllUsers(ctx context.Context) ([]int64, error) {
 
 // Close gracefully closes the database connection.
 func (db *Database) Close(ctx context.Context) error {
-	log.Println("[DB] Closing the database connection...")
+	slog.Info("[DB] Closing the database connection...")
 	return db.client.Disconnect(ctx)
 }

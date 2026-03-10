@@ -15,45 +15,64 @@ import (
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/vc"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // pauseHandler handles the /pause command.
-func pauseHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
+func pauseHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
+	}
+	m := ctx.EffectiveMessage
+	chatID := m.ChatId
+
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply("⏸ No track currently playing.")
+		_, _ = m.ReplyText(c, "⏸ No track currently playing.", nil)
 		return nil
 	}
 
 	if _, err := vc.Calls.Pause(chatID); err != nil {
-		_, _ = m.Reply(fmt.Sprintf("❌ An error occurred while pausing the playback: %s", err.Error()))
+		_, _ = m.ReplyText(c, fmt.Sprintf("❌ An error occurred while pausing the playback: %s", err.Error()), nil)
 		return nil
 	}
 
-	_, err := m.Reply(fmt.Sprintf("⏸️ Playback has been paused by %s.", m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("pause")})
+	user, err := c.GetUser(m.SenderID())
+	if err != nil {
+		user = &td.User{FirstName: "Unknown"}
+	}
+
+	_, err = m.ReplyText(c, fmt.Sprintf("⏸️ Playback has been paused by %s.", user.FirstName), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("pause")})
 	return err
 }
 
 // resumeHandler handles the /resume command.
-func resumeHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
+func resumeHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
+	}
+	m := ctx.EffectiveMessage
+	chatID := m.ChatId
 
 	if chatID > 0 {
-		_, _ = m.Reply("This command can only be used in a supergroup.")
+		_, _ = m.ReplyText(c, "This command can only be used in a supergroup.", nil)
 		return nil
 	}
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.Reply("⏸ No track currently playing.")
+		_, _ = m.ReplyText(c, "⏸ No track currently playing.", nil)
 		return nil
 	}
 
 	if _, err := vc.Calls.Resume(chatID); err != nil {
-		_, _ = m.Reply(fmt.Sprintf("❌ An error occurred while resuming the playback: %s", err.Error()))
+		_, _ = m.ReplyText(c, fmt.Sprintf("❌ An error occurred while resuming the playback: %s", err.Error()), nil)
 		return nil
 	}
 
-	_, err := m.Reply(fmt.Sprintf("▶️ Playback has been resumed by %s.", m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("resume")})
+	user, err := c.GetUser(m.SenderID())
+	if err != nil {
+		user = &td.User{FirstName: "Unknown", LastName: ""}
+	}
+
+	_, err = m.ReplyText(c, fmt.Sprintf("▶️ Playback has been resumed by %s.", user.FirstName), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("resume")})
 	return err
 }

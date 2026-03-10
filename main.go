@@ -11,18 +11,20 @@ package main
 import (
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src"
-	"log"
-	"time"
-
+	"ashokshau/tgmusic/src/handlers"
+	"fmt"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"path/filepath"
 
 	"ashokshau/tgmusic/src/vc"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
 )
 
-//go:generate go run setup_ntgcalls.go
+//go:generate go run github.com/AshokShau/gotdbot/scripts/tools@latest
 
 // main serves as the entry point for the application.
 func main() {
@@ -32,58 +34,75 @@ func main() {
 
 	go func() {
 		if err := http.ListenAndServe("0.0.0.0:"+config.Conf.Port, nil); err != nil {
-			log.Println("pprof server error:", err)
+			slog.Info("pprof server error", "error", err)
 		}
 	}()
 
-	clientConfig := tg.ClientConfig{
-		AppID:        config.Conf.ApiId,
-		AppHash:      config.Conf.ApiHash,
-		FloodHandler: handleFlood,
-		SessionName:  "bot",
-		LogLevel:     tg.InfoLevel,
+	logger := slog.New(
+		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level:     slog.LevelInfo,
+			AddSource: true,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+
+				// Shorter time
+				if a.Key == slog.TimeKey {
+					t := a.Value.Time()
+					a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05"))
+				}
+
+				// Short source (file.go:line)
+				if a.Key == slog.SourceKey {
+					source := a.Value.Any().(*slog.Source)
+					a.Value = slog.StringValue(fmt.Sprintf("%s:%d", filepath.Base(source.File), source.Line))
+				}
+
+				return a
+			},
+		}),
+	)
+
+	slog.SetDefault(logger)
+
+	clientConfig := &gotdbot.ClientConfig{
+		LibraryPath: "./libtdjson.so.1.8.62",
+		Logger:      logger,
+		DispatcherOpts: &gotdbot.DispatcherOpts{
+			ErrorHandler: func(c *gotdbot.Client, ctx *gotdbot.Context, err error) error {
+				logger.Error("Handler error", "error", err)
+				return nil
+			},
+		},
 	}
 
-	client, err := tg.NewClient(clientConfig)
+	client, err := gotdbot.NewClient(config.Conf.ApiId, config.Conf.ApiHash, config.Conf.Token, clientConfig)
 	if err != nil {
-		log.Fatalf("failed to create client: %v", err)
+		slog.Error("gotdbot.NewClient error", "error", err)
+		os.Exit(1)
 	}
 
-	_, err = client.Conn()
-	if err != nil {
-		log.Fatalf("failed to connect: %v", err)
-	}
+	gotdbot.SetTdlibLogStreamEmpty()
+	gotdbot.SetTdlibLogVerbosityLevel(2)
 
-	err = client.LoginBot(config.Conf.Token)
-	if err != nil {
-		log.Fatalf("failed to login: %v", err)
+	dispatcher := client.Dispatcher
+	if err = client.Start(); err != nil {
+		slog.Error("gotdbot.Start() error", "error", err)
+		os.Exit(1)
 	}
-
 	err = src.Init(client)
 	if err != nil {
 		panic(err)
 	}
 
-	userName := client.Me().Username
-	if userName == "" {
-		log.Fatal("failed to get bot username")
+	handlers.LoadModules(dispatcher)
+	me := client.Me()
+	username := ""
+	if me.Usernames != nil && len(me.Usernames.ActiveUsernames) > 0 {
+		username = me.Usernames.ActiveUsernames[0]
 	}
 
-	client.Log.Infof("The bot is running as @%s.", userName)
-	_, _ = client.SendMessage(config.Conf.LoggerId, "The bot has started!")
+	slog.Info("Bot started as @ (ID: )", "arg1", username, "id", me.Id)
+	_, _ = client.SendTextMessage(config.Conf.LoggerId, "The bot has started!", nil)
 	client.Idle()
-	log.Println("The bot is shutting down...")
+	slog.Info("The bot is shutting down...")
 	vc.Calls.StopAllClients()
-	_ = client.Stop()
-}
-
-// handleFlood manages flood wait errors by pausing execution for the specified duration.
-// It returns true if a flood wait error is handled, and false otherwise.
-func handleFlood(err error) bool {
-	if wait := tg.GetFloodWait(err); wait > 0 {
-		log.Printf("A flood wait has been detected. Sleeping for %ds (%v).", wait, err)
-		time.Sleep(time.Duration(wait) * time.Second)
-		return true
-	}
-	return false
 }

@@ -17,16 +17,21 @@ import (
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/vc"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // activeVcHandler handles the /activevc command.
 // It takes a telegram.NewMessage object as input.
 // It returns an error if any.
-func activeVcHandler(m *telegram.NewMessage) error {
+func activeVcHandler(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
+	}
+
+	m := ctx.EffectiveMessage
 	activeChats := cache.ChatCache.GetActiveChats()
 	if len(activeChats) == 0 {
-		_, err := m.Reply("No active chats found.")
+		_, err := m.ReplyText(c, "No active chats found.", nil)
 		return err
 	}
 
@@ -62,7 +67,7 @@ func activeVcHandler(m *telegram.NewMessage) error {
 		text = fmt.Sprintf("🎵 <b>Active Voice Chats</b> (%d)", len(activeChats))
 	}
 
-	_, err := m.Reply(text, &telegram.SendOptions{LinkPreview: false})
+	_, err := m.ReplyText(c, text, &td.SendTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 	if err != nil {
 		return err
 	}
@@ -71,63 +76,78 @@ func activeVcHandler(m *telegram.NewMessage) error {
 }
 
 // Handles the /clearass command to remove all assistant assignments
-func clearAssistantsHandler(m *telegram.NewMessage) error {
-	ctx, cancel := db.Ctx()
-	defer cancel()
-
-	done, err := db.Instance.ClearAllAssistants(ctx)
-	if err != nil {
-		_, _ = m.Reply(fmt.Sprintf("failed to clear assistants: %s", err.Error()))
-		return err
+func clearAssistantsHandler(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
 	}
 
-	_, err = m.Reply(fmt.Sprintf("Removed assistant from %d chats", done))
+	m := ctx.EffectiveMessage
+	ctx2, cancel := db.Ctx()
+	defer cancel()
+
+	done, err := db.Instance.ClearAllAssistants(ctx2)
+	if err != nil {
+		_, _ = m.ReplyText(c, fmt.Sprintf("failed to clear assistants: %s", err.Error()), nil)
+		return td.EndGroups
+	}
+
+	_, err = m.ReplyText(c, fmt.Sprintf("Removed assistant from %d chats", done), nil)
 	return err
 }
 
 // Handles the /leaveall command to leave all chats
-func leaveAllHandler(m *telegram.NewMessage) error {
-	reply, err := m.Reply("Assistant is leaving all chats...")
+func leaveAllHandler(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
+	}
+
+	m := ctx.EffectiveMessage
+	reply, err := m.ReplyText(c, "Assistant is leaving all chats...", nil)
 	if err != nil {
 		return err
 	}
 
 	leftCount, err := vc.Calls.LeaveAll()
 	if err != nil {
-		_, _ = reply.Edit(fmt.Sprintf("Failed to leave all chats: %s", err.Error()))
+		_, _ = reply.EditText(c, fmt.Sprintf("Failed to leave all chats: %s", err.Error()), nil)
 		return err
 	}
 
-	_, err = reply.Edit(fmt.Sprintf("Assistant's Left %d chats", leftCount))
+	_, err = reply.EditText(c, fmt.Sprintf("Assistant's Left %d chats", leftCount), nil)
 	return err
 }
 
 // Handles the /logger command to toggle logger status
-func loggerHandler(m *telegram.NewMessage) error {
-	ctx, cancel := db.Ctx()
-	defer cancel()
-	if config.Conf.LoggerId == 0 {
-		_, _ = m.Reply("Please set LOGGER_ID in .env first.")
-		return telegram.ErrEndGroup
+func loggerHandler(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
 	}
 
-	loggerStatus := db.Instance.GetLoggerStatus(ctx, m.Client.Me().ID)
-	args := strings.ToLower(m.Args())
+	m := ctx.EffectiveMessage
+	ctx2, cancel := db.Ctx()
+	defer cancel()
+	if config.Conf.LoggerId == 0 {
+		_, _ = m.ReplyText(c, "Please set LOGGER_ID in .env first.", nil)
+		return td.EndGroups
+	}
+
+	loggerStatus := db.Instance.GetLoggerStatus(ctx2, c.Me().Id)
+	args := strings.ToLower(Args(m))
 	if len(args) == 0 {
-		_, _ = m.Reply(fmt.Sprintf("Usage: /logger [enable|disable|on|off]\nCurrent status: %t", loggerStatus))
-		return telegram.ErrEndGroup
+		_, _ = m.ReplyText(c, fmt.Sprintf("Usage: /logger [enable|disable|on|off]\nCurrent status: %t", loggerStatus), nil)
+		return td.EndGroups
 	}
 
 	switch args {
 	case "enable", "on":
-		_ = db.Instance.SetLoggerStatus(ctx, m.Client.Me().ID, true)
-		_, _ = m.Reply("Logger Enabled")
+		_ = db.Instance.SetLoggerStatus(ctx2, c.Me().Id, true)
+		_, _ = m.ReplyText(c, "Logger Enabled", nil)
 	case "disable", "off":
-		_ = db.Instance.SetLoggerStatus(ctx, m.Client.Me().ID, false)
-		_, _ = m.Reply("Logger disabled")
+		_ = db.Instance.SetLoggerStatus(ctx2, c.Me().Id, false)
+		_, _ = m.ReplyText(c, "Logger disabled", nil)
 	default:
-		_, _ = m.Reply("Invalid argument. Use 'enable', 'disable', 'on', or 'off'.")
+		_, _ = m.ReplyText(c, "Invalid argument. Use 'enable', 'disable', 'on', or 'off'.", nil)
 	}
 
-	return telegram.ErrEndGroup
+	return td.EndGroups
 }

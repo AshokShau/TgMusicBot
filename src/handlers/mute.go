@@ -15,47 +15,67 @@ import (
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/vc"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // muteHandler handles the /mute command.
-func muteHandler(m *telegram.NewMessage) error {
-	if args := m.Args(); args != "" {
-		return telegram.ErrEndGroup
+func muteHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
 	}
 
-	chatID := m.ChannelID()
+	m := ctx.EffectiveMessage
+	if args := Args(m); args != "" {
+		return td.EndGroups
+	}
+
+	chatID := m.ChatId
 	if !cache.ChatCache.IsActive(chatID) {
-		_, err := m.Reply("⏸ No track currently playing.")
+		_, err := m.ReplyText(c, "⏸ No track currently playing.", nil)
 		return err
 	}
 
 	if _, err := vc.Calls.Mute(chatID); err != nil {
-		_, err = m.Reply(fmt.Sprintf("❌ An error occurred while muting the playback: %s", err.Error()))
+		_, err = m.ReplyText(c, fmt.Sprintf("❌ An error occurred while muting the playback: %s", err.Error()), nil)
 		return err
 	}
 
-	_, err := m.Reply(fmt.Sprintf("🔇 Playback has been muted by %s.", m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("mute")})
+	user, err := c.GetUser(m.SenderID())
+	if err != nil {
+		user = &td.User{FirstName: "Unknown"}
+	}
+
+	_, err = m.ReplyText(c, fmt.Sprintf("🔇 Playback has been muted by %s.", user.FirstName), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("mute")})
 	return err
 }
 
 // unmuteHandler handles the /unmute command.
-func unmuteHandler(m *telegram.NewMessage) error {
-	if args := m.Args(); args != "" {
-		return telegram.ErrEndGroup
+func unmuteHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
 	}
 
-	chatID := m.ChannelID()
+	m := ctx.EffectiveMessage
+	if args := Args(m); args != "" {
+		return td.EndGroups
+	}
+
+	chatID := m.ChatId
 	if !cache.ChatCache.IsActive(chatID) {
-		_, err := m.Reply("⏸ No track currently playing.")
+		_, err := m.ReplyText(c, "⏸ No track currently playing.", nil)
 		return err
 	}
 
 	if _, err := vc.Calls.Unmute(chatID); err != nil {
-		_, _ = m.Reply(fmt.Sprintf("❌ An error occurred while unmuting the playback: %s", err.Error()))
+		_, _ = m.ReplyText(c, fmt.Sprintf("❌ An error occurred while unmuting the playback: %s", err.Error()), nil)
 		return err
 	}
 
-	_, err := m.Reply(fmt.Sprintf("🔊 Playback has been unmuted by %s.", m.Sender.FirstName), &telegram.SendOptions{ReplyMarkup: core.ControlButtons("unmute")})
+	user, err := c.GetUser(m.SenderID())
+	if err != nil {
+		user = &td.User{FirstName: "Unknown"}
+	}
+
+	_, err = m.ReplyText(c, fmt.Sprintf("🔊 Playback has been unmuted by %s.", user.FirstName), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("unmute")})
 	return err
 }

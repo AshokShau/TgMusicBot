@@ -11,14 +11,13 @@ package src
 import (
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/core/db"
-	"ashokshau/tgmusic/src/handlers"
 	"ashokshau/tgmusic/src/vc"
 	"context"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	"github.com/AshokShau/gotdbot"
 )
 
-func Init(client *tg.Client) error {
+func Init(client *gotdbot.Client) error {
 	if err := db.InitDatabase(context.Background()); err != nil {
 		return err
 	}
@@ -31,7 +30,5 @@ func Init(client *tg.Client) error {
 	}
 
 	vc.Calls.RegisterHandlers(client)
-	handlers.LoadModules(client)
-
 	return nil
 }

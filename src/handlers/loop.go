@@ -14,31 +14,37 @@ import (
 
 	"ashokshau/tgmusic/src/core/cache"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 // loopHandler handles the /loop command.
-func loopHandler(m *telegram.NewMessage) error {
-	chatID := m.ChannelID()
+func loopHandler(c *td.Client, ctx *td.Context) error {
+	if !adminMode(c, ctx) {
+		return td.EndGroups
+	}
+
+	m := ctx.EffectiveMessage
+	chatID := m.ChatId
+
 	if !cache.ChatCache.IsActive(chatID) {
-		_, err := m.Reply("⏸ No track currently playing.")
+		_, err := m.ReplyText(c, "⏸ No track currently playing.", nil)
 		return err
 	}
 
-	args := m.Args()
+	args := Args(m)
 	if args == "" {
-		_, err := m.Reply("<b>🔁 Loop Control</b>\n\n<b>Usage:</b> <code>/loop [count]</code>\n• <code>0</code> to disable loop\n• <code>1-10</code> to set the loop count")
+		_, err := m.ReplyText(c, "<b>🔁 Loop Control</b>\n\n<b>Usage:</b> <code>/loop [count]</code>\n• <code>0</code> to disable loop\n• <code>1-10</code> to set the loop count", &td.SendTextMessageOpts{ParseMode: "HTML"})
 		return err
 	}
 
 	argsInt, err := strconv.Atoi(args)
 	if err != nil {
-		_, _ = m.Reply("❌ Invalid loop count provided. Please use a number between 0 and 10.")
+		_, _ = m.ReplyText(c, "❌ Invalid loop count provided. Please use a number between 0 and 10.", nil)
 		return nil
 	}
 
 	if argsInt < 0 || argsInt > 10 {
-		_, err = m.Reply("⚠️ The loop count must be between 0 and 10.")
+		_, err = m.ReplyText(c, "⚠️ The loop count must be between 0 and 10.", nil)
 		return err
 	}
 
@@ -50,6 +56,11 @@ func loopHandler(m *telegram.NewMessage) error {
 		action = fmt.Sprintf("The loop has been set to %d time(s)", argsInt)
 	}
 
-	_, err = m.Reply(fmt.Sprintf("🔁 %s.\n\n└ Changed by: %s", action, m.Sender.FirstName))
+	user, err := c.GetUser(m.SenderID())
+	if err != nil {
+		user = &td.User{FirstName: "Unknown"}
+	}
+
+	_, err = m.ReplyText(c, fmt.Sprintf("🔁 %s.\n\n└ Changed by: %s", action, user.FirstName), nil)
 	return err
 }

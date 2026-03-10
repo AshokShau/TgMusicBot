@@ -20,8 +20,7 @@ import (
 
 	"ashokshau/tgmusic/src/core/db"
 
-	"github.com/amarnathcjd/gogram/telegram"
-
+	td "github.com/AshokShau/gotdbot"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/process"
@@ -171,25 +170,30 @@ func gatherAppStats() *AppStats {
 	return stats
 }
 
-func sysStatsHandler(msg *telegram.NewMessage) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func statsHandler(c *td.Client, ctx *td.Context) error {
+	if !isDev(ctx) {
+		return td.EndGroups
+	}
+
+	msg := ctx.EffectiveMessage
+	ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	sysMsg, err := msg.Reply("Collecting system statistics...")
+	sysMsg, err := msg.ReplyText(c, "Collecting system statistics...", nil)
 	if err != nil {
 		return err
 	}
 
 	stats := gatherAppStats()
 
-	chats, _ := db.Instance.GetAllChats(ctx)
-	users, _ := db.Instance.GetAllUsers(ctx)
+	chats, _ := db.Instance.GetAllChats(ctx2)
+	users, _ := db.Instance.GetAllUsers(ctx2)
 
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf(
 		"<b>%s — Runtime Status</b>\n",
-		msg.Client.Me().FirstName,
+		c.Me().FirstName,
 	))
 	sb.WriteString(strings.Repeat("─", 36) + "\n\n")
 
@@ -249,6 +253,6 @@ func sysStatsHandler(msg *telegram.NewMessage) error {
 
 	sb.WriteString("\n" + strings.Repeat("─", 36))
 
-	_, _ = sysMsg.Edit(sb.String())
+	_, _ = sysMsg.EditText(c, sb.String(), &td.EditTextMessageOpts{ParseMode: "HTML"})
 	return nil
 }

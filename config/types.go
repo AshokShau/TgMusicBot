@@ -10,7 +10,7 @@ package config
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -157,7 +157,7 @@ func (c *BotConfig) validate() error {
 
 	if !isValidService(c.DefaultService) {
 		c.DefaultService = "youtube"
-		log.Printf("Invalid DEFAULT_SERVICE '%s', defaulting to 'youtube'", c.DefaultService)
+		slog.Info("Invalid DEFAULT_SERVICE '', defaulting to 'youtube'", "arg1", c.DefaultService)
 	}
 
 	return nil

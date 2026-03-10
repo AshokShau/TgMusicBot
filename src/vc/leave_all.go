@@ -33,7 +33,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 			return leftCount, fmt.Errorf("failed to get dialogs: %w", err)
 		}
 
-		logger.Info("for %s found %d dialogs", userBot.Me().FirstName, len(dialogs))
+		logger.Info("for  found  dialogs", "user_id", userBot.Me().FirstName, "arg2", len(dialogs))
 		activeChats := make(map[int64]bool)
 		for _, id := range cache.ChatCache.GetActiveChats() {
 			activeChats[id] = true
@@ -50,7 +50,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 			case *telegram.PeerUser:
 				continue
 			default:
-				logger.Warn("Unknown peer type: %T", peer)
+				logger.Warn("Unknown peer type", "arg1", peer)
 				continue
 			}
 
@@ -68,7 +68,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 				if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") || strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
 					continue
 				}
-				logger.Warn("Failed to leave chat %d: %v", chatID, err)
+				logger.Warn("Failed to leave chat", "chat_id", chatID, "error", err)
 				continue
 			}
 

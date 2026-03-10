@@ -10,11 +10,13 @@ package utils
 
 import (
 	"errors"
+	"fmt"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	td "github.com/AshokShau/gotdbot"
 )
 
 var (
@@ -23,7 +25,7 @@ var (
 )
 
 // GetMessage retrieves a Telegram message by its URL.
-func GetMessage(client *tg.Client, url string) (*tg.NewMessage, error) {
+func GetMessage(client *td.Client, url string) (*td.Message, error) {
 	url = strings.TrimSpace(url)
 	if url == "" {
 		return nil, errors.New("the provided URL is empty")
@@ -56,8 +58,42 @@ func GetMessage(client *tg.Client, url string) (*tg.NewMessage, error) {
 	}
 
 	if isPrivate {
-		return client.GetMessageByID(chatID, int32(msgID))
+		link := fmt.Sprintf("https://t.me/c/%d/%d", chatID, msgID)
+		info, err := client.GetMessageLinkInfo(link)
+		if err != nil {
+			slog.Info("failed to get message link info", "error", err)
+			return nil, err
+		}
+
+		msg := info.Message
+		if msg == nil {
+			msg, err = client.GetMessage(info.Message.ChatId, info.Message.Id)
+			if err != nil {
+				slog.Info("failed to get message", "error", err)
+				return nil, err
+			}
+			return msg, nil
+		}
+
+		return msg, nil
 	}
 
-	return client.GetMessageByID(username, int32(msgID))
+	link := fmt.Sprintf("https://t.me/%s/%d", username, msgID)
+	info, err := client.GetMessageLinkInfo(link)
+	if err != nil {
+		slog.Info("failed to get message link info", "error", err)
+		return nil, err
+	}
+
+	msg := info.Message
+	if msg == nil {
+		msg, err = client.GetMessage(info.Message.ChatId, info.Message.Id)
+		if err != nil {
+			slog.Info("failed to get message", "error", err)
+			return nil, err
+		}
+		return msg, nil
+	}
+
+	return msg, nil
 }
