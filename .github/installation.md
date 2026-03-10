@@ -137,7 +137,11 @@ Deploying with Docker is the easiest and recommended method.
 
 3.  **Generate necessary files:**
     ```sh
-    go generate
+    go run setup_ntgcalls.go
+    ```
+
+    ```bash
+    go run github.com/AshokShau/gotdbot/scripts/tools@latest
     ```
 
 4.  **Install dependencies and run the bot:**
@@ -259,7 +263,11 @@ For a more robust setup, use `systemd` to manage the bot as a service. This ensu
 
 4.  **Generate necessary files:**
     ```sh
-    go generate
+    go run setup_ntgcalls.go
+    ```
+
+    ```bash
+    go run github.com/AshokShau/gotdbot/scripts/tools@latest
     ```
 
 5.  **Install dependencies and run the bot:**

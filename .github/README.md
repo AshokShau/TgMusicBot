@@ -57,10 +57,14 @@
    cd TgMusicBot
    ```
 
-2. **Setup `ntgcalls`**
+2. **Setup `ntgcalls` & `gotdbot`**
    Download the required C++ libraries.
    ```bash
    go run setup_ntgcalls.go
+   ```
+
+   ```bash
+   go run github.com/AshokShau/gotdbot/scripts/tools@latest
    ```
 
 3. **Configure Environment**
