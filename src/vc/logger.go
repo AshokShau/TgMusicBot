@@ -34,7 +34,7 @@ func sendLogger(client *td.Client, chatID int64, song *utils.CachedTrack) {
 		song.IsVideo,
 	)
 
-	_, err := client.SendTextMessage(config.Conf.LoggerId, text, &td.SendTextMessageOpts{DisableWebPagePreview: false, ParseMode: "HTML"})
+	_, err := client.SendTextMessage(config.Conf.LoggerId, text, &td.SendTextMessageOpts{DisableWebPagePreview: true, ParseMode: "HTML"})
 	if err != nil {
 		logger.Warn("Failed to send the message", "error", err)
 	}
