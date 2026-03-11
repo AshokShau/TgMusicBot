@@ -21,7 +21,6 @@ import (
 // getTargetUserID gets the user ID from a message.
 func getTargetUserID(c *td.Client, m *td.Message) (int64, error) {
 	var userID int64
-
 	if m.ReplyToMessageID() != 0 {
 		replyMsg, err := m.GetRepliedMessage(c)
 		if err != nil {

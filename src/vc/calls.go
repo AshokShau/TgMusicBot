@@ -49,14 +49,36 @@ import (
 const DefaultStreamURL = "https://t.me/FallenSongs/1295"
 
 // getClientName selects an assistant client for a given chat. It prioritizes existing assignments from the database.
-func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
+func (c *TelegramCalls) getClientName(chatID int64, excludeClients []string) (string, error) {
 	c.mu.RLock()
 	if len(c.availableClients) == 0 {
 		c.mu.RUnlock()
 		return "", fmt.Errorf("no clients are available")
 	}
-	availableClients := make([]string, len(c.availableClients))
-	copy(availableClients, c.availableClients)
+	var availableClients []string
+	if len(excludeClients) > 0 {
+		for _, client := range c.availableClients {
+			excluded := false
+			for _, ex := range excludeClients {
+				if client == ex {
+					excluded = true
+					break
+				}
+			}
+			if !excluded {
+				availableClients = append(availableClients, client)
+			}
+		}
+	} else {
+		availableClients = make([]string, len(c.availableClients))
+		copy(availableClients, c.availableClients)
+	}
+
+	if len(availableClients) == 0 {
+		// Fallback if all are excluded
+		availableClients = make([]string, len(c.availableClients))
+		copy(availableClients, c.availableClients)
+	}
 	c.mu.RUnlock()
 
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(availableClients))))
@@ -65,7 +87,6 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 		return availableClients[0], nil
 	}
 	newClient := availableClients[n.Int64()]
-
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
@@ -87,7 +108,7 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 			return assignedClient, nil
 		}
 
-		slog.Info("[TelegramCalls] Assigned assistant  is unavailable. Overwriting with .", "arg1", assignedClient, "arg2", newClient)
+		slog.Info("[TelegramCalls] Assigned assistant is unavailable or excluded. Overwriting with .", "arg1", assignedClient, "arg2", newClient)
 		if err = db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
 			slog.Info("[TelegramCalls] DB.SetAssistant error", "error", err)
 		}
@@ -103,8 +124,8 @@ func (c *TelegramCalls) getClientName(chatID int64) (string, error) {
 }
 
 // GetGroupAssistant retrieves the ubot.Context for a given chat, which is used to interact with the voice call.
-func (c *TelegramCalls) GetGroupAssistant(chatID int64) (*ubot.Context, error) {
-	clientName, err := c.getClientName(chatID)
+func (c *TelegramCalls) GetGroupAssistant(chatID int64, excludeClients ...string) (*ubot.Context, error) {
+	clientName, err := c.getClientName(chatID, excludeClients)
 	if err != nil {
 		return nil, err
 	}
@@ -215,15 +236,17 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 	defer cancel()
 
 	if chatID < 0 {
-		if err := c.joinAssistant(chatID, call.App.Me().ID); err != nil {
+		var joinErr error
+		call, joinErr = c.JoinAssistant(chatID)
+		if joinErr != nil {
 			cache.ChatCache.ClearChat(chatID)
-			return err
+			return joinErr
 		}
 	} else {
 		_, _ = call.App.ResolvePeer(chatID)
 	}
 
-	//slog.Info("Playing media in chat", "id", chatID, "arg2", filePath)
+	slog.Debug("Playing media in chat", "id", chatID, "path", filePath)
 
 	mediaDesc := getMediaDescription(filePath, video, ffmpegParameters)
 	if err = call.Play(chatID, mediaDesc); err != nil {
@@ -322,8 +345,9 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	)
 
 	_, err = reply.EditText(c.bot, text, &td.EditTextMessageOpts{
-		ReplyMarkup: core.ControlButtons("play"),
-		ParseMode:   "HTMl",
+		ReplyMarkup:           core.ControlButtons("play"),
+		ParseMode:             "HTMl",
+		DisableWebPagePreview: true,
 	})
 
 	if err != nil {
@@ -359,7 +383,7 @@ func (c *TelegramCalls) Pause(chatId int64) (bool, error) {
 
 	res, err := call.Pause(chatId)
 	if err != nil {
-		slog.Info("[Pause] Failed to pause the call", "error", err)
+		slog.Warn("[Pause] Failed to pause the call", "error", err)
 	}
 	return res, err
 }
@@ -373,7 +397,7 @@ func (c *TelegramCalls) Resume(chatId int64) (bool, error) {
 	}
 	res, err := call.Resume(chatId)
 	if err != nil {
-		slog.Info("[Resume] Failed to resume the call", "error", err)
+		slog.Warn("[Resume] Failed to resume the call", "error", err)
 	}
 	return res, err
 }
@@ -387,7 +411,7 @@ func (c *TelegramCalls) Mute(chatId int64) (bool, error) {
 	}
 	res, err := call.Mute(chatId)
 	if err != nil {
-		slog.Info("[Mute] Failed to mute the call", "error", err)
+		slog.Warn("[Mute] Failed to mute the call", "error", err)
 	}
 	return res, err
 }
@@ -401,7 +425,7 @@ func (c *TelegramCalls) Unmute(chatId int64) (bool, error) {
 	}
 	res, err := call.Unmute(chatId)
 	if err != nil {
-		slog.Info("[Unmute] Failed to unmute the call", "error", err)
+		slog.Warn("[Unmute] Failed to unmute the call", "error", err)
 	}
 	return res, err
 }
@@ -467,7 +491,6 @@ func (c *TelegramCalls) ChangeSpeed(chatID int64, speed float64) error {
 	audioFilter := audioFilterBuilder.String()
 
 	ffmpegFilters := fmt.Sprintf("-filter:v setpts=%f*PTS -filter:a %s", videoPTS, audioFilter)
-
 	return c.PlayMedia(chatID, playingSong.FilePath, playingSong.IsVideo, ffmpegFilters)
 }
 

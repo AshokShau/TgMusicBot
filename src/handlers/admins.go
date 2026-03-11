@@ -17,7 +17,6 @@ import (
 	"ashokshau/tgmusic/src/core/cache"
 
 	"github.com/AshokShau/gotdbot"
-	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
 const reloadCooldown = 3 * time.Minute
@@ -45,7 +44,7 @@ func reloadAdminCacheHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	reply, err := m.ReplyText(c, "🔄 Reloading admin cache...", nil)
 	if err != nil {
 		c.Logger.Warn("Failed to send reloading message for chat", "chat_id", m.ChatId, "error", err)
-		return tg.ErrEndGroup
+		return gotdbot.EndGroups
 	}
 
 	cache.ClearAdminCache(m.ChatId)

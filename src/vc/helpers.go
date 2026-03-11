@@ -23,15 +23,22 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// handleFlood manages flood wait errors by pausing execution for the specified duration.
-// It returns true if a flood wait error is handled, and false otherwise.
+// handleFlood manages flood wait errors by pausing execution for short waits.
+// It sleeps only if the wait is <= 10 seconds. Otherwise it returns false.
 func handleFlood(err error) bool {
-	if wait := telegram.GetFloodWait(err); wait > 0 {
-		logger.Warn("A flood wait has been detected. Sleeping for s.", "arg1", wait)
-		time.Sleep(time.Duration(wait) * time.Second)
-		return true
+	wait := telegram.GetFloodWait(err)
+	if wait <= 0 {
+		return false
 	}
-	return false
+
+	if wait > 10 {
+		logger.Warn("Flood wait too long, skipping sleep", "seconds", wait)
+		return false
+	}
+
+	logger.Warn("Flood wait detected, sleeping", "seconds", wait)
+	time.Sleep(time.Duration(wait) * time.Second)
+	return true
 }
 
 func getVideoDimensions(filePath string) (int, int) {

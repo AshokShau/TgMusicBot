@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"ashokshau/tgmusic/src/core/cache"
+	"ashokshau/tgmusic/src/core/db"
+	"ashokshau/tgmusic/src/vc/ubot"
 
 	td "github.com/AshokShau/gotdbot"
 )
@@ -38,7 +40,7 @@ func (c *TelegramCalls) joinAssistant(chatID, ubID int64) error {
 		return c.joinUb(chatID)
 
 	case td.ChatMemberStatusBanned{}, td.ChatMemberStatusRestricted{}:
-		//isMuted := status == td.ChatMemberStatusRestricted{}
+		isMuted := status == td.ChatMemberStatusRestricted{}
 		isBanned := status == td.ChatMemberStatusBanned{}
 		logger.Info("The assistant appears to be . Attempting to unban and rejoin...", "arg1", status)
 		botStatus, err := cache.GetUserAdmin(c.bot, chatID, c.bot.Me().Id, false)
@@ -66,14 +68,20 @@ func (c *TelegramCalls) joinAssistant(chatID, ubID int64) error {
 			)
 		}
 
-		err = c.bot.SetChatMemberStatus(chatID, td.MessageSenderUser{UserId: ubID}, &td.ChatMemberStatusMember{})
-		if err != nil {
-			logger.Warn("Failed to unban the assistant", "error", err)
-			return fmt.Errorf("failed to unban the assistant (<code>%d</code>): %v", ubID, err)
+		if isBanned {
+			err = c.bot.SetChatMemberStatus(chatID, td.MessageSenderUser{UserId: ubID}, &td.ChatMemberStatusMember{})
+			if err != nil {
+				logger.Warn("Failed to unban the assistant", "error", err)
+				return fmt.Errorf("failed to unban the assistant (<code>%d</code>): %v", ubID, err)
+			}
+			return c.joinUb(chatID)
 		}
 
-		if isBanned {
-			return c.joinUb(chatID)
+		if isMuted {
+			//err := c.bot.SetChatMemberStatus(chatID, td.MessageSenderUser{UserId: ubID}, &td.ChatMemberStatusMember{})
+			//if err != nil {
+			//	logger.Warn("Failed to unmute the assistant", "error", err)
+			//}
 		}
 
 		return nil
@@ -82,6 +90,65 @@ func (c *TelegramCalls) joinAssistant(chatID, ubID int64) error {
 		logger.Warn("The user status is unknown: ; attempting to join.", "arg1", status)
 		return c.joinUb(chatID)
 	}
+}
+
+// JoinAssistant attempts to join an assistant to the chat. If the assigned assistant fails,
+// it iterates through available assistants until one succeeds or all fail.
+func (c *TelegramCalls) JoinAssistant(chatID int64) (*ubot.Context, error) {
+	ctx, cancel := db.Ctx()
+	defer cancel()
+
+	var call *ubot.Context
+	var err error
+	var excludedClients []string
+
+	c.mu.RLock()
+	totalClients := len(c.availableClients)
+	c.mu.RUnlock()
+
+	if totalClients == 0 {
+		return nil, fmt.Errorf("no clients are available")
+	}
+
+	for i := 0; i < totalClients; i++ {
+		call, err = c.GetGroupAssistant(chatID, excludedClients...)
+		if err != nil {
+			return nil, err
+		}
+
+		err = c.joinAssistant(chatID, call.App.Me().ID)
+		if err != nil {
+			slog.Info("Assistant failed to join chat", "chat_id", chatID, "assistant_id", call.App.Me().ID, "error", err)
+
+			if i < totalClients-1 {
+				var currentClientName string
+				c.mu.RLock()
+				for name, ctxCall := range c.uBContext {
+					if ctxCall == call {
+						currentClientName = name
+						break
+					}
+				}
+				c.mu.RUnlock()
+				if currentClientName != "" {
+					excludedClients = append(excludedClients, currentClientName)
+				}
+
+				_ = db.Instance.RemoveAssistant(ctx, chatID)
+
+				cacheKey := fmt.Sprintf("%d:%d", chatID, call.App.Me().ID)
+				c.statusCache.Delete(cacheKey)
+
+				continue
+			} else {
+				return nil, err
+			}
+		}
+
+		break
+	}
+
+	return call, nil
 }
 
 // checkUserStats checks the membership status of a user in a given chat.
@@ -128,7 +195,7 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 	if cached, ok := c.inviteCache.Get(cacheKey); ok && cached != "" {
 		link = cached
 	} else {
-		chatLink, err := c.bot.CreateChatInviteLink(chatID, 0, 5, "FallenBeatz", &td.CreateChatInviteLinkOpts{CreatesJoinRequest: false})
+		chatLink, err := c.bot.CreateChatInviteLink(chatID, 0, 10, "FallenBeatz", &td.CreateChatInviteLinkOpts{CreatesJoinRequest: false})
 		if err != nil {
 			logger.Warn("Failed to create invite link", "error", err)
 			return fmt.Errorf("failed to create invite link: %v", err)
@@ -140,6 +207,7 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 			return errors.New("failed to get/create invite link")
 		}
 
+		link = strings.Replace(link, "https://t.me/+", "https://t.me/joinchat/", 1)
 		c.UpdateInviteLink(chatID, link)
 	}
 
@@ -154,7 +222,7 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 			time.Sleep(1 * time.Second)
 			err = c.bot.ProcessChatJoinRequest(chatID, userID, &td.ProcessChatJoinRequestOpts{Approve: true})
 			if err != nil {
-				slog.Info("Failed to approve chat join request", "error", err)
+				slog.Warn("Failed to approve chat join request", "error", err)
 				return fmt.Errorf(
 					"my assistant (<code>%d</code>) has already requested to join this group",
 					userID,
@@ -179,7 +247,7 @@ func (c *TelegramCalls) joinUb(chatID int64) error {
 			return fmt.Errorf("my assistant (<code>%d</code>) is banned from this group", userID)
 		}
 
-		logger.Info("Failed to join channel", "error", err)
+		logger.Warn("Failed to join channel", "error", err)
 		return err
 	}
 
