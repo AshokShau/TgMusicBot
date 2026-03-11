@@ -69,11 +69,7 @@ func (c *TelegramCalls) joinAssistant(chatID, ubID int64) error {
 		}
 
 		if isBanned {
-			err = c.bot.SetChatMemberStatus(chatID, td.MessageSenderUser{UserId: ubID}, &td.ChatMemberStatusMember{})
-			if err != nil {
-				logger.Warn("Failed to unban the assistant", "error", err)
-				return fmt.Errorf("failed to unban the assistant (<code>%d</code>): %v", ubID, err)
-			}
+			_ = c.bot.SetChatMemberStatus(chatID, td.MessageSenderUser{UserId: ubID}, &td.ChatMemberStatusMember{})
 			return c.joinUb(chatID)
 		}
 
