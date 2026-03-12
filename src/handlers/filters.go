@@ -69,14 +69,6 @@ func adminMode(c *td.Client, ctx *td.Context) bool {
 		return false
 	}
 
-	if getAdminMode == utils.Auth {
-		if db.Instance.IsAuthUser(ctx2, chatID, userID) {
-			return true
-		}
-		_, _ = m.ReplyText(c, "❌ You are not an authorized user in this chat.", nil)
-		return false
-	}
-
 	_, _ = m.ReplyText(c, "❌ You are not an authorized user in this chat.", nil)
 	return false
 }
@@ -126,14 +118,6 @@ func adminModeCB(c *td.Client, cb *td.UpdateNewCallbackQuery) bool {
 			return true
 		}
 		_ = cb.Answer(c, 300, true, "❌ You are not an admin in this chat.", "")
-		return false
-	}
-
-	if getAdminMode == utils.Auth {
-		if db.Instance.IsAuthUser(ctx, chatID, userID) {
-			return true
-		}
-		_ = cb.Answer(c, 300, true, "❌ You are not an authorized user in this chat.", "")
 		return false
 	}
 

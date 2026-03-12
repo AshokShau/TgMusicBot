@@ -77,7 +77,6 @@ func SettingsKeyboard(playMode, adminMode string) *gotdbot.ReplyMarkupInlineKeyb
 
 			{
 				createButton("Admins", "play", utils.Admins, playMode),
-				createButton("Auth", "play", utils.Auth, playMode),
 				createButton("Everyone", "play", utils.Everyone, playMode),
 			},
 
@@ -85,7 +84,6 @@ func SettingsKeyboard(playMode, adminMode string) *gotdbot.ReplyMarkupInlineKeyb
 
 			{
 				createButton("Admins", "admin", utils.Admins, adminMode),
-				createButton("Auth", "admin", utils.Auth, adminMode),
 				createButton("Everyone", "admin", utils.Everyone, adminMode),
 			},
 

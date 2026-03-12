@@ -68,7 +68,6 @@ const (
 const (
 	Admins   = "admins"
 	Everyone = "everyone"
-	Auth     = "auth"
 )
 
 // FFProbeFormat defines the structure for parsing the format information from ffprobe's JSON output.

@@ -109,7 +109,6 @@ func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 	// Validate the setting value
 	validValues := map[string]bool{
 		utils.Admins:   true,
-		utils.Auth:     true,
 		utils.Everyone: true,
 	}
 
@@ -120,7 +119,7 @@ func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 
 	switch settingType {
 	case "play":
-		adminPlay := settingValue == utils.Admins || settingValue == utils.Auth
+		adminPlay := settingValue == utils.Admins
 		_ = db.Instance.SetPlayMode(ctx2, chatID, adminPlay)
 	case "admin":
 		_ = db.Instance.SetAdminMode(ctx2, chatID, settingValue)
