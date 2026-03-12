@@ -19,7 +19,36 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-// adminMode checks if the bot is an admin in the chat.
+// checkBotAdmin verifies the bot is an admin with CanInviteUsers permission.
+// Returns true if the bot is owner/admin with required rights, false otherwise.
+func checkBotAdmin(c *td.Client, chatID int64, replyErr func(msg string)) bool {
+	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me().Id, false)
+	if err != nil {
+		if strings.Contains(err.Error(), "is not an admin in chat") {
+			replyErr("❌ Bot is not an admin in this chat.\nPlease promote me with Invite Users permission.")
+		} else {
+			c.Logger.Warn("GetUserAdmin error", "error", err)
+			replyErr("⚠️ Failed to get bot admin status.")
+		}
+		return false
+	}
+
+	switch s := botStatus.Status.(type) {
+	case *td.ChatMemberStatusCreator:
+		return true
+	case *td.ChatMemberStatusAdministrator:
+		if s.Rights == nil || !s.Rights.CanInviteUsers {
+			replyErr("⚠️ Bot doesn't have permission to invite users.")
+			return false
+		}
+		return true
+	default:
+		replyErr("❌ Bot is not an admin in this chat.\nUse /reload to refresh admin cache.")
+		return false
+	}
+}
+
+// adminMode checks if the bot is an admin in the chat and enforces admin mode restrictions.
 func adminMode(c *td.Client, ctx *td.Context) bool {
 	m := ctx.EffectiveMessage
 	if m.IsPrivate() {
@@ -27,115 +56,55 @@ func adminMode(c *td.Client, ctx *td.Context) bool {
 	}
 
 	chatID := m.ChatId
-	ctx2, cancel := db.Ctx()
+	dbCtx, cancel := db.Ctx()
 	defer cancel()
 
-	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me().Id, false)
-	if err != nil {
-		if strings.Contains(err.Error(), "is not an admin in chat") {
-			_, _ = m.ReplyText(c, "❌ bot is not admin in this chat.\nPlease promote me with Invite Users permission.", nil)
-			return false
-		}
-
-		c.Logger.Warn("GetUserAdmin error", "error", err)
-		_, _ = m.ReplyText(c, "⚠️ Failed to get bot admin status (cache or fetch failed).", nil)
-		return false
-	}
-
-	switch s := botStatus.Status.(type) {
-	case *td.ChatMemberStatusCreator:
-		return true
-	case *td.ChatMemberStatusAdministrator:
-		if s.Rights == nil || !s.Rights.CanInviteUsers {
-			_, _ = m.ReplyText(c, "⚠️ bot doesn’t have permission to invite users.", nil)
-			return false
-		}
-
-	default:
-		_, _ = m.ReplyText(c, "❌ bot is not admin in this chat.\nUse /reload to refresh admin cache.", nil)
+	if !checkBotAdmin(c, chatID, func(msg string) { _, _ = m.ReplyText(c, msg, nil) }) {
 		return false
 	}
 
 	userID := m.SenderID()
-	getAdminMode := db.Instance.GetAdminMode(ctx2, chatID)
-	if getAdminMode == utils.Everyone {
+	switch db.Instance.GetAdminMode(dbCtx, chatID) {
+	case utils.Everyone:
 		return true
-	}
-
-	if getAdminMode == utils.Admins {
-		if db.Instance.IsAdmin(ctx2, chatID, userID) {
+	case utils.Admins:
+		if db.Instance.IsAdmin(dbCtx, chatID, userID) || db.Instance.IsAuthUser(dbCtx, chatID, userID) {
 			return true
 		}
-		if db.Instance.IsAuthUser(ctx2, chatID, userID) {
-			return true
-		}
-
 		_, _ = m.ReplyText(c, "❌ You are not an admin in this chat.", nil)
 		return false
+	default:
+		_, _ = m.ReplyText(c, "❌ You are not an authorized user in this chat.", nil)
+		return false
 	}
-
-	_, _ = m.ReplyText(c, "❌ You are not an authorized user in this chat.", nil)
-	return false
 }
 
 func adminModeCB(c *td.Client, cb *td.UpdateNewCallbackQuery) bool {
 	chatID := cb.ChatId
-	ctx, cancel := db.Ctx()
+	dbCtx, cancel := db.Ctx()
 	defer cancel()
 
-	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me().Id, false)
-	if err != nil {
-		if strings.Contains(err.Error(), "is not an admin in chat") {
-			_ = cb.Answer(c, 300, true, "❌ bot is not admin in this chat.\nPlease promote me with Invite Users permission.", "")
-			return false
-		}
-
-		c.Logger.Warn("GetUserAdmin error", "error", err)
-		_ = cb.Answer(c, 300, true, "⚠️ Failed to get bot admin status (cache or fetch failed).", "")
+	if !checkBotAdmin(c, chatID, func(msg string) { _ = cb.Answer(c, 300, true, msg, "") }) {
 		return false
 	}
 
-	switch s := botStatus.Status.(type) {
-
-	case *td.ChatMemberStatusCreator:
-		// creator always has full permissions
-		return true
-
-	case *td.ChatMemberStatusAdministrator:
-		if s.Rights == nil || !s.Rights.CanInviteUsers {
-			_ = cb.Answer(c, 300, true, "⚠️ bot doesn’t have permission to invite users.", "")
-			return false
-		}
-
-	default:
-		_ = cb.Answer(c, 300, true, "❌ bot is not admin in this chat.\nUse /reload to refresh admin cache.", "")
-		return false
-	}
 	userID := cb.SenderUserId
-
-	getAdminMode := db.Instance.GetAdminMode(ctx, chatID)
-	if getAdminMode == utils.Everyone {
+	switch db.Instance.GetAdminMode(dbCtx, chatID) {
+	case utils.Everyone:
 		return true
-	}
-
-	// Auth + Admin can use cmd if admin mode is admins only
-	if getAdminMode == utils.Admins {
-		if db.Instance.IsAdmin(ctx, chatID, userID) {
+	case utils.Admins:
+		if db.Instance.IsAdmin(dbCtx, chatID, userID) || db.Instance.IsAuthUser(dbCtx, chatID, userID) {
 			return true
 		}
-
-		if db.Instance.IsAuthUser(ctx, chatID, userID) {
-			return true
-		}
-
 		_ = cb.Answer(c, 300, true, "❌ You are not an admin in this chat.", "")
 		return false
+	default:
+		_ = cb.Answer(c, 300, true, "❌ You are not an authorized user in this chat.", "")
+		return false
 	}
-
-	_ = cb.Answer(c, 300, true, "❌ You are not an authorized user in this chat.", "")
-	return false
 }
 
+// playMode checks if the bot is an admin and enforces play mode restrictions.
 func playMode(c *td.Client, ctx *td.Context) bool {
 	m := ctx.EffectiveMessage
 	if m.IsPrivate() {
@@ -146,27 +115,7 @@ func playMode(c *td.Client, ctx *td.Context) bool {
 	dbCtx, cancel := db.Ctx()
 	defer cancel()
 
-	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me().Id, false)
-	if err != nil {
-		if strings.Contains(err.Error(), "is not an admin in chat") {
-			_, _ = m.ReplyText(c, "❌ Bot is not an admin in this chat.\nPlease promote me with Invite Users permission.", nil)
-		} else {
-			c.Logger.Warn("GetUserAdmin error", "error", err)
-			_, _ = m.ReplyText(c, "⚠️ Failed to get bot admin status.", nil)
-		}
-		return false
-	}
-
-	switch s := botStatus.Status.(type) {
-	case *td.ChatMemberStatusAdministrator:
-		if s.Rights == nil || !s.Rights.CanInviteUsers {
-			_, _ = m.ReplyText(c, "⚠️ Bot doesn't have permission to invite users.", nil)
-			return false
-		}
-	case *td.ChatMemberStatusCreator:
-		// owner always passes
-	default:
-		_, _ = m.ReplyText(c, "❌ Bot is not an admin in this chat.\nUse /reload to refresh admin cache.", nil)
+	if !checkBotAdmin(c, chatID, func(msg string) { _, _ = m.ReplyText(c, msg, nil) }) {
 		return false
 	}
 
