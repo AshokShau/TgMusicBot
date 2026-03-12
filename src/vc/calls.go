@@ -48,84 +48,83 @@ import (
 
 const DefaultStreamURL = "https://t.me/FallenSongs/1295"
 
-// getClientName selects an assistant client for a given chat. It prioritizes existing assignments from the database.
-func (c *TelegramCalls) getClientName(chatID int64, excludeClients []string) (string, error) {
+// getClientIndex selects an assistant client index for a given chat. It prioritizes existing assignments from the database.
+func (c *TelegramCalls) getClientIndex(chatID int64, excludeIndices []int) (int, error) {
 	c.mu.RLock()
-	if len(c.availableClients) == 0 {
-		c.mu.RUnlock()
-		return "", fmt.Errorf("no clients are available")
-	}
-	var availableClients []string
-	if len(excludeClients) > 0 {
-		for _, client := range c.availableClients {
-			excluded := false
-			for _, ex := range excludeClients {
-				if client == ex {
-					excluded = true
-					break
-				}
-			}
-			if !excluded {
-				availableClients = append(availableClients, client)
-			}
-		}
-	} else {
-		availableClients = make([]string, len(c.availableClients))
-		copy(availableClients, c.availableClients)
-	}
-
-	if len(availableClients) == 0 {
-		// Fallback if all are excluded
-		availableClients = make([]string, len(c.availableClients))
-		copy(availableClients, c.availableClients)
-	}
+	totalClients := len(c.availableClients)
 	c.mu.RUnlock()
 
-	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(availableClients))))
+	if totalClients == 0 {
+		return 0, fmt.Errorf("no clients are available")
+	}
+
+	var availableIndices []int
+	for i := 1; i <= totalClients; i++ {
+		excluded := false
+		for _, ex := range excludeIndices {
+			if i == ex {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			availableIndices = append(availableIndices, i)
+		}
+	}
+
+	if len(availableIndices) == 0 {
+		// Fallback if all are excluded
+		for i := 1; i <= totalClients; i++ {
+			availableIndices = append(availableIndices, i)
+		}
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(availableIndices))))
 	if err != nil {
 		slog.Info("[TelegramCalls] Could not generate a random number", "error", err)
-		return availableClients[0], nil
+		return availableIndices[0], nil
 	}
-	newClient := availableClients[n.Int64()]
+	newClientIndex := availableIndices[n.Int64()]
+
 	ctx, cancel := db.Ctx()
 	defer cancel()
 
-	assignedClient, err := db.Instance.AssignAssistant(ctx, chatID, newClient)
+	assignedIndex, err := db.Instance.AssignAssistant(ctx, chatID, newClientIndex)
 	if err != nil {
 		slog.Info("[TelegramCalls] DB.AssignAssistant error", "error", err)
 	}
 
-	if assignedClient != "" {
+	if assignedIndex != 0 {
 		isAvailable := false
-		for _, name := range availableClients {
-			if name == assignedClient {
+		for _, idx := range availableIndices {
+			if idx == assignedIndex {
 				isAvailable = true
 				break
 			}
 		}
 
 		if isAvailable {
-			return assignedClient, nil
+			return assignedIndex, nil
 		}
 
-		slog.Info("[TelegramCalls] Assigned assistant is unavailable or excluded. Overwriting with .", "arg1", assignedClient, "arg2", newClient)
-		if err = db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
+		slog.Info("[TelegramCalls] Assigned assistant is unavailable or excluded. Overwriting with .", "arg1", assignedIndex, "arg2", newClientIndex)
+		if err = db.Instance.SetAssistant(ctx, chatID, newClientIndex); err != nil {
 			slog.Info("[TelegramCalls] DB.SetAssistant error", "error", err)
 		}
-		return newClient, nil
+		return newClientIndex, nil
 	}
 
-	if err = db.Instance.SetAssistant(ctx, chatID, newClient); err != nil {
+	if err = db.Instance.SetAssistant(ctx, chatID, newClientIndex); err != nil {
 		slog.Info("[TelegramCalls] DB.SetAssistant error", "error", err)
 	}
 
-	slog.Info("[TelegramCalls] An assistant has been set for chat  ->", "id", chatID, "arg2", newClient)
-	return newClient, nil
+	slog.Info("[TelegramCalls] An assistant has been set for chat  ->", "id", chatID, "arg2", newClientIndex)
+	return newClientIndex, nil
 }
 
 // GetGroupAssistant retrieves the ubot.Context for a given chat, which is used to interact with the voice call.
-func (c *TelegramCalls) GetGroupAssistant(chatID int64, excludeClients ...string) (*ubot.Context, error) {
-	clientName, err := c.getClientName(chatID, excludeClients)
+func (c *TelegramCalls) GetGroupAssistant(chatID int64, excludeIndices ...int) (*ubot.Context, error) {
+	clientIndex, err := c.getClientIndex(chatID, excludeIndices)
 	if err != nil {
 		return nil, err
 	}
@@ -133,9 +132,10 @@ func (c *TelegramCalls) GetGroupAssistant(chatID int64, excludeClients ...string
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	clientName := fmt.Sprintf("client%d", clientIndex-1)
 	call, ok := c.uBContext[clientName]
 	if !ok {
-		return nil, fmt.Errorf("no ntgcalls instance was found for %s", clientName)
+		return nil, fmt.Errorf("no ntgcalls instance was found for %s (index %d)", clientName, clientIndex)
 	}
 	return call, nil
 }

@@ -50,6 +50,10 @@ func settingsHandler(c *td.Client, ctx *td.Context) error {
 
 	// Get current settings
 	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
+	playModeStr := utils.Everyone
+	if getPlayMode {
+		playModeStr = utils.Admins
+	}
 	getAdminMode := db.Instance.GetAdminMode(ctx2, chatID)
 
 	chat, err := m.GetChat(c)
@@ -59,9 +63,9 @@ func settingsHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
-		chat.Title, getPlayMode, getAdminMode)
+		chat.Title, playModeStr, getAdminMode)
 
-	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode)})
+	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode)})
 	return err
 }
 
@@ -116,7 +120,8 @@ func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 
 	switch settingType {
 	case "play":
-		_ = db.Instance.SetPlayMode(ctx2, chatID, settingValue)
+		adminPlay := settingValue == utils.Admins || settingValue == utils.Auth
+		_ = db.Instance.SetPlayMode(ctx2, chatID, adminPlay)
 	case "admin":
 		_ = db.Instance.SetAdminMode(ctx2, chatID, settingValue)
 	default:
@@ -126,6 +131,10 @@ func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 
 	// Get updated settings
 	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
+	playModeStr := utils.Everyone
+	if getPlayMode {
+		playModeStr = utils.Admins
+	}
 	getAdminMode := db.Instance.GetAdminMode(ctx2, chatID)
 	chat, err := c.GetChat(chatID)
 	if err != nil {
@@ -134,9 +143,9 @@ func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
-		chat.Title, getPlayMode, getAdminMode)
+		chat.Title, playModeStr, getAdminMode)
 
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(getPlayMode, getAdminMode)})
+	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode)})
 	if err != nil {
 		return err
 	}

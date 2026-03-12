@@ -107,10 +107,10 @@ func (c *TelegramCalls) JoinAssistant(chatID int64) (*ubot.Context, error) {
 		return nil, errors.New("no clients are available")
 	}
 
-	var excludedClients []string
+	var excludedIndices []int
 
 	for i := 0; i < totalClients; i++ {
-		call, err := c.GetGroupAssistant(chatID, excludedClients...)
+		call, err := c.GetGroupAssistant(chatID, excludedIndices...)
 		if err != nil {
 			return nil, err
 		}
@@ -121,9 +121,9 @@ func (c *TelegramCalls) JoinAssistant(chatID int64) (*ubot.Context, error) {
 			slog.Info("assistant failed to join chat",
 				"chat_id", chatID, "assistant_id", assistantID, "error", err)
 
-			// Find this client's name to exclude it on the next iteration.
-			if name := c.clientNameFor(call); name != "" {
-				excludedClients = append(excludedClients, name)
+			// Find this client's index to exclude it on the next iteration.
+			if index := c.clientIndexFor(call); index != 0 {
+				excludedIndices = append(excludedIndices, index)
 			}
 
 			cacheKey := fmt.Sprintf("%d:%d", chatID, assistantID)
@@ -143,17 +143,21 @@ func (c *TelegramCalls) JoinAssistant(chatID int64) (*ubot.Context, error) {
 	return nil, errors.New("all assistants failed to join")
 }
 
-// clientNameFor returns the uBContext key for the given call, or "" if not found.
+// clientIndexFor returns the uBContext key for the given call as an index (1-based), or 0 if not found.
 // Caller must not hold mu.
-func (c *TelegramCalls) clientNameFor(call *ubot.Context) string {
+func (c *TelegramCalls) clientIndexFor(call *ubot.Context) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	for name, ctx := range c.uBContext {
 		if ctx == call {
-			return name
+			var index int
+			_, err := fmt.Sscanf(name, "client%d", &index)
+			if err == nil {
+				return index + 1
+			}
 		}
 	}
-	return ""
+	return 0
 }
 
 // checkUserStats returns the assistant's membership status in chatID.

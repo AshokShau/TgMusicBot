@@ -177,7 +177,7 @@ func playMode(c *td.Client, ctx *td.Context) bool {
 	}
 
 	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
-	if getPlayMode != utils.Everyone {
+	if getPlayMode {
 		admins, err := cache.GetAdmins(c, chatID, false)
 		if err != nil {
 			c.Logger.Warn("getAdmins error", "error", err)
@@ -194,12 +194,7 @@ func playMode(c *td.Client, ctx *td.Context) bool {
 		}
 
 		if !isAdmin {
-			if getPlayMode == utils.Auth {
-				if !db.Instance.IsAuthUser(ctx2, chatID, m.SenderID()) {
-					_, _ = m.ReplyText(c, "You are not authorized to use this command.", nil)
-					return false
-				}
-			} else {
+			if !db.Instance.IsAuthUser(ctx2, chatID, m.SenderID()) {
 				_, _ = m.ReplyText(c, "You are not authorized to use this command.", nil)
 				return false
 			}

@@ -1,0 +1,174 @@
+/*
+ * TgMusicBot - Telegram Music Bot
+ *  Copyright (c) 2025-2026 Ashok Shau
+ *
+ *  Licensed under GNU GPL v3
+ *  See https://github.com/AshokShau/TgMusicBot
+ */
+
+package db
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+// Chats represents a chat document in the database.
+type Chats struct {
+	ID        int64  `bson:"_id"`
+	PlayType  int    `bson:"play_type"`
+	AdminPlay bool   `bson:"admin_play"`
+	AdminMode string `bson:"admin_mode"`
+	CmdDelete bool   `bson:"cmd_delete"`
+}
+
+// getChat retrieves a chat's data from the cache or database.
+func (db *Database) getChat(ctx context.Context, chatID int64) (*Chats, error) {
+	key := toKey(chatID)
+	if cached, ok := db.chatCache.Get(key); ok {
+		return cached, nil
+	}
+
+	var chat Chats
+	var err error
+
+	for i := 0; i < 3; i++ {
+		err = db.chatDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&chat)
+		if err == nil {
+			break
+		}
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if err != nil {
+		slog.Info("[DB] An error occurred while getting the chat", "error", err)
+		return nil, err
+	}
+
+	db.chatCache.Set(key, &chat)
+	return &chat, nil
+}
+
+// AddChat adds a new chat to the database if it does not already exist.
+func (db *Database) AddChat(ctx context.Context, chatID int64) error {
+	chat, _ := db.getChat(ctx, chatID)
+	if chat != nil {
+		return nil // Chat already exists.
+	}
+
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.UpdateOne().SetUpsert(true))
+	if err == nil {
+		slog.Info("[DB] A new chat has been added", "id", chatID)
+	}
+	return err
+}
+
+// GetPlayType retrieves the play type setting for a chat.
+func (db *Database) GetPlayType(ctx context.Context, chatID int64) int {
+	chat, _ := db.getChat(ctx, chatID)
+	if chat == nil {
+		return 0
+	}
+	return chat.PlayType
+}
+
+// SetPlayType sets the play type for a given chat.
+func (db *Database) SetPlayType(ctx context.Context, chatID int64, playType int) error {
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"play_type": playType}}, options.UpdateOne().SetUpsert(true))
+	if err == nil {
+		db.chatCache.Delete(toKey(chatID))
+	}
+	return err
+}
+
+// GetPlayMode retrieves the play mode for a chat.
+func (db *Database) GetPlayMode(ctx context.Context, chatID int64) bool {
+	chat, _ := db.getChat(ctx, chatID)
+	if chat == nil {
+		return false
+	}
+	return chat.AdminPlay
+}
+
+// SetPlayMode sets the play mode for a given chat.
+func (db *Database) SetPlayMode(ctx context.Context, chatID int64, adminPlay bool) error {
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"admin_play": adminPlay}}, options.UpdateOne().SetUpsert(true))
+	if err == nil {
+		db.chatCache.Delete(toKey(chatID))
+	}
+	return err
+}
+
+// GetAdminMode retrieves the admin mode for a chat.
+func (db *Database) GetAdminMode(ctx context.Context, chatID int64) string {
+	chat, _ := db.getChat(ctx, chatID)
+	if chat == nil || chat.AdminMode == "" {
+		return "everyone"
+	}
+	return chat.AdminMode
+}
+
+// SetAdminMode sets the admin mode for a given chat.
+func (db *Database) SetAdminMode(ctx context.Context, chatID int64, adminMode string) error {
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"admin_mode": adminMode}}, options.UpdateOne().SetUpsert(true))
+	if err == nil {
+		db.chatCache.Delete(toKey(chatID))
+	}
+	return err
+}
+
+// GetCmdDelete retrieves the command delete setting for a chat.
+func (db *Database) GetCmdDelete(ctx context.Context, chatID int64) bool {
+	chat, _ := db.getChat(ctx, chatID)
+	if chat == nil {
+		return false
+	}
+	return chat.CmdDelete
+}
+
+// SetCmdDelete sets the command delete setting for a given chat.
+func (db *Database) SetCmdDelete(ctx context.Context, chatID int64, cmdDelete bool) error {
+	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"cmd_delete": cmdDelete}}, options.UpdateOne().SetUpsert(true))
+	if err == nil {
+		db.chatCache.Delete(toKey(chatID))
+	}
+	return err
+}
+
+// GetAllChats retrieves a list of all chat IDs from the database.
+func (db *Database) GetAllChats(ctx context.Context) ([]int64, error) {
+	cursor, err := db.chatDB.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		_ = cursor.Close(ctx)
+	}(cursor, ctx)
+
+	var chats []int64
+	for cursor.Next(ctx) {
+		var doc Chats
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, err
+		}
+		chats = append(chats, doc.ID)
+		db.chatCache.Set(toKey(doc.ID), &doc)
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+	return chats, nil
+}

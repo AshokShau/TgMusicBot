@@ -11,10 +11,7 @@ package db
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var ctxBg = context.Background()
@@ -22,49 +19,6 @@ var ctxBg = context.Background()
 // toKey converts an int64 ID into a string format suitable for use as a cache key.
 func toKey(id int64) string {
 	return fmt.Sprintf("%d", id)
-}
-
-// getIntSlice safely converts an interface value into a slice of int64.
-// It handles various numeric types and returns a boolean indicating the success of the conversion.
-func getIntSlice(v interface{}) ([]int64, bool) {
-	if v == nil {
-		return []int64{}, false
-	}
-
-	switch val := v.(type) {
-	case []int64:
-		return val, true
-	case []interface{}:
-		return convertInterfaceSlice(val)
-	case bson.A:
-		return convertInterfaceSlice(val)
-	default:
-		slog.Info("Unexpected type encountered in getIntSlice", "arg1", v)
-		return []int64{}, false
-	}
-}
-
-// convertInterfaceSlice converts a slice of interfaces to a slice of int64
-func convertInterfaceSlice(arr []interface{}) ([]int64, bool) {
-	var out []int64
-	for _, i := range arr {
-		switch n := i.(type) {
-		case int:
-			out = append(out, int64(n))
-		case int32:
-			out = append(out, int64(n))
-		case int64:
-			out = append(out, n)
-		case float64:
-			if n == float64(int64(n)) {
-				out = append(out, int64(n))
-			}
-		default:
-			slog.Info("Unhandled numeric type in convertInterfaceSlice", "arg1", n)
-			return nil, false
-		}
-	}
-	return out, true
 }
 
 // contains checks if a given int64 slice contains a specific ID.

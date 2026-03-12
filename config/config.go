@@ -33,7 +33,7 @@ func LoadConfig() error {
 		SessionStrings:    getSessionStrings("STRING", 10),
 		SessionType:       getEnvStr("SESSION_TYPE", "pyrogram"),
 		MongoUri:          os.Getenv("MONGO_URI"),
-		DbName:            getEnvStr("DB_NAME", "MusicBot"),
+		DbName:            getEnvStr("DB_NAME", "Anon"),
 		ApiUrl:            getEnvStr("API_URL", "https://beta.fallenapi.fun"),
 		ApiKey:            os.Getenv("API_KEY"),
 		OwnerId:           getEnvInt64("OWNER_ID"),
