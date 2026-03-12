@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-// ChatData holds the state of a chat's music queue, including whether it is active and the list of tracks.
+// ChatData holds the state of a chat's music queue.
 type ChatData struct {
 	Queue []*utils.CachedTrack
 }
@@ -31,40 +31,50 @@ func newChatCacher() *ChatCacher {
 	}
 }
 
-// AddSong adds a new song to a chat's queue. If the chat does not exist, it creates a new one.
-// It takes a chat ID and a CachedTrack to add, and returns the new length of the queue.
+// getOrCreate returns the ChatData for a chat, creating it if absent.
+// Caller must hold the write lock.
+func (c *ChatCacher) getOrCreate(chatID int64) *ChatData {
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		data = &ChatData{}
+		c.chatCache[chatID] = data
+	}
+	return data
+}
+
+// AddSong adds a track to a chat's queue and returns the new queue length.
 func (c *ChatCacher) AddSong(chatID int64, song *utils.CachedTrack) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	data, ok := c.chatCache[chatID]
-	if !ok {
-		data = &ChatData{Queue: []*utils.CachedTrack{}}
-		c.chatCache[chatID] = data
-	}
-
+	data := c.getOrCreate(chatID)
 	data.Queue = append(data.Queue, song)
 	return len(data.Queue)
 }
 
-// AddSongs adds multiple songs to a chat's queue. If the chat does not exist, it creates a new one.
-// It takes a chat ID and a slice of CachedTracks to add, and returns the new length of the queue.
+// AddSongs appends multiple tracks to a chat's queue and returns the new queue length.
 func (c *ChatCacher) AddSongs(chatID int64, songs []*utils.CachedTrack) int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	data, ok := c.chatCache[chatID]
-	if !ok {
-		data = &ChatData{Queue: []*utils.CachedTrack{}}
-		c.chatCache[chatID] = data
-	}
-
+	data := c.getOrCreate(chatID)
 	data.Queue = append(data.Queue, songs...)
 	return len(data.Queue)
 }
 
-// GetUpcomingTrack retrieves the next song in the queue for a given chat.
-// It returns the upcoming track or nil if the queue is empty or has only one song.
+// GetPlayingTrack returns the first track in the queue, or nil if empty.
+func (c *ChatCacher) GetPlayingTrack(chatID int64) *utils.CachedTrack {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok || len(data.Queue) == 0 {
+		return nil
+	}
+	return data.Queue[0]
+}
+
+// GetUpcomingTrack returns the second track in the queue, or nil if fewer than two tracks exist.
 func (c *ChatCacher) GetUpcomingTrack(chatID int64) *utils.CachedTrack {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -76,22 +86,7 @@ func (c *ChatCacher) GetUpcomingTrack(chatID int64) *utils.CachedTrack {
 	return data.Queue[1]
 }
 
-// GetPlayingTrack retrieves the currently playing song for a given chat.
-// It returns the current track or nil if the queue is empty.
-func (c *ChatCacher) GetPlayingTrack(chatID int64) *utils.CachedTrack {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	data, ok := c.chatCache[chatID]
-	if !ok || len(data.Queue) == 0 {
-		return nil
-	}
-
-	return data.Queue[0]
-}
-
-// RemoveCurrentSong removes the currently playing song from the queue.
-// It returns the removed track or nil if the queue was empty.
+// RemoveCurrentSong removes and returns the currently playing track, or nil if the queue is empty.
 func (c *ChatCacher) RemoveCurrentSong(chatID int64) *utils.CachedTrack {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -102,13 +97,30 @@ func (c *ChatCacher) RemoveCurrentSong(chatID int64) *utils.CachedTrack {
 	}
 
 	removed := data.Queue[0]
+	data.Queue[0] = nil // release reference for GC
 	data.Queue = data.Queue[1:]
-
 	return removed
 }
 
-// IsActive checks if the music player is currently active in a specific chat.
-// It returns true if there is at least one song in the queue.
+// RemoveTrack removes the track at the given index and returns whether it succeeded.
+func (c *ChatCacher) RemoveTrack(chatID int64, index int) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok || index < 0 || index >= len(data.Queue) {
+		return false
+	}
+
+	// Nil out the slot before shrinking to allow GC of the evicted pointer.
+	q := data.Queue
+	copy(q[index:], q[index+1:])
+	q[len(q)-1] = nil
+	data.Queue = q[:len(q)-1]
+	return true
+}
+
+// IsActive returns true if the chat has at least one queued track.
 func (c *ChatCacher) IsActive(chatID int64) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -117,20 +129,21 @@ func (c *ChatCacher) IsActive(chatID int64) bool {
 	return ok && len(data.Queue) > 0
 }
 
-// ClearChat removes all tracks from a chat's queue.
+// ClearChat deletes all queued tracks for a chat.
 func (c *ChatCacher) ClearChat(chatID int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, ok := c.chatCache[chatID]
-	if !ok {
-		return
+	// Nil out all pointers before deleting so GC can reclaim the tracks immediately.
+	if data, ok := c.chatCache[chatID]; ok {
+		for i := range data.Queue {
+			data.Queue[i] = nil
+		}
+		delete(c.chatCache, chatID)
 	}
-
-	delete(c.chatCache, chatID)
 }
 
-// GetQueueLength returns the total number of songs in a chat's queue.
+// GetQueueLength returns the number of tracks queued for a chat.
 func (c *ChatCacher) GetQueueLength(chatID int64) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -142,7 +155,7 @@ func (c *ChatCacher) GetQueueLength(chatID int64) int {
 	return len(data.Queue)
 }
 
-// GetLoopCount retrieves the loop count for the currently playing song in a chat.
+// GetLoopCount returns the loop count of the currently playing track, or 0 if none.
 func (c *ChatCacher) GetLoopCount(chatID int64) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -154,8 +167,8 @@ func (c *ChatCacher) GetLoopCount(chatID int64) int {
 	return data.Queue[0].Loop
 }
 
-// SetLoopCount sets the loop count for the currently playing song.
-// It returns true if the loop count was successfully set, otherwise false.
+// SetLoopCount sets the loop count on the currently playing track.
+// Returns false if there is no active track.
 func (c *ChatCacher) SetLoopCount(chatID int64, loop int) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -168,39 +181,24 @@ func (c *ChatCacher) SetLoopCount(chatID int64, loop int) bool {
 	return true
 }
 
-// RemoveTrack removes a specific song from the queue by its index.
-// It returns true if the track was successfully removed, otherwise false.
-func (c *ChatCacher) RemoveTrack(chatID int64, index int) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	data, ok := c.chatCache[chatID]
-	if !ok || index < 0 || index >= len(data.Queue) {
-		return false
-	}
-
-	data.Queue = append(data.Queue[:index], data.Queue[index+1:]...)
-	return true
-}
-
-// GetQueue returns a copy of the current song queue for a chat.
+// GetQueue returns a shallow copy of the queue for a chat.
 func (c *ChatCacher) GetQueue(chatID int64) []*utils.CachedTrack {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	data, ok := c.chatCache[chatID]
-	if !ok {
-		return []*utils.CachedTrack{}
+	if !ok || len(data.Queue) == 0 {
+		return nil // prefer nil over empty alloc for zero-length queues
 	}
 	return append([]*utils.CachedTrack(nil), data.Queue...)
 }
 
-// GetActiveChats returns a list of all chat IDs where the music player is currently active.
+// GetActiveChats returns the IDs of all chats with at least one queued track.
 func (c *ChatCacher) GetActiveChats() []int64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	var active []int64
+	active := make([]int64, 0, len(c.chatCache)) // pre-size to avoid reallocs
 	for chatID, data := range c.chatCache {
 		if len(data.Queue) > 0 {
 			active = append(active, chatID)
@@ -209,8 +207,7 @@ func (c *ChatCacher) GetActiveChats() []int64 {
 	return active
 }
 
-// GetTrackIfExists searches for a track in the queue by its ID and returns it if found.
-// It returns the track or nil if it does not exist in the queue.
+// GetTrackIfExists searches the queue for a track by ID and returns it, or nil if not found.
 func (c *ChatCacher) GetTrackIfExists(chatID int64, trackID string) *utils.CachedTrack {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -219,7 +216,6 @@ func (c *ChatCacher) GetTrackIfExists(chatID int64, trackID string) *utils.Cache
 	if !ok {
 		return nil
 	}
-
 	for _, t := range data.Queue {
 		if t.TrackID == trackID {
 			return t
@@ -228,5 +224,5 @@ func (c *ChatCacher) GetTrackIfExists(chatID int64, trackID string) *utils.Cache
 	return nil
 }
 
-// ChatCache is the global chat cacher.
+// ChatCache is the global instance.
 var ChatCache = newChatCacher()

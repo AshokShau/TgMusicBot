@@ -84,8 +84,8 @@ func handlePlay(c *td.Client, ctx *td.Context, isVideo bool) error {
 		return handleMultipleTracks(c, m, updater, tracks, chatID, isVideo)
 	}
 
-	if username, msgID, ok := parseTelegramURL(input); ok {
-		rMsg, err = utils.GetMessage(c, fmt.Sprintf("https://t.me/%s/%d", username, msgID))
+	if match := utils.TelegramMessageRegex.FindStringSubmatch(input); match != nil {
+		rMsg, err = utils.GetMessage(c, input)
 		if err != nil {
 			_, err = m.ReplyText(c, "❌ Invalid Telegram link.", nil)
 			return err

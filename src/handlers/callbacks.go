@@ -133,7 +133,7 @@ func playCallbackHandler(c *td.Client, ctx *td.Context) error {
 		}
 		_ = cb.Answer(c, 300, false, "Track unmuted.", "")
 		text := buildTrackMessage("Now Playing", "🎵") + fmt.Sprintf("\n\n🔊 <i>Unmuted by %s</i>", user.FirstName)
-		_, _ = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons("unmute")})
+		_, _ = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons("unmute"), DisableWebPagePreview: true})
 		return nil
 	case strings.Contains(data, "play_add_to_list"):
 		playlists, err := db.Instance.GetUserPlaylists(ctx2, cb.SenderUserId)
@@ -178,7 +178,7 @@ func playCallbackHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	text := buildTrackMessage("Now Playing", "🎵")
-	_, _ = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons("resume"), ParseMode: "HTML"})
+	_, _ = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons("resume"), ParseMode: "HTML", DisableWebPagePreview: true})
 	return nil
 }
 

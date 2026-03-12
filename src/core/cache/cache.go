@@ -13,70 +13,134 @@ import (
 	"time"
 )
 
-// Item represents an item stored in the cache, containing a value and its expiration time.
+// Item holds a cached value and its expiration time.
 type Item[T any] struct {
 	Value      T
 	Expiration time.Time
 }
 
-// Cache is a generic, thread-safe TTL cache that stores values with string keys.
+// Cache is a generic, thread-safe TTL cache with automatic background eviction.
 type Cache[T any] struct {
-	data map[string]Item[T]
 	mu   sync.RWMutex
+	data map[string]Item[T]
 	ttl  time.Duration
+	stop chan struct{}
 }
 
-// NewCache initializes and returns a new Cache with a specified default TTL.
-// The ttl parameter sets the default time-to-live duration for cache items.
+// NewCache creates a Cache with the given default TTL and starts a background
+// goroutine that evicts expired entries every cleanupInterval.
+// Call Close() when the cache is no longer needed to stop the goroutine.
 func NewCache[T any](ttl time.Duration) *Cache[T] {
-	return &Cache[T]{
+	// Cleanup runs at half the TTL (at least every 30 s) so entries are
+	// evicted reasonably promptly without hammering the lock.
+	cleanupInterval := ttl / 2
+	if cleanupInterval < 30*time.Second {
+		cleanupInterval = 30 * time.Second
+	}
+
+	c := &Cache[T]{
 		data: make(map[string]Item[T]),
 		ttl:  ttl,
+		stop: make(chan struct{}),
 	}
+	go c.runCleanup(cleanupInterval)
+	return c
 }
 
-// Get retrieves a value from the cache by its key.
-// It returns the cached value and true if the key exists and has not expired; otherwise, it returns the zero value and false.
+// Get returns the value for key and true if it exists and has not expired.
+// Expired entries are deleted on access (lazy eviction in addition to background sweep).
 func (c *Cache[T]) Get(key string) (T, bool) {
+	// Fast path: read lock.
 	c.mu.RLock()
 	item, ok := c.data[key]
 	c.mu.RUnlock()
 
-	if !ok || time.Now().After(item.Expiration) {
+	if !ok {
 		var zero T
 		return zero, false
 	}
+
+	if time.Now().After(item.Expiration) {
+		// Lazy delete: upgrade to write lock and evict.
+		c.mu.Lock()
+		// Re-check under write lock; another goroutine may have refreshed it.
+		if it, still := c.data[key]; still && time.Now().After(it.Expiration) {
+			delete(c.data, key)
+		}
+		c.mu.Unlock()
+
+		var zero T
+		return zero, false
+	}
+
 	return item.Value, true
 }
 
-// Set adds or updates a value in the cache with the default TTL.
-// It takes a key and a value to store.
+// Set stores value under key using the default TTL.
 func (c *Cache[T]) Set(key string, value T) {
 	c.SetWithTTL(key, value, c.ttl)
 }
 
-// SetWithTTL adds or updates a value in the cache with a custom TTL, overriding the default.
-// It takes a key, a value, and a custom TTL duration.
+// SetWithTTL stores value under key with a custom TTL.
 func (c *Cache[T]) SetWithTTL(key string, value T, ttl time.Duration) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	c.data[key] = Item[T]{
 		Value:      value,
 		Expiration: time.Now().Add(ttl),
 	}
+	c.mu.Unlock()
 }
 
-// Delete removes an item from the cache by its key.
+// Delete removes key from the cache immediately.
 func (c *Cache[T]) Delete(key string) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	delete(c.data, key)
+	c.mu.Unlock()
 }
 
-// Clear purges all items from the cache, making it empty.
+// Clear evicts all items at once.
 func (c *Cache[T]) Clear() {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.data = make(map[string]Item[T])
+	c.mu.Unlock()
+}
+
+// Size returns the number of entries currently in the cache (including not-yet-evicted expired ones).
+func (c *Cache[T]) Size() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.data)
+}
+
+// Close stops the background cleanup goroutine.
+// The cache remains usable after Close; only background eviction stops.
+func (c *Cache[T]) Close() {
+	close(c.stop)
+}
+
+// runCleanup periodically scans and removes expired entries.
+func (c *Cache[T]) runCleanup(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			c.evictExpired()
+		case <-c.stop:
+			return
+		}
+	}
+}
+
+// evictExpired removes all entries whose TTL has elapsed.
+func (c *Cache[T]) evictExpired() {
+	now := time.Now()
+	c.mu.Lock()
+	for key, item := range c.data {
+		if now.After(item.Expiration) {
+			delete(c.data, key)
+		}
+	}
+	c.mu.Unlock()
 }

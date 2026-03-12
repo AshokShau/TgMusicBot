@@ -3,9 +3,12 @@
 *.dat
 .env
 /downloads
-ntgcalls.h
-libntgcalls.a
-libntgcalls.so
 /cache
 app
 /src/cookies
+
+ntgcalls.h
+libntgcalls.a
+libntgcalls.so
+libtdjson.so.*
+libtdjson.so

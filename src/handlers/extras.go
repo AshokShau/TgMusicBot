@@ -10,30 +10,10 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src/utils"
-	"strconv"
 	"strings"
 
 	"github.com/AshokShau/gotdbot"
 )
-
-func parseTelegramURL(input string) (string, int, bool) {
-	if input == "" {
-		return "", 0, false
-	}
-
-	match := utils.TelegramMessageRegex.FindStringSubmatch(input)
-	if match == nil {
-		return "", 0, false
-	}
-
-	id, err := strconv.Atoi(match[2])
-	if err != nil {
-		return "", 0, false
-	}
-
-	return match[1], id, true
-}
 
 func Args(m *gotdbot.Message) string {
 	Messages := strings.Split(m.Text(), " ")

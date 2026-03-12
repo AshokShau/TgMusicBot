@@ -382,7 +382,7 @@ func (db *Database) GetAuthUsers(ctx context.Context, chatID int64) []int64 {
 
 // IsAuthUser checks if a specific user is in the list of authorized users for a chat.
 func (db *Database) IsAuthUser(ctx context.Context, chatID, userID int64) bool {
-	admins, err := cache.GetChatAdmins(chatID)
+	admins, err := cache.GetChatAdminIDs(chatID)
 	if err != nil || admins == nil {
 		admins = []int64{}
 	}
@@ -397,7 +397,7 @@ func (db *Database) IsAuthUser(ctx context.Context, chatID, userID int64) bool {
 
 // IsAdmin checks if a specific user is an administrator in a chat.
 func (db *Database) IsAdmin(_ context.Context, chatID, userID int64) bool {
-	admins, err := cache.GetChatAdmins(chatID)
+	admins, err := cache.GetChatAdminIDs(chatID)
 	if err != nil || admins == nil {
 		admins = []int64{}
 	}

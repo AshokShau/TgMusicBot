@@ -73,7 +73,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 			}
 
 			leftCount++
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(2 * time.Second)
 		}
 	}
 
