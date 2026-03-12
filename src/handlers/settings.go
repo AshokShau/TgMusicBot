@@ -65,7 +65,7 @@ func settingsHandler(c *td.Client, ctx *td.Context) error {
 	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
 		chat.Title, playModeStr, getAdminMode)
 
-	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode)})
+	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode), ParseMode: td.ParseModeHTML})
 	return err
 }
 
@@ -145,7 +145,7 @@ func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
 		chat.Title, playModeStr, getAdminMode)
 
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode)})
+	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode), ParseMode: td.ParseModeHTML})
 	if err != nil {
 		return err
 	}
