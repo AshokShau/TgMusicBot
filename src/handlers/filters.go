@@ -10,6 +10,7 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/src/utils"
+	"slices"
 	"strings"
 
 	"ashokshau/tgmusic/src/core/cache"
@@ -65,6 +66,10 @@ func adminMode(c *td.Client, ctx *td.Context) bool {
 		if db.Instance.IsAdmin(ctx2, chatID, userID) {
 			return true
 		}
+		if db.Instance.IsAuthUser(ctx2, chatID, userID) {
+			return true
+		}
+
 		_, _ = m.ReplyText(c, "❌ You are not an admin in this chat.", nil)
 		return false
 	}
@@ -113,10 +118,16 @@ func adminModeCB(c *td.Client, cb *td.UpdateNewCallbackQuery) bool {
 		return true
 	}
 
+	// Auth + Admin can use cmd if admin mode is admins only
 	if getAdminMode == utils.Admins {
 		if db.Instance.IsAdmin(ctx, chatID, userID) {
 			return true
 		}
+
+		if db.Instance.IsAuthUser(ctx, chatID, userID) {
+			return true
+		}
+
 		_ = cb.Answer(c, 300, true, "❌ You are not an admin in this chat.", "")
 		return false
 	}
@@ -132,56 +143,49 @@ func playMode(c *td.Client, ctx *td.Context) bool {
 	}
 
 	chatID := m.ChatID()
-	ctx2, cancel := db.Ctx()
+	dbCtx, cancel := db.Ctx()
 	defer cancel()
 
 	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me().Id, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an admin in chat") {
-			_, _ = m.ReplyText(c, "❌ bot is not admin in this chat.\nPlease promote me with Invite Users permission.", nil)
-			return false
+			_, _ = m.ReplyText(c, "❌ Bot is not an admin in this chat.\nPlease promote me with Invite Users permission.", nil)
+		} else {
+			c.Logger.Warn("GetUserAdmin error", "error", err)
+			_, _ = m.ReplyText(c, "⚠️ Failed to get bot admin status.", nil)
 		}
-
-		c.Logger.Warn("GetUserAdmin error", "error", err)
-		_, _ = m.ReplyText(c, "⚠️ Failed to get bot admin status (cache or fetch failed).", nil)
 		return false
 	}
 
 	switch s := botStatus.Status.(type) {
-	case *td.ChatMemberStatusCreator:
-		return true
 	case *td.ChatMemberStatusAdministrator:
 		if s.Rights == nil || !s.Rights.CanInviteUsers {
-			_, _ = m.ReplyText(c, "⚠️ bot doesn’t have permission to invite users.", nil)
+			_, _ = m.ReplyText(c, "⚠️ Bot doesn't have permission to invite users.", nil)
 			return false
 		}
+	case *td.ChatMemberStatusCreator:
+		// owner always passes
 	default:
-		_, _ = m.ReplyText(c, "❌ bot is not admin in this chat.\nUse /reload to refresh admin cache.", nil)
+		_, _ = m.ReplyText(c, "❌ Bot is not an admin in this chat.\nUse /reload to refresh admin cache.", nil)
 		return false
 	}
 
-	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
-	if getPlayMode {
+	// only admins + auth users can play if play mode is enabled
+	if db.Instance.GetPlayMode(dbCtx, chatID) {
 		admins, err := cache.GetAdmins(c, chatID, false)
 		if err != nil {
 			c.Logger.Warn("getAdmins error", "error", err)
 			return false
 		}
 
-		var isAdmin bool
-		for _, admin := range admins {
-			// check if sender is an admin in the chat
-			if admin.MemberId == m.SenderId {
-				isAdmin = true
-				break
-			}
-		}
+		senderID := m.SenderID()
+		isAdmin := slices.ContainsFunc(admins, func(a *td.ChatMember) bool {
+			return SenderID(a.MemberId) == senderID
+		})
 
-		if !isAdmin {
-			if !db.Instance.IsAuthUser(ctx2, chatID, m.SenderID()) {
-				_, _ = m.ReplyText(c, "You are not authorized to use this command.", nil)
-				return false
-			}
+		if !isAdmin && !db.Instance.IsAuthUser(dbCtx, chatID, senderID) {
+			_, _ = m.ReplyText(c, "🚫 Play mode is enabled. Only admins and authorized users can play.", nil)
+			return false
 		}
 	}
 
