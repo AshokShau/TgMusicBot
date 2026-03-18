@@ -65,7 +65,7 @@ func isValidMedia(reply *td.Message) bool {
 		if msg.Document == nil {
 			return false
 		}
-		mime := msg.Document.MimeType
+		mime := strings.ToLower(msg.Document.MimeType)
 		if strings.HasPrefix(mime, "audio/") || strings.HasPrefix(mime, "video/") {
 			return true
 		}
