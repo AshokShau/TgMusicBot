@@ -11,5 +11,9 @@ package ubot
 import "ashokshau/tgmusic/src/vc/ntgcalls"
 
 func (ctx *Context) Time(chatId int64, streamMode ntgcalls.StreamMode) (uint64, error) {
+	chatMutex := ctx.getChatMutex(chatId)
+	chatMutex.Lock()
+	defer chatMutex.Unlock()
+
 	return ctx.binding.Time(chatId, streamMode)
 }

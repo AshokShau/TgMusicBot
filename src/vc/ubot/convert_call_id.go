@@ -11,6 +11,8 @@ package ubot
 import "fmt"
 
 func (ctx *Context) convertCallId(callId int64) (int64, error) {
+	ctx.stateMutex.Lock()
+	defer ctx.stateMutex.Unlock()
 	for chatId, inputCall := range ctx.inputCalls {
 		if inputCall.ID == callId {
 			return chatId, nil

@@ -18,20 +18,28 @@ import (
 )
 
 func (ctx *Context) GetParticipants(chatId int64) ([]*tg.GroupCallParticipant, error) {
-	ctx.participantsMutex.Lock()
-	defer ctx.participantsMutex.Unlock()
+	chatMutex := ctx.getChatMutex(chatId)
+	chatMutex.Lock()
+	defer chatMutex.Unlock()
+
+	ctx.stateMutex.Lock()
 	if ctx.callParticipants[chatId] == nil {
 		ctx.callParticipants[chatId] = &types.CallParticipantsCache{
 			CallParticipants: make(map[int64]*tg.GroupCallParticipant),
 		}
 	}
-	if time.Since(ctx.callParticipants[chatId].LastMtprotoUpdate) > time.Minute {
+	lastUpdate := ctx.callParticipants[chatId].LastMtprotoUpdate
+	ctx.stateMutex.Unlock()
+
+	if time.Since(lastUpdate) > time.Minute {
 		groupCall, err := ctx.getInputGroupCall(chatId)
 		if err != nil {
 			return nil, err
 		}
 
+		ctx.stateMutex.Lock()
 		ctx.callParticipants[chatId].CallParticipants = make(map[int64]*tg.GroupCallParticipant)
+		ctx.stateMutex.Unlock()
 		var nextOffset string
 		for {
 			res, err := ctx.App.PhoneGetGroupParticipants(
@@ -52,7 +60,13 @@ func (ctx *Context) GetParticipants(chatId int64) ([]*tg.GroupCallParticipant, e
 			}
 			nextOffset = res.NextOffset
 		}
+		ctx.stateMutex.Lock()
 		ctx.callParticipants[chatId].LastMtprotoUpdate = time.Now()
+		ctx.stateMutex.Unlock()
 	}
-	return slices.Collect(maps.Values(ctx.callParticipants[chatId].CallParticipants)), nil
+
+	ctx.stateMutex.Lock()
+	participants := slices.Collect(maps.Values(ctx.callParticipants[chatId].CallParticipants))
+	ctx.stateMutex.Unlock()
+	return participants, nil
 }

@@ -9,8 +9,15 @@
 package ubot
 
 func (ctx *Context) Stop(chatId int64) error {
+	chatMutex := ctx.getChatMutex(chatId)
+	chatMutex.Lock()
+	defer chatMutex.Unlock()
+
+	ctx.stateMutex.Lock()
 	ctx.presentations = stdRemove(ctx.presentations, chatId)
 	delete(ctx.callSources, chatId)
+	ctx.stateMutex.Unlock()
+
 	err := ctx.binding.Stop(chatId)
 	if err != nil {
 		return err
