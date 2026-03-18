@@ -111,19 +111,16 @@ func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
 		return utils.PlatformTracks{}, errors.New("unable to extract the video ID")
 	}
 
-	//slog.Info("Normalized YouTube URL", "url", y.Query, "videoID", videoID)
-	tracks, err := searchYouTube(y.Query, 20)
-	if err != nil {
-		return utils.PlatformTracks{}, err
-	}
+	for _, query := range []string{videoID, y.Query} {
+		tracks, err := searchYouTube(query, 20)
+		if err != nil {
+			return utils.PlatformTracks{}, err
+		}
 
-	if len(tracks) == 0 {
-		return utils.PlatformTracks{}, errors.New("no videos found with this URL")
-	}
-
-	for _, track := range tracks {
-		if track.Id == videoID {
-			return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
+		for _, track := range tracks {
+			if track.Id == videoID {
+				return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
+			}
 		}
 	}
 

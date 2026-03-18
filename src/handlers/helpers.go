@@ -9,6 +9,8 @@
 package handlers
 
 import (
+	"strings"
+
 	td "github.com/AshokShau/gotdbot"
 )
 
@@ -51,14 +53,23 @@ func isValidMedia(reply *td.Message) bool {
 		return false
 	}
 
-	switch reply.Content.(type) {
+	switch msg := reply.Content.(type) {
+
 	case *td.MessageAudio,
 		*td.MessageVoiceNote,
 		*td.MessageVideo,
 		*td.MessageVideoNote:
 		return true
+
 	case *td.MessageDocument:
-		// TODO : return true for some MimeType
+		if msg.Document == nil {
+			return false
+		}
+		mime := msg.Document.MimeType
+		if strings.HasPrefix(mime, "audio/") || strings.HasPrefix(mime, "video/") {
+			return true
+		}
+
 		return false
 	}
 
