@@ -351,7 +351,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 		user = &td.User{FirstName: "Unknown"}
 	}
 
-	queueHeader := "<b>📥 Added to Queue:</b>\n<blockquote collapsed='true'>\n"
+	queueHeader := "<b>📥 Added to Queue:</b>\n<blockquote expandable>\n"
 	var tracksToAdd []*utils.CachedTrack
 	var skippedTracks []string
 
