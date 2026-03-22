@@ -20,7 +20,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 var (
@@ -52,7 +51,6 @@ func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
 	req.Header.Set("User-Agent", "Mozilla/5.0")
 	req.Header.Set("Accept", "application/json")
 
-	client := &http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -448,7 +446,6 @@ func GetYouTubeVideo(ctx context.Context, videoID string) (utils.PlatformTracks,
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 15 * time.Second}
 	res, err := client.Do(req)
 	if err != nil {
 		return utils.PlatformTracks{}, err
@@ -479,7 +476,6 @@ func GetYouTubePlaylist(ctx context.Context, playlistID string) (utils.PlatformT
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 15 * time.Second}
 	res, err := client.Do(req)
 	if err != nil {
 		return utils.PlatformTracks{}, err
@@ -511,7 +507,6 @@ func GetYouTubeMixPlaylist(ctx context.Context, playlistID string) (utils.Platfo
 	body, _ := json.Marshal(payload)
 	req, _ := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{Timeout: 15 * time.Second}
 	res, err := client.Do(req)
 	if err != nil {
 		return utils.PlatformTracks{}, err
