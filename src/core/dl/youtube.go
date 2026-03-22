@@ -33,55 +33,22 @@ type YouTubeData struct {
 }
 
 var youtubePatterns = map[string]*regexp.Regexp{
-	"youtube":   regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([\w-]{11})(?:[&#?].*)?$`),
-	"youtu_be":  regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtu\.be/([\w-]{11})(?:[?#].*)?$`),
-	"yt_shorts": regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/shorts/([\w-]{11})(?:[?#].*)?$`),
-	//"yt_live":   regexp.MustCompile(`^(?:https?://)?(?:www\.)?youtube\.com/live/([\w-]{11})(?:[?#].*)?$`),
+	"youtube":   regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?youtube\.com/.*`),
+	"youtu_be":  regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?youtu\.be/.*`),
+	"yt_music":  regexp.MustCompile(`(?i)^(?:https?://)?music\.youtube\.com/.*`),
+	"yt_shorts": regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?youtube\.com/shorts/.*`),
 }
 
 // NewYouTubeData initializes a YouTubeData instance with pre-compiled regex patterns and a cleaned query.
 func NewYouTubeData(query string) *YouTubeData {
 	return &YouTubeData{
-		Query:    clearQuery(query),
+		Query:    strings.TrimSpace(query),
 		ApiUrl:   strings.TrimRight(config.Conf.ApiUrl, "/"),
 		APIKey:   config.Conf.ApiKey,
 		Patterns: youtubePatterns,
 	}
 }
 
-// clearQuery removes extraneous URL parameters and fragments from a given query string.
-func clearQuery(query string) string {
-	query = strings.SplitN(query, "#", 2)[0]
-	query = strings.SplitN(query, "&", 2)[0]
-	return strings.TrimSpace(query)
-}
-
-// normalizeYouTubeURL converts various YouTube URL formats (e.g., youtu.be, shorts) into a standard watch URL.
-func (y *YouTubeData) normalizeYouTubeURL(url string) string {
-	var videoID string
-	switch {
-	case strings.Contains(url, "youtu.be/"):
-		parts := strings.SplitN(strings.SplitN(url, "youtu.be/", 2)[1], "?", 2)
-		videoID = strings.SplitN(parts[0], "#", 2)[0]
-	case strings.Contains(url, "youtube.com/shorts/"):
-		parts := strings.SplitN(strings.SplitN(url, "youtube.com/shorts/", 2)[1], "?", 2)
-		videoID = strings.SplitN(parts[0], "#", 2)[0]
-	default:
-		return url
-	}
-	return "https://www.youtube.com/watch?v=" + videoID
-}
-
-// extractVideoID parses a YouTube URL and extracts the video ID.
-func (y *YouTubeData) extractVideoID(url string) string {
-	url = y.normalizeYouTubeURL(url)
-	for _, pattern := range y.Patterns {
-		if match := pattern.FindStringSubmatch(url); len(match) > 1 {
-			return match[1]
-		}
-	}
-	return ""
-}
 
 // IsValid checks if the query string matches any of the known YouTube URL patterns.
 func (y *YouTubeData) IsValid() bool {
@@ -100,31 +67,40 @@ func (y *YouTubeData) IsValid() bool {
 
 // GetInfo retrieves metadata for a track from YouTube.
 // It returns a PlatformTracks object or an error if the information cannot be fetched.
-func (y *YouTubeData) GetInfo(_ context.Context) (utils.PlatformTracks, error) {
+func (y *YouTubeData) GetInfo(ctx context.Context) (utils.PlatformTracks, error) {
 	if !y.IsValid() {
 		return utils.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
-	y.Query = y.normalizeYouTubeURL(y.Query)
-	videoID := y.extractVideoID(y.Query)
-	if videoID == "" {
-		return utils.PlatformTracks{}, errors.New("unable to extract the video ID")
-	}
+	y.Query = normalizeYouTubeURL(y.Query)
+	videoID := extractVideoID(y.Query)
+	playlistID := extractPlaylistID(y.Query)
 
-	for _, query := range []string{videoID, y.Query} {
-		tracks, err := searchYouTube(query, 20)
-		if err != nil {
-			return utils.PlatformTracks{}, err
+	switch {
+	case playlistID != "":
+		if strings.HasPrefix(playlistID, "RD") {
+			return GetYouTubeMixPlaylist(ctx, playlistID)
 		}
+		return GetYouTubePlaylist(ctx, playlistID)
 
-		for _, track := range tracks {
-			if track.Id == videoID {
-				return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
+	case videoID != "":
+		for _, query := range []string{videoID, y.Query} {
+			tracks, err := searchYouTube(query, 20)
+			if err != nil {
+				continue
+			}
+
+			for _, track := range tracks {
+				if track.Id == videoID {
+					return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
+				}
 			}
 		}
+
+		return GetYouTubeVideo(ctx, videoID)
 	}
 
-	return utils.PlatformTracks{}, errors.New("no video results were found")
+	return utils.PlatformTracks{}, errors.New("no video or playlist results were found")
 }
 
 // Search performs a search for a track on YouTube.
