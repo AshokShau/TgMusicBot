@@ -137,7 +137,7 @@ The bot is configured via environment variables. See `sample.env` for all option
 | `LOGGER_ID`           | Group chat ID for logs                    |    ❌     |
 | `SONG_DURATION_LIMIT` | Max song duration in seconds              |    ❌     |
 | `API_KEY`             | Your API key                              |    ❌     |
-| `COOKIES_URL`         | Youtube Cookies URL vai https://batbin.me |    ❌     |
+| `COOKIES_URL`         | YouTube cookies URL via https://batbin.me |    ❌     |
 
 </details>
 

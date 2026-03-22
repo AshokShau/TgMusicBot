@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	labelDurationRe = regexp.MustCompile(`(\d+)\s*(hour|minute|second)`)
+	labelDurationRe = regexp.MustCompile(`(\d+)\s*(hours?|minutes?|seconds?)`)
 	videoIDRe1      = regexp.MustCompile(`(?i)(?:youtube\.com/(?:watch\?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})`)
 	videoIDRe2      = regexp.MustCompile(`(?:v=|\/)([0-9A-Za-z_-]{11})`)
 	playlistIDRe1   = regexp.MustCompile(`(?i)(?:youtube\.com|music\.youtube\.com).*(?:\?|&)list=([A-Za-z0-9_-]+)`)
@@ -293,12 +293,12 @@ func parseLabelDuration(s string) int {
 	total := 0
 	for _, m := range matches {
 		n, _ := strconv.Atoi(m[1])
-		switch m[2] {
-		case "hour":
+		switch {
+		case strings.HasPrefix(m[2], "hour"):
 			total += n * 3600
-		case "minute":
+		case strings.HasPrefix(m[2], "minute"):
 			total += n * 60
-		case "second":
+		case strings.HasPrefix(m[2], "second"):
 			total += n
 		}
 	}
@@ -487,7 +487,10 @@ func GetYouTubePlaylist(ctx context.Context, playlistID string) (utils.PlatformT
 	videos := extractPlaylistVideos(resp)
 	out := make([]utils.MusicTrack, 0, len(videos))
 	for _, v := range videos {
-		out = append(out, mapYTVideo(v))
+		track := mapYTVideo(v)
+		if track.Id != "" {
+			out = append(out, track)
+		}
 	}
 	return utils.PlatformTracks{Results: out}, nil
 }
@@ -518,7 +521,10 @@ func GetYouTubeMixPlaylist(ctx context.Context, playlistID string) (utils.Platfo
 	videos := extractMixPlaylistVideos(resp)
 	out := make([]utils.MusicTrack, 0, len(videos))
 	for _, v := range videos {
-		out = append(out, mapMixVideo(v))
+		track := mapMixVideo(v)
+		if track.Id != "" {
+			out = append(out, track)
+		}
 	}
 	return utils.PlatformTracks{Results: out}, nil
 }
