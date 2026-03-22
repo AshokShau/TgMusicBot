@@ -17,12 +17,12 @@
 
 <p align="center">
   A high-performance, feature-rich Telegram Music Bot written in <b>Go</b>. <br>
-  Built with <code>gogram</code>, <code>ntgcalls</code>, and <code>mongo-driver</code>.
+  Built with <code>gotdbot</code>, <code>ntgcalls</code>, and <code>mongo-driver</code>.
 </p>
 
 <p align="center">
     <a href="https://heroku.com/deploy?template=https://github.com/AshokShau/TgMusicBot">
-        <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy">
+        <img src="https://www.herokucdn.com/deploy/button.svg" alt="Heroku Deploy">
     </a>
 </p>
 
@@ -83,7 +83,7 @@
 5. **Run in Background**
    - **Quick Start**: Use `screen` or `tmux`.
    - **Production**: Use `systemd`.
-     See [installation.md](installation.md#running-in-background) for details.
+     See [installation.md](installation.md#-running-in-background) for details.
 
 For detailed instructions, see [installation.md](installation.md).
 
@@ -126,18 +126,18 @@ The bot is configured via environment variables. See `sample.env` for all option
 <details>
 <summary><b>Click to view Environment Variables</b></summary>
 
-| Variable              | Description                   | Required |
-|:----------------------|:------------------------------|:--------:|
-| `API_ID`              | Telegram API ID               |    ✅     |
-| `API_HASH`            | Telegram API Hash             |    ✅     |
-| `TOKEN`               | Bot Token from @BotFather     |    ✅     |
-| `STRING1`             | Pyrogram V2 Session String    |    ✅     |
-| `MONGO_URI`           | MongoDB Connection URI        |    ✅     |
-| `OWNER_ID`            | Telegram User ID of the owner |    ✅     |
-| `LOGGER_ID`           | Group chat ID for logs        |    ❌     |
-| `SONG_DURATION_LIMIT` | Max song duration in seconds  |    ❌     |
-| `API_KEY`             | Your API key                  |    ❌     |
-| `COOKIES_URL`         | Cookies URL for the bot       |    ❌     |
+| Variable              | Description                               | Required |
+|:----------------------|:------------------------------------------|:--------:|
+| `API_ID`              | Telegram API ID                           |    ✅     |
+| `API_HASH`            | Telegram API Hash                         |    ✅     |
+| `TOKEN`               | Bot Token from @BotFather                 |    ✅     |
+| `STRING1`             | Pyrogram V2 Session String                |    ✅     |
+| `MONGO_URI`           | MongoDB Connection URI                    |    ✅     |
+| `OWNER_ID`            | Telegram User ID of the owner             |    ✅     |
+| `LOGGER_ID`           | Group chat ID for logs                    |    ❌     |
+| `SONG_DURATION_LIMIT` | Max song duration in seconds              |    ❌     |
+| `API_KEY`             | Your API key                              |    ❌     |
+| `COOKIES_URL`         | Youtube Cookies URL vai https://batbin.me |    ❌     |
 
 </details>
 
@@ -195,7 +195,7 @@ If you find this project useful, consider supporting its development with a dona
 
 - 📦 Repo: [TgMusicBot on GitHub](https://github.com/AshokShau/TgMusicBot)
 - 💬 Support: [Telegram Group](https://t.me/FallenProjects)
-- 🐍 Old version: [TgMusicBot (Python)](https://github.com/AshokShau/TgMusicBot/tree/python)
+- 🐍 Old version: [TgMusicBot (Python)](https://github.com/AshokShau/TgMusicBot/tree/python) (Deprecated)
 
 ---
 
