@@ -328,7 +328,7 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	}
 
 	if err = c.PlayMedia(chatID, song.FilePath, song.IsVideo, ""); err != nil {
-		_, err := reply.EditText(c.bot, err.Error(), nil)
+		_, err := reply.EditText(c.bot, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return err
 	}
 
