@@ -32,7 +32,7 @@ func pingHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	latency := time.Since(start).Milliseconds()
-	uptime := time.Since(startTime).Truncate(time.Second)
+	uptime := getFormattedDuration(time.Since(startTime))
 
 	response := fmt.Sprintf(
 		"<b>📊 System Performance Metrics</b>\n\n"+
