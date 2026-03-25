@@ -24,33 +24,20 @@ type Cache[T any] struct {
 	mu   sync.RWMutex
 	data map[string]Item[T]
 	ttl  time.Duration
-	stop chan struct{}
 }
 
-// NewCache creates a Cache with the given default TTL and starts a background
-// goroutine that evicts expired entries every cleanupInterval.
-// Call Close() when the cache is no longer needed to stop the goroutine.
+// NewCache creates a Cache with the given default TTL and registers it
 func NewCache[T any](ttl time.Duration) *Cache[T] {
-	// Cleanup runs at half the TTL (at least every 30 s) so entries are
-	// evicted reasonably promptly without hammering the lock.
-	cleanupInterval := ttl / 2
-	if cleanupInterval < 30*time.Second {
-		cleanupInterval = 30 * time.Second
-	}
-
 	c := &Cache[T]{
 		data: make(map[string]Item[T]),
 		ttl:  ttl,
-		stop: make(chan struct{}),
 	}
-	go c.runCleanup(cleanupInterval)
+	registerCache(c)
 	return c
 }
 
 // Get returns the value for key and true if it exists and has not expired.
-// Expired entries are deleted on access (lazy eviction in addition to background sweep).
 func (c *Cache[T]) Get(key string) (T, bool) {
-	// Fast path: read lock.
 	c.mu.RLock()
 	item, ok := c.data[key]
 	c.mu.RUnlock()
@@ -61,9 +48,8 @@ func (c *Cache[T]) Get(key string) (T, bool) {
 	}
 
 	if time.Now().After(item.Expiration) {
-		// Lazy delete: upgrade to write lock and evict.
 		c.mu.Lock()
-		// Re-check under write lock; another goroutine may have refreshed it.
+
 		if it, still := c.data[key]; still && time.Now().After(it.Expiration) {
 			delete(c.data, key)
 		}
@@ -112,35 +98,97 @@ func (c *Cache[T]) Size() int {
 	return len(c.data)
 }
 
-// Close stops the background cleanup goroutine.
-// The cache remains usable after Close; only background eviction stops.
+// Close unregisters the cache from the background cleanup janitor.
 func (c *Cache[T]) Close() {
-	close(c.stop)
-}
-
-// runCleanup periodically scans and removes expired entries.
-func (c *Cache[T]) runCleanup(interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			c.evictExpired()
-		case <-c.stop:
-			return
-		}
-	}
+	unregisterCache(c)
 }
 
 // evictExpired removes all entries whose TTL has elapsed.
 func (c *Cache[T]) evictExpired() {
 	now := time.Now()
-	c.mu.Lock()
+
+	c.mu.RLock()
+	var expiredKeys []string
 	for key, item := range c.data {
 		if now.After(item.Expiration) {
+			expiredKeys = append(expiredKeys, key)
+		}
+	}
+	c.mu.RUnlock()
+
+	if len(expiredKeys) == 0 {
+		return
+	}
+
+	c.mu.Lock()
+	for _, key := range expiredKeys {
+		if item, ok := c.data[key]; ok && now.After(item.Expiration) {
 			delete(c.data, key)
 		}
 	}
 	c.mu.Unlock()
+}
+
+// cleaner is an interface for caches that can evict expired items.
+type cleaner interface {
+	evictExpired()
+}
+
+// janitor manages a single goroutine that cleans up multiple caches.
+type janitor struct {
+	mu     sync.Mutex
+	caches []cleaner
+}
+
+var (
+	sharedJanitor *janitor
+	janitorOnce   sync.Once
+)
+
+func getJanitor() *janitor {
+	janitorOnce.Do(func() {
+		sharedJanitor = &janitor{}
+		go sharedJanitor.run()
+	})
+	return sharedJanitor
+}
+
+func (j *janitor) run() {
+	ticker := time.NewTicker(time.Minute)
+	for range ticker.C {
+		j.mu.Lock()
+
+		caches := make([]cleaner, len(j.caches))
+		copy(caches, j.caches)
+		j.mu.Unlock()
+
+		for _, c := range caches {
+			c.evictExpired()
+		}
+	}
+}
+
+func registerCache(c cleaner) {
+	getJanitor().register(c)
+}
+
+func (j *janitor) register(c cleaner) {
+	j.mu.Lock()
+	j.caches = append(j.caches, c)
+	j.mu.Unlock()
+}
+
+func unregisterCache(c cleaner) {
+	getJanitor().unregister(c)
+}
+
+func (j *janitor) unregister(c cleaner) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	for i, v := range j.caches {
+		if v == c {
+			j.caches = append(j.caches[:i], j.caches[i+1:]...)
+			break
+		}
+	}
 }

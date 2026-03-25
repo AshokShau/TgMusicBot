@@ -97,7 +97,7 @@ func (c *ChatCacher) RemoveCurrentSong(chatID int64) *utils.CachedTrack {
 	}
 
 	removed := data.Queue[0]
-	data.Queue[0] = nil // release reference for GC
+	data.Queue[0] = nil
 	data.Queue = data.Queue[1:]
 	return removed
 }
@@ -112,7 +112,6 @@ func (c *ChatCacher) RemoveTrack(chatID int64, index int) bool {
 		return false
 	}
 
-	// Nil out the slot before shrinking to allow GC of the evicted pointer.
 	q := data.Queue
 	copy(q[index:], q[index+1:])
 	q[len(q)-1] = nil
@@ -134,7 +133,6 @@ func (c *ChatCacher) ClearChat(chatID int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Nil out all pointers before deleting so GC can reclaim the tracks immediately.
 	if data, ok := c.chatCache[chatID]; ok {
 		for i := range data.Queue {
 			data.Queue[i] = nil
@@ -188,7 +186,7 @@ func (c *ChatCacher) GetQueue(chatID int64) []*utils.CachedTrack {
 
 	data, ok := c.chatCache[chatID]
 	if !ok || len(data.Queue) == 0 {
-		return nil // prefer nil over empty alloc for zero-length queues
+		return nil
 	}
 	return append([]*utils.CachedTrack(nil), data.Queue...)
 }
@@ -198,7 +196,7 @@ func (c *ChatCacher) GetActiveChats() []int64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	active := make([]int64, 0, len(c.chatCache)) // pre-size to avoid reallocs
+	active := make([]int64, 0, len(c.chatCache))
 	for chatID, data := range c.chatCache {
 		if len(data.Queue) > 0 {
 			active = append(active, chatID)
