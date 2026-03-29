@@ -30,7 +30,7 @@ func TestCacheExpiration(t *testing.T) {
 	}
 }
 
-func TestJanitorEviction(t *testing.T) {
+func TestEvictExpiredRemovesExpiredEntries(t *testing.T) {
 	c := NewCache[string](10 * time.Millisecond)
 	defer c.Close()
 
@@ -60,17 +60,89 @@ func TestJanitorRegistration(t *testing.T) {
 	registerCache(m)
 	defer unregisterCache(m)
 
-	found := false
-	sharedJanitor.mu.Lock()
-	for _, c := range sharedJanitor.caches {
-		if c == m {
-			found = true
-			break
-		}
-	}
-	sharedJanitor.mu.Unlock()
-
-	if !found {
+	if !getJanitor().has(m) {
 		t.Error("mockCleaner not found in janitor")
+	}
+}
+
+func TestJanitorUnregistration(t *testing.T) {
+	m := &mockCleaner{}
+	registerCache(m)
+
+	if !getJanitor().has(m) {
+		t.Fatal("mockCleaner not found in janitor before unregistration")
+	}
+
+	unregisterCache(m)
+
+	if getJanitor().has(m) {
+		t.Error("mockCleaner still found in janitor after unregistration")
+	}
+}
+
+func TestJanitorUnregistrationOnClose(t *testing.T) {
+	c := NewCache[string](time.Minute)
+	if !getJanitor().has(c) {
+		t.Fatal("cache not found in janitor after creation")
+	}
+
+	c.Close()
+
+	if getJanitor().has(c) {
+		t.Error("cache still found in janitor after Close()")
+	}
+}
+
+func TestJanitorLifecycle(t *testing.T) {
+	m := &mockCleaner{}
+	registerCache(m)
+
+	j := getJanitor()
+	j.mu.Lock()
+	running := j.running
+	j.mu.Unlock()
+
+	if !running {
+		t.Error("expected janitor to be running after registration")
+	}
+
+	unregisterCache(m)
+
+	j.mu.Lock()
+	running = j.running
+	count := len(j.caches)
+	j.mu.Unlock()
+
+	if count == 0 && running {
+		t.Error("expected janitor to be stopped after all caches unregistered")
+	}
+}
+
+func TestJanitorBackgroundCleanup(t *testing.T) {
+	oldInterval := janitorInterval
+	janitorInterval = 10 * time.Millisecond
+	defer func() { janitorInterval = oldInterval }()
+
+	m := &mockCleaner{}
+	j := getJanitor()
+	j.mu.Lock()
+	for len(j.caches) > 0 {
+		j.mu.Unlock()
+		unregisterCache(j.caches[0])
+		j.mu.Lock()
+	}
+	j.mu.Unlock()
+
+	registerCache(m)
+	defer unregisterCache(m)
+
+	time.Sleep(100 * time.Millisecond)
+
+	m.mu.Lock()
+	evicted := m.evicted
+	m.mu.Unlock()
+
+	if !evicted {
+		t.Error("expected janitor to have called evictExpired")
 	}
 }

@@ -136,34 +136,49 @@ type cleaner interface {
 
 // janitor manages a single goroutine that cleans up multiple caches.
 type janitor struct {
-	mu     sync.Mutex
-	caches []cleaner
+	mu       sync.Mutex
+	caches   []cleaner
+	interval time.Duration
+	stop     chan struct{}
+	running  bool
 }
 
 var (
-	sharedJanitor *janitor
-	janitorOnce   sync.Once
+	sharedJanitor   *janitor
+	janitorOnce     sync.Once
+	janitorInterval = time.Minute
 )
 
 func getJanitor() *janitor {
 	janitorOnce.Do(func() {
-		sharedJanitor = &janitor{}
-		go sharedJanitor.run()
+		sharedJanitor = &janitor{
+			interval: janitorInterval,
+		}
 	})
 	return sharedJanitor
 }
 
 func (j *janitor) run() {
-	ticker := time.NewTicker(time.Minute)
-	for range ticker.C {
-		j.mu.Lock()
+	ticker := time.NewTicker(j.interval)
+	defer ticker.Stop()
 
-		caches := make([]cleaner, len(j.caches))
-		copy(caches, j.caches)
-		j.mu.Unlock()
+	for {
+		select {
+		case <-ticker.C:
+			j.mu.Lock()
+			if len(j.caches) == 0 {
+				j.mu.Unlock()
+				continue
+			}
+			caches := make([]cleaner, len(j.caches))
+			copy(caches, j.caches)
+			j.mu.Unlock()
 
-		for _, c := range caches {
-			c.evictExpired()
+			for _, c := range caches {
+				c.evictExpired()
+			}
+		case <-j.stop:
+			return
 		}
 	}
 }
@@ -174,8 +189,14 @@ func registerCache(c cleaner) {
 
 func (j *janitor) register(c cleaner) {
 	j.mu.Lock()
+	defer j.mu.Unlock()
 	j.caches = append(j.caches, c)
-	j.mu.Unlock()
+	if !j.running {
+		j.interval = janitorInterval
+		j.stop = make(chan struct{})
+		j.running = true
+		go j.run()
+	}
 }
 
 func unregisterCache(c cleaner) {
@@ -191,4 +212,25 @@ func (j *janitor) unregister(c cleaner) {
 			break
 		}
 	}
+	if len(j.caches) == 0 && j.running {
+		close(j.stop)
+		j.running = false
+	}
+}
+
+func (j *janitor) has(c cleaner) bool {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	for _, v := range j.caches {
+		if v == c {
+			return true
+		}
+	}
+	return false
+}
+
+func (j *janitor) count() int {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return len(j.caches)
 }
