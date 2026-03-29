@@ -68,15 +68,15 @@ func helpCallbackHandler(c *td.Client, ctx *td.Context) error {
 	helpCategories := getHelpCategories()
 	if strings.Contains(data, "help_all") {
 		_ = cb.Answer(c, 0, false, "📖 Displaying all help categories...", "")
-		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me().FirstName)
+		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me.FirstName)
 		_, _ = cb.EditMessageText(c, response, &td.EditTextMessageOpts{ReplyMarkup: core.HelpMenuKeyboard(), ParseMode: "HTML"})
 		return nil
 	}
 
 	if strings.Contains(data, "help_back") {
 		_ = cb.Answer(c, 0, false, "🏠 Returning to home...", "")
-		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me().FirstName)
-		_, _ = cb.EditMessageText(c, response, &td.EditTextMessageOpts{ReplyMarkup: core.AddMeMarkup(c.Me().Usernames.EditableUsername), ParseMode: "HTML"})
+		response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me.FirstName)
+		_, _ = cb.EditMessageText(c, response, &td.EditTextMessageOpts{ReplyMarkup: core.AddMeMarkup(c.Me.Usernames.EditableUsername), ParseMode: "HTML"})
 		return nil
 	}
 

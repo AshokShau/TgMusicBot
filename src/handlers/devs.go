@@ -131,7 +131,7 @@ func loggerHandler(c *td.Client, ctx *td.Context) error {
 		return td.EndGroups
 	}
 
-	loggerStatus := db.Instance.GetLoggerStatus(ctx2, c.Me().Id)
+	loggerStatus := db.Instance.GetLoggerStatus(ctx2, c.Me.Id)
 	args := strings.ToLower(Args(m))
 	if len(args) == 0 {
 		_, _ = m.ReplyText(c, fmt.Sprintf("Usage: /logger [enable|disable|on|off]\nCurrent status: %t", loggerStatus), nil)
@@ -140,10 +140,10 @@ func loggerHandler(c *td.Client, ctx *td.Context) error {
 
 	switch args {
 	case "enable", "on":
-		_ = db.Instance.SetLoggerStatus(ctx2, c.Me().Id, true)
+		_ = db.Instance.SetLoggerStatus(ctx2, c.Me.Id, true)
 		_, _ = m.ReplyText(c, "Logger Enabled", nil)
 	case "disable", "off":
-		_ = db.Instance.SetLoggerStatus(ctx2, c.Me().Id, false)
+		_ = db.Instance.SetLoggerStatus(ctx2, c.Me.Id, false)
 		_, _ = m.ReplyText(c, "Logger disabled", nil)
 	default:
 		_, _ = m.ReplyText(c, "Invalid argument. Use 'enable', 'disable', 'on', or 'off'.", nil)

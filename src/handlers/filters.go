@@ -22,7 +22,7 @@ import (
 // checkBotAdmin verifies the bot is an admin with CanInviteUsers permission.
 // Returns true if the bot is owner/admin with required rights, false otherwise.
 func checkBotAdmin(c *td.Client, chatID int64, replyErr func(msg string)) bool {
-	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me().Id, false)
+	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me.Id, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an admin in chat") {
 			replyErr("❌ Bot is not an admin in this chat.\nPlease promote me with Invite Users permission.")

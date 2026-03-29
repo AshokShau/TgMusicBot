@@ -58,7 +58,7 @@ func (c *TelegramCalls) joinAssistant(chatID, ubID int64) error {
 
 // recoverBannedAssistant attempts to unban or unmute the assistant using bot admin rights.
 func (c *TelegramCalls) recoverBannedAssistant(chatID, ubID int64, isBanned bool) error {
-	botStatus, err := cache.GetUserAdmin(c.bot, chatID, c.bot.Me().Id, false)
+	botStatus, err := cache.GetUserAdmin(c.bot, chatID, c.bot.Me.Id, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an admin in chat") {
 			return fmt.Errorf(

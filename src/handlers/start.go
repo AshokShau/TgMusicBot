@@ -71,10 +71,10 @@ func startHandler(c *td.Client, ctx *td.Context) error {
 		user = &td.User{FirstName: "Unknown"}
 	}
 
-	response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me().FirstName)
+	response := fmt.Sprintf("Hello %s!\n\nI am %s, a fast and powerful music player for Telegram.\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud.\n\nClick the <b>Help</b> button below for more information.", user.FirstName, c.Me.FirstName)
 	_, err = m.ReplyText(c, response, &td.SendTextMessageOpts{
 		ParseMode:   "HTML",
-		ReplyMarkup: core.AddMeMarkup(c.Me().Usernames.EditableUsername),
+		ReplyMarkup: core.AddMeMarkup(c.Me.Usernames.EditableUsername),
 	})
 
 	return err

@@ -27,7 +27,7 @@ func handleParticipant(client *gotdbot.Client, ctx *gotdbot.Context) error {
 	}
 
 	chatID := ctx.EffectiveChatId
-	me := client.Me()
+	me := client.Me
 
 	getMemberInfo := func(memberId gotdbot.MessageSender) (int64, string) {
 		switch sender := memberId.(type) {
@@ -178,7 +178,7 @@ func handleJoin(
 
 	client.Logger.Info("User  joined chat", "user_id", userID, "chat_id", chatID)
 
-	if userID == client.Me().Id {
+	if userID == client.Me.Id {
 		client.Logger.Info("Bot joined chat", "chat_id", chatID)
 		sendJoinLog(client, chatID, chat)
 	}
@@ -216,8 +216,7 @@ func handleLeave(client *gotdbot.Client, chatID, userID, ubID int64) error {
 		cache.ChatCache.ClearChat(chatID)
 	}
 
-	if userID == client.Me().Id {
-
+	if userID == client.Me.Id {
 		if err := vc.Calls.Stop(chatID); err != nil {
 			client.Logger.Error("Failed to stop VC", "error", err)
 		}
@@ -254,8 +253,7 @@ func handleBan(client *gotdbot.Client, chatID, userID, ubID int64) error {
 		}
 	}
 
-	if userID == client.Me().Id {
-
+	if userID == client.Me.Id {
 		if err := vc.Calls.Stop(chatID); err != nil {
 			client.Logger.Error("Failed stopping VC after ban", "error", err)
 		}

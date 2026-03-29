@@ -199,7 +199,7 @@ func statsHandler(c *td.Client, ctx *td.Context) error {
 
 	sb.WriteString(fmt.Sprintf(
 		"<b>%s — Runtime Status</b>\n",
-		c.Me().FirstName,
+		c.Me.FirstName,
 	))
 	sb.WriteString(strings.Repeat("─", 36) + "\n\n")
 

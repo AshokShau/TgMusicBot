@@ -63,15 +63,9 @@ func main() {
 
 	slog.SetDefault(logger)
 
-	clientConfig := &gotdbot.ClientConfig{
+	clientConfig := &gotdbot.ClientOpts{
 		LibraryPath: "./libtdjson.so.1.8.62",
 		Logger:      logger,
-		DispatcherOpts: &gotdbot.DispatcherOpts{
-			ErrorHandler: func(c *gotdbot.Client, ctx *gotdbot.Context, err error) error {
-				logger.Error("Handler error", "error", err)
-				return nil
-			},
-		},
 	}
 
 	client, err := gotdbot.NewClient(config.Conf.ApiId, config.Conf.ApiHash, config.Conf.Token, clientConfig)
@@ -79,9 +73,6 @@ func main() {
 		slog.Error("gotdbot.NewClient error", "error", err)
 		os.Exit(1)
 	}
-
-	gotdbot.SetTdlibLogStreamEmpty()
-	gotdbot.SetTdlibLogVerbosityLevel(2)
 
 	dispatcher := client.Dispatcher
 	if err = client.Start(); err != nil {
@@ -94,7 +85,7 @@ func main() {
 	}
 
 	handlers.LoadModules(dispatcher)
-	me := client.Me()
+	me := client.Me
 	username := ""
 	if me.Usernames != nil && len(me.Usernames.ActiveUsernames) > 0 {
 		username = me.Usernames.ActiveUsernames[0]

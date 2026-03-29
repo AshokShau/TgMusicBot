@@ -3,7 +3,7 @@ module ashokshau/tgmusic
 go 1.25.4
 
 require (
-	github.com/AshokShau/gotdbot v0.7.0
+	github.com/AshokShau/gotdbot v0.8.1-0.20260329050220-fa4e833967e7
 	github.com/amarnathcjd/gogram v1.7.3-0.20260305134751-bb513cb91f6b
 	github.com/shirou/gopsutil/v3 v3.24.5
 	go.mongodb.org/mongo-driver/v2 v2.5.0

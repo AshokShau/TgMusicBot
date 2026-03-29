@@ -258,7 +258,7 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 		return fmt.Errorf("playback failed: %w", err)
 	}
 
-	if db.Instance.GetLoggerStatus(ctx, c.bot.Me().Id) {
+	if db.Instance.GetLoggerStatus(ctx, c.bot.Me.Id) {
 		go sendLogger(c.bot, chatID, cache.ChatCache.GetPlayingTrack(chatID))
 	}
 
@@ -561,7 +561,7 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 		//	call.App.Logger.Infof("Received frames for chatId: %d, mode: %v, device: %v", chatId, mode, device)
 		//})
 
-		_, _ = call.App.SendMessage(client.Me().Usernames.EditableUsername, "/start")
+		_, _ = call.App.SendMessage(client.Me.Usernames.EditableUsername, "/start")
 		_, err := call.App.SendMessage(config.Conf.LoggerId, "Userbot started.")
 		if err != nil {
 			call.App.Logger.Infof("[TelegramCalls - SendMessage] Failed to send message: %v", err)
