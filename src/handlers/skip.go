@@ -20,11 +20,12 @@ func skipHandler(c *td.Client, ctx *td.Context) error {
 	if !adminMode(c, ctx) {
 		return td.EndGroups
 	}
+
 	m := ctx.EffectiveMessage
 	chatID := ctx.EffectiveChatId
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.ReplyText(c, "⏸ Nothing is playing.", nil)
+		_, _ = m.ReplyText(c, "The bot is not streaming in the video chat.", nil)
 		return nil
 	}
 

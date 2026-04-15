@@ -65,7 +65,10 @@ var client = &http.Client{
 }
 
 // sendRequest performs an HTTP request with a given context, method, URL, body, and headers.
-func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, headers map[string]string) (*http.Response, error) {
+func sendRequest(method, fullURL string, body io.Reader, headers map[string]string) (*http.Response, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
 	if err != nil {
 		slog.Info("Error creating request", "error", err)
@@ -99,7 +102,7 @@ func sendRequest(ctx context.Context, method, fullURL string, body io.Reader, he
 			}
 			reqErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		} else if isTemporaryError(reqErr) {
-			slog.Info("Temporary error on attempt /", "arg1", attempt+1, "arg2", maxRetries, "error", reqErr)
+			slog.Info("Temporary error on", "attempt", attempt+1, "maxRetries", maxRetries, "error", reqErr)
 			continue // Retry on temporary errors
 		} else {
 			break // Do not retry on permanent errors
@@ -161,8 +164,8 @@ func writeToFile(filename string, data io.Reader) error {
 	return nil
 }
 
-// DownloadFile downloads a file from a URL and saves it to a local path.
-func DownloadFile(urlStr, fileName string, overwrite bool) (string, error) {
+// downloadFile downloads a file from a URL and saves it to a local path.
+func downloadFile(urlStr, fileName string, overwrite bool) (string, error) {
 	if urlStr == "" {
 		return "", errors.New("an empty URL was provided")
 	}

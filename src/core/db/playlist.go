@@ -43,7 +43,10 @@ func generateUniquePlaylistID() string {
 }
 
 // CreatePlaylist creates a new playlist for a user.
-func (db *Database) CreatePlaylist(ctx context.Context, name string, userID int64) (string, error) {
+func (db *Database) CreatePlaylist(name string, userID int64) (string, error) {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	id := generateUniquePlaylistID()
 	playlist := Playlist{
 		ID:     id,
@@ -59,7 +62,10 @@ func (db *Database) CreatePlaylist(ctx context.Context, name string, userID int6
 }
 
 // GetPlaylist retrieves a playlist by its ID.
-func (db *Database) GetPlaylist(ctx context.Context, id string) (*Playlist, error) {
+func (db *Database) GetPlaylist(id string) (*Playlist, error) {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	var playlist Playlist
 	err := db.playlistDB.FindOne(ctx, bson.M{"_id": id}).Decode(&playlist)
 	if err != nil {
@@ -69,17 +75,24 @@ func (db *Database) GetPlaylist(ctx context.Context, id string) (*Playlist, erro
 }
 
 // DeletePlaylist deletes a playlist by its ID.
-func (db *Database) DeletePlaylist(ctx context.Context, id string, userID int64) error {
+func (db *Database) DeletePlaylist(id string, userID int64) error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	_, err := db.playlistDB.DeleteOne(ctx, bson.M{"_id": id, "user_id": userID})
 	return err
 }
 
-func (db *Database) songExists(ctx context.Context, id string, trackID string) bool {
+func (db *Database) songExists(id string, trackID string) bool {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	var playlist Playlist
 	err := db.playlistDB.FindOne(ctx, bson.M{"_id": id}).Decode(&playlist)
 	if err != nil {
 		return false
 	}
+
 	for _, song := range playlist.Songs {
 		if song.TrackID == trackID {
 			return true
@@ -89,10 +102,13 @@ func (db *Database) songExists(ctx context.Context, id string, trackID string) b
 }
 
 // AddSongToPlaylist adds a song to a playlist.
-func (db *Database) AddSongToPlaylist(ctx context.Context, id string, song Song) error {
-	if db.songExists(ctx, id, song.TrackID) {
+func (db *Database) AddSongToPlaylist(id string, song Song) error {
+	if db.songExists(id, song.TrackID) {
 		return nil
 	}
+
+	ctx, cancel := db.ctx()
+	defer cancel()
 
 	_, err := db.playlistDB.UpdateOne(
 		ctx,
@@ -103,10 +119,13 @@ func (db *Database) AddSongToPlaylist(ctx context.Context, id string, song Song)
 }
 
 // RemoveSongFromPlaylist removes a song from a playlist by its track ID.
-func (db *Database) RemoveSongFromPlaylist(ctx context.Context, id string, trackID string) error {
-	if !db.songExists(ctx, id, trackID) {
+func (db *Database) RemoveSongFromPlaylist(id string, trackID string) error {
+	if !db.songExists(id, trackID) {
 		return fmt.Errorf("track with ID %s not found in playlist", trackID)
 	}
+
+	ctx, cancel := db.ctx()
+	defer cancel()
 
 	_, err := db.playlistDB.UpdateOne(
 		ctx,
@@ -122,7 +141,10 @@ func (db *Database) RemoveSongFromPlaylist(ctx context.Context, id string, track
 }
 
 // GetUserPlaylists retrieves all playlists for a user.
-func (db *Database) GetUserPlaylists(ctx context.Context, userID int64) ([]Playlist, error) {
+func (db *Database) GetUserPlaylists(userID int64) ([]Playlist, error) {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	var playlists []Playlist
 	cursor, err := db.playlistDB.Find(ctx, bson.M{"user_id": userID})
 	if err != nil {

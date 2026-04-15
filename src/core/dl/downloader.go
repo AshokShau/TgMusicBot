@@ -10,19 +10,12 @@ package dl
 
 import (
 	"ashokshau/tgmusic/src/utils"
-	"context"
 	"fmt"
-	"os"
 
 	td "github.com/AshokShau/gotdbot"
 )
 
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func DownloadSong(ctx context.Context, cached *utils.CachedTrack, bot *td.Client) (string, error) {
+func DownloadCachedTrack(cached *utils.CachedTrack, bot *td.Client) (string, error) {
 	if cached.Platform == utils.DirectLink {
 		return cached.URL, nil
 	}
@@ -31,21 +24,21 @@ func DownloadSong(ctx context.Context, cached *utils.CachedTrack, bot *td.Client
 		return downloadTelegramFile(cached, bot)
 	}
 
-	return downloadViaWrapper(ctx, cached, bot)
+	return downloadViaWrapper(cached, bot)
 }
 
-func downloadViaWrapper(ctx context.Context, cached *utils.CachedTrack, bot *td.Client) (string, error) {
+func downloadViaWrapper(cached *utils.CachedTrack, bot *td.Client) (string, error) {
 	wrapper := NewDownloaderWrapper(cached.URL)
 	if !wrapper.IsValid() {
 		return "", fmt.Errorf("invalid cached URL: %s", cached.URL)
 	}
 
-	track, err := wrapper.GetTrack(ctx)
+	track, err := wrapper.GetTrack()
 	if err != nil {
 		return "", fmt.Errorf("get track info: %w", err)
 	}
 
-	path, err := wrapper.DownloadTrack(ctx, track, cached.IsVideo)
+	path, err := wrapper.DownloadTrack(track, cached.IsVideo)
 	if err != nil {
 		return "", err
 	}

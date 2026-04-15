@@ -23,7 +23,6 @@ const reloadCooldown = 3 * time.Minute
 
 var reloadRateLimit = cache.NewCache[time.Time](reloadCooldown)
 
-// reloadAdminCacheHandler reloads the admin cache for a chat.
 func reloadAdminCacheHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 	m := ctx.EffectiveMessage
 	if m.IsPrivate() {
@@ -35,30 +34,31 @@ func reloadAdminCacheHandler(c *gotdbot.Client, ctx *gotdbot.Context) error {
 		timePassed := time.Since(lastUsed)
 		if timePassed < reloadCooldown {
 			remaining := int((reloadCooldown - timePassed).Seconds())
-			_, _ = m.ReplyText(c, fmt.Sprintf("⏳ Please wait %s before using this command again.", utils.SecToMin(remaining)), nil)
+			_, _ = m.ReplyText(c, fmt.Sprintf("Please wait %s before using this command again.", utils.SecToMin(remaining)), nil)
 			return nil
 		}
 	}
 
 	reloadRateLimit.Set(reloadKey, time.Now())
-	reply, err := m.ReplyText(c, "🔄 Reloading admin cache...", nil)
+
+	reply, err := m.ReplyText(c, "Reloading administrator cache...", nil)
 	if err != nil {
 		c.Logger.Warn("Failed to send reloading message for chat", "chat_id", m.ChatId, "error", err)
 		return gotdbot.EndGroups
 	}
 
 	cache.ClearAdminCache(m.ChatId)
-	// cache.ChatCache.ClearChat(m.ChatId)
 	vc.Calls.UpdateInviteLink(m.ChatId, "")
+
 	admins, err := cache.GetAdmins(c, m.ChatId, true)
 	if err != nil {
 		c.Logger.Warn("Failed to reload the admin cache for chat", "chat_id", m.ChatId, "error", err)
-		_, _ = reply.EditText(c, "⚠️ Error reloading admin cache.", nil)
+		_, _ = reply.EditText(c, "Failed to reload administrator cache.", nil)
 		return gotdbot.EndGroups
 	}
 
-	c.Logger.Info("Reloaded  admins for chat", "arg1", len(admins), "chat_id", m.ChatId)
-	_, _ = reply.EditText(c, "✅ Admin cache reloaded.", nil)
+	c.Logger.Info("Reloaded admins for chat", "count", len(admins), "chat_id", m.ChatId)
+	_, _ = reply.EditText(c, "Administrator cache reloaded successfully.", nil)
 	return gotdbot.EndGroups
 }
 

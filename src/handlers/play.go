@@ -9,18 +9,15 @@
 package handlers
 
 import (
-	"context"
-	"fmt"
-	"html"
-	"strings"
-	"time"
-
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/core"
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/core/dl"
 	"ashokshau/tgmusic/src/vc"
+	"fmt"
+	"html"
+	"strings"
 
 	"ashokshau/tgmusic/src/utils"
 
@@ -49,22 +46,27 @@ func handlePlay(c *td.Client, ctx *td.Context, isVideo bool) error {
 	m := ctx.EffectiveMessage
 
 	if queueLen := cache.ChatCache.GetQueueLength(chatID); queueLen > 10 {
-		_, _ = m.ReplyText(c, "⚠️ Queue is full (max 10 tracks). Use /end to clear.", nil)
+		_, _ = m.ReplyText(c, "Queue is full (max 10 tracks). Use /end to clear.", nil)
 		return td.EndGroups
 	}
 
 	isReply := m.ReplyToMessageID() != 0
-	url := getUrl(c, m, isReply)
 	args := Args(m)
+	url := getUrl(c, m, isReply)
+
 	rMsg := m
 	var err error
+	if isReply && args == "" && url == "" {
+		r, err := m.GetRepliedMessage(c)
+		if err == nil && r != nil {
+			args = r.Text()
+		}
+	}
 
 	input := coalesce(url, args)
 
 	if strings.HasPrefix(input, "tgpl_") {
-		ctx, cancel := db.Ctx()
-		defer cancel()
-		playlist, err := db.Instance.GetPlaylist(ctx, input)
+		playlist, err := db.Instance.GetPlaylist(input)
 		if err != nil {
 			_, err = m.ReplyText(c, "❌ Playlist not found.", nil)
 			return err
@@ -89,13 +91,13 @@ func handlePlay(c *td.Client, ctx *td.Context, isVideo bool) error {
 		rMsg, err = utils.GetMessage(c, input)
 		if err != nil {
 			c.Logger.Warn("failed to parse message", "error", err.Error())
-			_, err = m.ReplyText(c, "❌ Invalid Telegram link.", nil)
+			_, err = m.ReplyText(c, "Invalid Telegram link.", nil)
 			return err
 		}
 	} else if isReply {
 		rMsg, err = m.GetRepliedMessage(c)
 		if err != nil {
-			_, err = m.ReplyText(c, "❌ Invalid reply message.", nil)
+			_, err = m.ReplyText(c, "Invalid reply message.", nil)
 			return err
 		}
 	}
@@ -105,7 +107,7 @@ func handlePlay(c *td.Client, ctx *td.Context, isVideo bool) error {
 	}
 
 	if url == "" && args == "" && (!isReply || !isValidMedia(rMsg)) {
-		_, _ = m.ReplyText(c, "🎵 <b>Usage:</b>\n/play [song or URL]\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.SendTextMessageOpts{ReplyMarkup: core.SupportKeyboard(), ParseMode: "HTML"})
+		_, _ = m.ReplyText(c, "<b>Usage:</b>\n/play [song or URL]\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.SendTextMessageOpts{ReplyMarkup: core.SupportKeyboard(), ParseMode: "HTML"})
 		return td.EndGroups
 	}
 
@@ -122,41 +124,37 @@ func handlePlay(c *td.Client, ctx *td.Context, isVideo bool) error {
 	wrapper := dl.NewDownloaderWrapper(input)
 	if url != "" {
 		if !wrapper.IsValid() {
-			_, _ = updater.EditText(c, "❌ Invalid URL or unsupported platform.\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.EditTextMessageOpts{ReplyMarkup: core.SupportKeyboard(), ParseMode: "HTML"})
+			_, _ = updater.EditText(c, "Invalid URL or unsupported platform.\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.EditTextMessageOpts{ReplyMarkup: core.SupportKeyboard(), ParseMode: "HTML"})
 			return td.EndGroups
 		}
 
-		ctx2, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		defer cancel()
-		trackInfo, err := wrapper.GetInfo(ctx2)
+		trackInfo, err := wrapper.GetInfo()
 		if err != nil {
 			_, _ = updater.EditText(c, fmt.Sprintf("❌ Error fetching track info: %s", err.Error()), nil)
 			return td.EndGroups
 		}
 
 		if trackInfo.Results == nil || len(trackInfo.Results) == 0 {
-			_, _ = updater.EditText(c, "❌ No tracks found.", nil)
+			_, _ = updater.EditText(c, "No tracks found.", nil)
 			return td.EndGroups
 		}
 
 		return handleUrl(c, m, updater, trackInfo, chatID, isVideo)
 	}
 
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel2()
-	return handleTextSearch(c, m, updater, wrapper, chatID, isVideo, ctx2)
+	return handleTextSearch(c, m, updater, wrapper, chatID, isVideo)
 }
 
 // handleMedia handles playing media from a message.
 func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Message, chatId int64, isVideo bool) error {
 	file, fileName := getFile(dlMsg)
 	if file == nil {
-		_, err := updater.EditText(c, "❌ No valid media found in the message.", nil)
+		_, err := updater.EditText(c, "No valid media found in the message.", nil)
 		return err
 	}
 
 	if file.Size > config.Conf.MaxFileSize {
-		_, err := updater.EditText(c, fmt.Sprintf("❌ File too large. Max size: %d MB.", config.Conf.MaxFileSize/(1024*1024)), nil)
+		_, err := updater.EditText(c, fmt.Sprintf("File too large. Max size: %d MB.", config.Conf.MaxFileSize/(1024*1024)), nil)
 		if err != nil {
 			c.Logger.Warn("Edit message failed", "error", err)
 		}
@@ -165,7 +163,7 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 
 	fileId := dlMsg.RemoteFileID()
 	if _track := cache.ChatCache.GetTrackIfExists(chatId, fileId); _track != nil {
-		_, err := updater.EditText(c, "✅ Track already in queue or playing.", nil)
+		_, err := updater.EditText(c, "Track already in queue or playing.", nil)
 		return err
 	}
 
@@ -176,14 +174,8 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 		link.Link = ""
 	}
 
-	user, err := c.GetUser(m.SenderID())
-	if err != nil {
-		c.Logger.Warn("Failed to get user info", "error", err)
-		user = &td.User{FirstName: "Unknown"}
-	}
-
 	saveCache := utils.CachedTrack{
-		URL: link.Link, Name: fileName, User: user.FirstName, TrackID: fileId,
+		URL: link.Link, Name: fileName, User: firstName(c, m), TrackID: fileId,
 		Duration: dur, IsVideo: isVideo, Platform: utils.Telegram,
 	}
 
@@ -191,7 +183,7 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 
 	if qLen > 1 {
 		queueInfo := fmt.Sprintf(
-			"<b>🎧 Added to Queue (#%d)</b>\n\n<b>Track:</b> <a href='%s'>%s</a>\n<b>Duration:</b> %s\n<b>By:</b> %s",
+			"<u><b>Added to queue: %d</b></u>\n\n<b>Title:</b> <a href='%s'>%s</a>\n\n<b>Duration:</b> %s min\n<b>Requested by:</b> %s",
 			qLen, saveCache.URL, saveCache.Name, utils.SecToMin(saveCache.Duration), saveCache.User,
 		)
 		_, err := updater.EditText(c, queueInfo, &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons("play"), ParseMode: "HTML", DisableWebPagePreview: true})
@@ -220,7 +212,7 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 	}
 
 	nowPlaying := fmt.Sprintf(
-		"🎵 <b>Now Playing:</b>\n\n<b>Track:</b> <a href='%s'>%s</a>\n<b>Duration:</b> %s\n<b>By:</b> %s",
+		"<u><b>| Started streaming</b></u>\n\n<b>Title:</b> <a href='%s'>%s</a>\n\n<b>Duration:</b> %s min\n<b>Requested by:</b> %s",
 		saveCache.URL, saveCache.Name, utils.SecToMin(saveCache.Duration), saveCache.User,
 	)
 
@@ -234,8 +226,8 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 }
 
 // handleTextSearch handles a text search for a song.
-func handleTextSearch(c *td.Client, m *td.Message, updater *td.Message, wrapper *dl.DownloaderWrapper, chatId int64, isVideo bool, ctx context.Context) error {
-	searchResult, err := wrapper.Search(ctx)
+func handleTextSearch(c *td.Client, m *td.Message, updater *td.Message, wrapper *dl.DownloaderWrapper, chatId int64, isVideo bool) error {
+	searchResult, err := wrapper.Search()
 	if err != nil {
 		_, err = updater.EditText(c, fmt.Sprintf("❌ Search failed: %s", err.Error()), nil)
 		return err
@@ -248,7 +240,7 @@ func handleTextSearch(c *td.Client, m *td.Message, updater *td.Message, wrapper 
 
 	song := searchResult.Results[0]
 	if _track := cache.ChatCache.GetTrackIfExists(chatId, song.Id); _track != nil {
-		_, err := updater.EditText(c, "✅ Track already in queue or playing.", nil)
+		_, err := updater.EditText(c, "Track already in queue or playing.", nil)
 		return err
 	}
 
@@ -260,7 +252,7 @@ func handleUrl(c *td.Client, m *td.Message, updater *td.Message, trackInfo utils
 	if len(trackInfo.Results) == 1 {
 		track := trackInfo.Results[0]
 		if _track := cache.ChatCache.GetTrackIfExists(chatId, track.Id); _track != nil {
-			_, err := updater.EditText(c, "✅ Track already in queue or playing.", nil)
+			_, err := updater.EditText(c, "Track already in queue or playing.", nil)
 			return err
 		}
 		return handleSingleTrack(c, m, updater, track, "", chatId, isVideo)
@@ -276,14 +268,8 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 		return err
 	}
 
-	user, err := c.GetUser(m.SenderID())
-	if err != nil {
-		c.Logger.Warn("Failed to get user info", "error", err)
-		user = &td.User{FirstName: "Unknown"}
-	}
-
 	saveCache := utils.CachedTrack{
-		URL: song.Url, Name: song.Title, User: user.FirstName, FilePath: filePath,
+		URL: song.Url, Name: song.Title, User: firstName(c, m), FilePath: filePath,
 		Thumbnail: song.Thumbnail, TrackID: song.Id, Duration: song.Duration, Channel: song.Channel, Views: song.Views,
 		IsVideo: isVideo, Platform: song.Platform,
 	}
@@ -292,40 +278,37 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 
 	if qLen > 1 {
 		queueInfo := fmt.Sprintf(
-			"<b>🎧 Added to Queue (#%d)</b>\n\n<b>Track:</b> <a href='%s'>%s</a>\n<b>Duration:</b> %s\n<b>By:</b> %s",
+			"<u><b>Added to queue: %d</b></u>\n\n<b>Title:</b> <a href='%s'>%s</a>\n\n<b>Duration:</b> %s min\n<b>Requested by:</b> %s",
 			qLen, saveCache.URL, saveCache.Name, utils.SecToMin(saveCache.Duration), saveCache.User,
 		)
 
-		_, err = updater.EditText(c, queueInfo, &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons("play"), ParseMode: "HTML", DisableWebPagePreview: true})
+		_, err := updater.EditText(c, queueInfo, &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons("play"), ParseMode: "HTML", DisableWebPagePreview: true})
 		return err
 	}
 
 	if saveCache.FilePath == "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
-
-		dlResult, err := dl.DownloadSong(ctx, &saveCache, c)
+		dlResult, err := dl.DownloadCachedTrack(&saveCache, c)
 		if err != nil {
 			cache.ChatCache.RemoveCurrentSong(chatId)
-			_, err = updater.EditText(c, fmt.Sprintf("❌ Download failed: %s", err.Error()), nil)
+			_, err = updater.EditText(c, fmt.Sprintf("Download failed: %s", err.Error()), nil)
 			return err
 		}
 
 		saveCache.FilePath = dlResult
 	}
 
-	if err = vc.Calls.PlayMedia(chatId, saveCache.FilePath, saveCache.IsVideo, ""); err != nil {
+	if err := vc.Calls.PlayMedia(chatId, saveCache.FilePath, saveCache.IsVideo, ""); err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
 		_, err = updater.EditText(c, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return err
 	}
 
 	nowPlaying := fmt.Sprintf(
-		"🎵 <b>Now Playing:</b>\n\n<b>Track:</b> <a href='%s'>%s</a>\n<b>Duration:</b> %s\n<b>By:</b> %s",
+		"<u><b>| Started streaming</b></u>\n\n<b>Title:</b> <a href='%s'>%s</a>\n\n<b>Duration:</b> %s min\n<b>Requested by:</b> %s",
 		saveCache.URL, saveCache.Name, utils.SecToMin(song.Duration), saveCache.User,
 	)
 
-	_, err = updater.EditText(c, nowPlaying, &td.EditTextMessageOpts{
+	_, err := updater.EditText(c, nowPlaying, &td.EditTextMessageOpts{
 		ReplyMarkup:           core.ControlButtons("play"),
 		ParseMode:             "HTML",
 		DisableWebPagePreview: true,
@@ -342,17 +325,11 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 // handleMultipleTracks handles multiple tracks.
 func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, tracks []utils.MusicTrack, chatId int64, isVideo bool) error {
 	if len(tracks) == 0 {
-		_, err := updater.EditText(c, "❌ No tracks found.", nil)
+		_, err := updater.EditText(c, "No tracks found.", nil)
 		return err
 	}
 
-	user, err := c.GetUser(m.SenderID())
-	if err != nil {
-		c.Logger.Warn("Failed to get user info", "error", err)
-		user = &td.User{FirstName: "Unknown"}
-	}
-
-	queueHeader := "<b>📥 Added to Queue:</b>\n<blockquote expandable>\n"
+	queueHeader := "<u><b>Added to Queue:</b></u>\n<blockquote expandable>\n"
 	var tracksToAdd []*utils.CachedTrack
 	var skippedTracks []string
 
@@ -367,7 +344,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 
 		saveCache := &utils.CachedTrack{
 			Name: track.Title, TrackID: track.Id, Duration: track.Duration,
-			Thumbnail: track.Thumbnail, User: user.FirstName, Platform: track.Platform,
+			Thumbnail: track.Thumbnail, User: firstName(c, m), Platform: track.Platform,
 			IsVideo: isVideo, URL: track.Url, Channel: track.Channel, Views: track.Views,
 		}
 		tracksToAdd = append(tracksToAdd, saveCache)
@@ -375,10 +352,10 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 
 	if len(tracksToAdd) == 0 {
 		if len(skippedTracks) > 0 {
-			_, err = updater.EditText(c, fmt.Sprintf("❌ All tracks were skipped (max duration %d min).", config.Conf.SongDurationLimit/60), nil)
+			_, err := updater.EditText(c, fmt.Sprintf("All tracks were skipped (max duration %d min).", config.Conf.SongDurationLimit/60), nil)
 			return err
 		}
-		_, err = updater.EditText(c, "❌ No valid tracks found.", nil)
+		_, err := updater.EditText(c, "No valid tracks found.", nil)
 		return err
 	}
 
@@ -404,8 +381,8 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 
 	sb.WriteString("</blockquote>")
 	queueSummary := fmt.Sprintf(
-		"\n<b>📋 Queue Total:</b> %d\n<b>⏱ Duration:</b> %s\n<b>👤 By:</b> %s",
-		qLenAfter, utils.SecToMin(totalDuration), user.FirstName,
+		"\n<b>Queue Total:</b> %d\n<b>Duration:</b> %s min\n<b>Requested by:</b> %s",
+		qLenAfter, utils.SecToMin(totalDuration), firstName(c, m),
 	)
 
 	sb.WriteString(queueSummary)
@@ -423,7 +400,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 		_ = vc.Calls.PlayNext(chatId)
 	}
 
-	_, err = updater.EditText(c, fullMessage, &td.EditTextMessageOpts{
+	_, err := updater.EditText(c, fullMessage, &td.EditTextMessageOpts{
 		ParseMode:             "HTML",
 		ReplyMarkup:           core.ControlButtons("play"),
 		DisableWebPagePreview: true,

@@ -10,37 +10,12 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/src/core/cache"
-	"errors"
-	"fmt"
-
 	"ashokshau/tgmusic/src/core/db"
+	"fmt"
 
 	td "github.com/AshokShau/gotdbot"
 )
 
-// getTargetUserID gets the user ID from a message.
-func getTargetUserID(c *td.Client, m *td.Message) (int64, error) {
-	var userID int64
-	if m.ReplyToMessageID() != 0 {
-		replyMsg, err := m.GetRepliedMessage(c)
-		if err != nil {
-			return 0, err
-		}
-		userID = replyMsg.SenderID()
-	}
-
-	if userID == 0 {
-		return 0, errors.New("no user specified")
-	}
-
-	if m.SenderID() == userID {
-		return 0, errors.New("cannot perform action on yourself")
-	}
-
-	return userID, nil
-}
-
-// authListHandler handles the /auth command.
 func authListHandler(c *td.Client, ctx *td.Context) error {
 	if !adminMode(c, ctx) {
 		return td.EndGroups
@@ -52,25 +27,22 @@ func authListHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	chatID := m.ChatId
-	ctx2, cancel := db.Ctx()
-	defer cancel()
 
-	authUser := db.Instance.GetAuthUsers(ctx2, chatID)
+	authUser := db.Instance.GetAuthUsers(chatID)
 	if authUser == nil || len(authUser) == 0 {
-		_, _ = m.ReplyText(c, "ℹ️ No authorized users.", nil)
+		_, _ = m.ReplyText(c, "No authorized users found.", nil)
 		return nil
 	}
 
-	text := "<b>Authorized Users:</b>\n\n"
+	text := "<b>Authorized Users</b>\n\n"
 	for _, uid := range authUser {
 		text += fmt.Sprintf("• <a href=\"tg://user?id=%d\">%d</a>\n", uid, uid)
 	}
 
-	_, _ = m.ReplyText(c, text, &td.SendTextMessageOpts{ParseMode: "HTML"})
+	_, _ = m.ReplyText(c, text, replyOpts)
 	return td.EndGroups
 }
 
-// addAuthHandler handles the /addauth command.
 func addAuthHandler(c *td.Client, ctx *td.Context) error {
 	if !adminMode(c, ctx) {
 		return td.EndGroups
@@ -86,20 +58,16 @@ func addAuthHandler(c *td.Client, ctx *td.Context) error {
 	UserStatus, err := cache.GetUserAdmin(c, chatID, m.SenderID(), false)
 	if err != nil {
 		c.Logger.Warn("GetUserAdmin error", "error", err)
-		_, _ = m.ReplyText(c, "⚠️ Failed to get user admin status (cache or fetch failed).", nil)
+		_, _ = m.ReplyText(c, "Unable to verify administrator status.", nil)
 		return td.EndGroups
 	}
 
 	switch UserStatus.Status.(type) {
 	case *td.ChatMemberStatusCreator, *td.ChatMemberStatusAdministrator:
-		// User is an admin, proceed
 	default:
-		_, _ = m.ReplyText(c, "❌ You must be an admin to use this command.", nil)
+		_, _ = m.ReplyText(c, "You must be an administrator to use this command.", nil)
 		return td.EndGroups
 	}
-
-	ctx2, cancel := db.Ctx()
-	defer cancel()
 
 	userID, err := getTargetUserID(c, m)
 	if err != nil {
@@ -107,22 +75,21 @@ func addAuthHandler(c *td.Client, ctx *td.Context) error {
 		return nil
 	}
 
-	if db.Instance.IsAuthUser(ctx2, chatID, userID) {
-		_, _ = m.ReplyText(c, "User is already authorized.", nil)
+	if db.Instance.IsAuthUser(chatID, userID) {
+		_, _ = m.ReplyText(c, "This user is already authorized.", nil)
 		return nil
 	}
 
-	if err = db.Instance.AddAuthUser(ctx2, chatID, userID); err != nil {
+	if err = db.Instance.AddAuthUser(chatID, userID); err != nil {
 		c.Logger.Error("Failed to add authorized user", "error", err)
-		_, _ = m.ReplyText(c, "Error adding user.", nil)
+		_, _ = m.ReplyText(c, "Failed to authorize the user.", nil)
 		return nil
 	}
 
-	_, err = m.ReplyText(c, fmt.Sprintf("✅ User %d authorized.", userID), nil)
+	_, err = m.ReplyText(c, fmt.Sprintf("User %d has been authorized.", userID), nil)
 	return err
 }
 
-// removeAuthHandler handles the /removeauth command.
 func removeAuthHandler(c *td.Client, ctx *td.Context) error {
 	if !adminMode(c, ctx) {
 		return td.EndGroups
@@ -134,23 +101,20 @@ func removeAuthHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	chatID := m.ChatId
+
 	UserStatus, err := cache.GetUserAdmin(c, chatID, m.SenderID(), false)
 	if err != nil {
 		c.Logger.Warn("GetUserAdmin error", "error", err)
-		_, _ = m.ReplyText(c, "⚠️ Failed to get user admin status (cache or fetch failed).", nil)
+		_, _ = m.ReplyText(c, "Unable to verify administrator status.", nil)
 		return td.EndGroups
 	}
 
 	switch UserStatus.Status.(type) {
 	case *td.ChatMemberStatusCreator, *td.ChatMemberStatusAdministrator:
-		// User is an admin, proceed
 	default:
-		_, _ = m.ReplyText(c, "❌ You must be an admin to use this command.", nil)
+		_, _ = m.ReplyText(c, "You must be an administrator to use this command.", nil)
 		return td.EndGroups
 	}
-
-	ctx2, cancel := db.Ctx()
-	defer cancel()
 
 	userID, err := getTargetUserID(c, m)
 	if err != nil {
@@ -158,17 +122,17 @@ func removeAuthHandler(c *td.Client, ctx *td.Context) error {
 		return nil
 	}
 
-	if !db.Instance.IsAuthUser(ctx2, chatID, userID) {
-		_, _ = m.ReplyText(c, "User is not authorized.", nil)
+	if !db.Instance.IsAuthUser(chatID, userID) {
+		_, _ = m.ReplyText(c, "This user is not authorized.", nil)
 		return nil
 	}
 
-	if err := db.Instance.RemoveAuthUser(ctx2, chatID, userID); err != nil {
+	if err := db.Instance.RemoveAuthUser(chatID, userID); err != nil {
 		c.Logger.Error("Failed to remove authorized user", "error", err)
-		_, _ = m.ReplyText(c, "Error removing user.", nil)
+		_, _ = m.ReplyText(c, "Failed to remove authorized user.", nil)
 		return nil
 	}
 
-	_, err = m.ReplyText(c, fmt.Sprintf("✅ User %d removed from authorized list.", userID), nil)
+	_, err = m.ReplyText(c, fmt.Sprintf("User %d has been removed from the authorized list.", userID), nil)
 	return err
 }

@@ -18,7 +18,6 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-// muteHandler handles the /mute command.
 func muteHandler(c *td.Client, ctx *td.Context) error {
 	if !adminMode(c, ctx) {
 		return td.EndGroups
@@ -31,25 +30,19 @@ func muteHandler(c *td.Client, ctx *td.Context) error {
 
 	chatID := m.ChatId
 	if !cache.ChatCache.IsActive(chatID) {
-		_, err := m.ReplyText(c, "⏸ No track currently playing.", nil)
+		_, err := m.ReplyText(c, "There is no active playback in the video chat.", nil)
 		return err
 	}
 
 	if _, err := vc.Calls.Mute(chatID); err != nil {
-		_, err = m.ReplyText(c, fmt.Sprintf("❌ An error occurred while muting the playback: %s", err.Error()), nil)
+		_, err = m.ReplyText(c, fmt.Sprintf("Failed to mute the playback: %s", err.Error()), nil)
 		return err
 	}
 
-	user, err := c.GetUser(m.SenderID())
-	if err != nil {
-		user = &td.User{FirstName: "Unknown"}
-	}
-
-	_, err = m.ReplyText(c, fmt.Sprintf("🔇 Playback has been muted by %s.", user.FirstName), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("mute")})
+	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been muted by %s.", firstName(c, m)), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("mute")})
 	return err
 }
 
-// unmuteHandler handles the /unmute command.
 func unmuteHandler(c *td.Client, ctx *td.Context) error {
 	if !adminMode(c, ctx) {
 		return td.EndGroups
@@ -62,20 +55,15 @@ func unmuteHandler(c *td.Client, ctx *td.Context) error {
 
 	chatID := m.ChatId
 	if !cache.ChatCache.IsActive(chatID) {
-		_, err := m.ReplyText(c, "⏸ No track currently playing.", nil)
+		_, err := m.ReplyText(c, "There is no active playback in the video chat.", nil)
 		return err
 	}
 
 	if _, err := vc.Calls.Unmute(chatID); err != nil {
-		_, _ = m.ReplyText(c, fmt.Sprintf("❌ An error occurred while unmuting the playback: %s", err.Error()), nil)
+		_, err = m.ReplyText(c, fmt.Sprintf("Failed to unmute the playback: %s", err.Error()), nil)
 		return err
 	}
 
-	user, err := c.GetUser(m.SenderID())
-	if err != nil {
-		user = &td.User{FirstName: "Unknown"}
-	}
-
-	_, err = m.ReplyText(c, fmt.Sprintf("🔊 Playback has been unmuted by %s.", user.FirstName), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("unmute")})
+	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been unmuted by %s.", firstName(c, m)), &td.SendTextMessageOpts{ReplyMarkup: core.ControlButtons("unmute")})
 	return err
 }

@@ -47,7 +47,10 @@ type Database struct {
 var Instance *Database
 
 // InitDatabase initializes the database connection and sets up the global instance.
-func InitDatabase(ctx context.Context) error {
+func InitDatabase() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	opts := options.Client().ApplyURI(config.Conf.MongoUri).
 		SetMinPoolSize(10).
 		SetMaxConnIdleTime(10 * time.Minute).
@@ -89,7 +92,14 @@ func InitDatabase(ctx context.Context) error {
 }
 
 // Close gracefully closes the database connection.
-func (db *Database) Close(ctx context.Context) error {
+func (db *Database) Close() error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	slog.Info("[DB] Closing the database connection...")
 	return db.client.Disconnect(ctx)
+}
+
+func (db *Database) ctx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 5*time.Second)
 }

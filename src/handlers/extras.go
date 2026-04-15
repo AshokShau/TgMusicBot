@@ -10,7 +10,9 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/config"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +25,35 @@ func Args(m *gotdbot.Message) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.Join(Messages[1:], " "))
+}
+
+func firstName(c *gotdbot.Client, m *gotdbot.Message) string {
+	if m.SenderId == nil {
+		return "Unknown"
+	}
+
+	if u, ok := m.SenderId.(*gotdbot.MessageSenderUser); ok {
+		user, err := c.GetUser(u.UserId)
+		if err != nil {
+			return "Unknown"
+		}
+		return user.FirstName
+	}
+
+	if ch, ok := m.SenderId.(*gotdbot.MessageSenderChat); ok {
+		chat, err := c.GetChat(ch.ChatId)
+		if err != nil {
+			return "Unknown"
+		}
+		return chat.Title
+	}
+
+	return "Unknown"
+}
+
+var replyOpts = &gotdbot.SendTextMessageOpts{
+	ParseMode:             "HTML",
+	DisableWebPagePreview: true,
 }
 
 // isDev checks if the user is a developer.
@@ -48,6 +79,75 @@ func SenderID(sender gotdbot.MessageSender) int64 {
 	default:
 		return 0
 	}
+}
+
+// getTargetUserID resolves a target user ID from a reply or command arguments.
+// Resolution order: replied message → numeric ID → @username lookup.
+func getTargetUserID(c *gotdbot.Client, m *gotdbot.Message) (int64, error) {
+	if m.ReplyToMessageID() != 0 {
+		return resolveFromReply(c, m)
+	}
+
+	args := strings.Fields(Args(m))
+	if len(args) == 0 {
+		return 0, errors.New("no target specified: reply to a message or provide a user ID/username")
+	}
+
+	userID, err := resolveFromArg(c, args[0])
+	if err != nil {
+		return 0, err
+	}
+
+	if m.SenderID() == userID {
+		return 0, errors.New("cannot perform action on yourself")
+	}
+
+	return userID, nil
+}
+
+// resolveFromReply extracts the sender ID from the replied-to message.
+func resolveFromReply(c *gotdbot.Client, m *gotdbot.Message) (int64, error) {
+	replyMsg, err := m.GetRepliedMessage(c)
+	if err != nil {
+		return 0, fmt.Errorf("failed to fetch replied message: %w", err)
+	}
+
+	userID := replyMsg.SenderID()
+	if userID == 0 {
+		return 0, errors.New("replied message has no identifiable sender")
+	}
+
+	return userID, nil
+}
+
+// resolveFromArg parses a user ID or @username from a raw argument string.
+func resolveFromArg(c *gotdbot.Client, arg string) (int64, error) {
+	if id, err := strconv.ParseInt(arg, 10, 64); err == nil {
+		if id <= 0 {
+			return 0, fmt.Errorf("invalid user ID: %d", id)
+		}
+		return id, nil
+	}
+
+	return resolveUsername(c, arg)
+}
+
+// resolveUsername looks up a Telegram username and returns its chat ID.
+func resolveUsername(c *gotdbot.Client, username string) (int64, error) {
+	username = strings.TrimPrefix(username, "@")
+	if username == "" {
+		return 0, errors.New("username cannot be empty")
+	}
+
+	chat, err := c.SearchPublicChat(username)
+	if err != nil {
+		return 0, fmt.Errorf("username lookup failed for %q: %w", username, err)
+	}
+	if chat == nil {
+		return 0, fmt.Errorf("no user found for username %q", username)
+	}
+
+	return chat.Id, nil
 }
 
 // plural returns the unit with correct singular/plural form.

@@ -10,6 +10,7 @@ package vc
 
 import (
 	"log/slog"
+	"regexp"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 )
 
 var logger = slog.Default()
+var urlRegex = regexp.MustCompile(`^https?://`)
 
 // TelegramCalls manages the state and operations for voice calls, including userbots and the main bot client.
 type TelegramCalls struct {

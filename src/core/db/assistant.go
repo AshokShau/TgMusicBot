@@ -9,7 +9,6 @@
 package db
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 
@@ -20,7 +19,7 @@ import (
 
 // GetAssistant retrieves the index of the assistant for a chat.
 // Returns -1 if no assistant is assigned.
-func (db *Database) GetAssistant(ctx context.Context, chatID int64) (int, error) {
+func (db *Database) GetAssistant(chatID int64) (int, error) {
 	key := toKey(chatID)
 	if cached, ok := db.assistantCache.Get(key); ok {
 		return cached, nil
@@ -28,6 +27,10 @@ func (db *Database) GetAssistant(ctx context.Context, chatID int64) (int, error)
 	var doc struct {
 		Num int `bson:"num"`
 	}
+
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	err := db.assistantDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&doc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
@@ -40,16 +43,23 @@ func (db *Database) GetAssistant(ctx context.Context, chatID int64) (int, error)
 }
 
 // SetAssistant sets the assistant index for a given chat.
-func (db *Database) SetAssistant(ctx context.Context, chatID int64, num int) error {
+func (db *Database) SetAssistant(chatID int64, num int) error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	_, err := db.assistantDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"num": num}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
 		db.assistantCache.Set(toKey(chatID), num)
 	}
+
 	return err
 }
 
 // RemoveAssistant removes the assistant from a chat's settings.
-func (db *Database) RemoveAssistant(ctx context.Context, chatID int64) error {
+func (db *Database) RemoveAssistant(chatID int64) error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	_, err := db.assistantDB.DeleteOne(ctx, bson.M{"_id": chatID})
 	if err == nil {
 		db.assistantCache.Delete(toKey(chatID))
@@ -58,7 +68,10 @@ func (db *Database) RemoveAssistant(ctx context.Context, chatID int64) error {
 }
 
 // AssignAssistant attempts to set the assistant for a chat if it is not currently set.
-func (db *Database) AssignAssistant(ctx context.Context, chatID int64, proposedAssistant int) (int, error) {
+func (db *Database) AssignAssistant(chatID int64, proposedAssistant int) (int, error) {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	filter := bson.M{
 		"_id": chatID,
 		"$or": bson.A{
@@ -72,7 +85,7 @@ func (db *Database) AssignAssistant(ctx context.Context, chatID int64, proposedA
 	result, err := db.assistantDB.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			return db.GetAssistant(ctx, chatID)
+			return db.GetAssistant(chatID)
 		}
 		return -1, err
 	}
@@ -82,16 +95,20 @@ func (db *Database) AssignAssistant(ctx context.Context, chatID int64, proposedA
 		return proposedAssistant, nil
 	}
 
-	return db.GetAssistant(ctx, chatID)
+	return db.GetAssistant(chatID)
 }
 
 // ClearAllAssistants removes all assistant assignments.
-func (db *Database) ClearAllAssistants(ctx context.Context) (int64, error) {
+func (db *Database) ClearAllAssistants() (int64, error) {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	result, err := db.assistantDB.DeleteMany(ctx, bson.M{})
 	if err != nil {
 		slog.Info("[DB] Error clearing assistants", "error", err)
 		return 0, err
 	}
+
 	db.assistantCache.Clear()
 	return result.DeletedCount, nil
 }

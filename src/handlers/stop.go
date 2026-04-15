@@ -26,20 +26,11 @@ func stopHandler(c *td.Client, ctx *td.Context) error {
 	chatID := ctx.EffectiveChatId
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.ReplyText(c, "⏸ Nothing is playing.", nil)
+		_, _ = m.ReplyText(c, "The bot isn't streaming in the video chat.", nil)
 		return nil
 	}
 
-	if err := vc.Calls.Stop(chatID); err != nil {
-		_, _ = m.ReplyText(c, fmt.Sprintf("❌ Error stopping playback: %s", err.Error()), nil)
-		return err
-	}
-
-	user, err := c.GetUser(m.SenderID())
-	if err != nil {
-		user = &td.User{FirstName: "Unknown"}
-	}
-
-	_, _ = m.ReplyText(c, fmt.Sprintf("⏹️ Stopped by %s. Queue cleared.", user.FirstName), nil)
+	_ = vc.Calls.Stop(chatID)
+	_, _ = m.ReplyText(c, fmt.Sprintf("<b>Stream ended by</b> %s", firstName(c, m)), replyOpts)
 	return nil
 }

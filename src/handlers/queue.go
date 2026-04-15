@@ -26,6 +26,7 @@ func queueHandler(c *td.Client, ctx *td.Context) error {
 	if !adminMode(c, ctx) {
 		return td.EndGroups
 	}
+
 	m := ctx.EffectiveMessage
 	chatID := ctx.EffectiveChatId
 
@@ -37,12 +38,12 @@ func queueHandler(c *td.Client, ctx *td.Context) error {
 
 	queue := cache.ChatCache.GetQueue(chatID)
 	if len(queue) == 0 {
-		_, _ = m.ReplyText(c, "📭 Queue is empty.", nil)
+		_, _ = m.ReplyText(c, "The queue is empty.", nil)
 		return nil
 	}
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.ReplyText(c, "⏸ Nothing is playing.", nil)
+		_, _ = m.ReplyText(c, "The bot is not streaming in the video chat.", nil)
 		return nil
 	}
 
@@ -99,10 +100,17 @@ func queueHandler(c *td.Client, ctx *td.Context) error {
 		if playedTime > 0 && playedTime < math.MaxInt {
 			progress = utils.SecToMin(int(playedTime))
 		}
-		sb.WriteString(fmt.Sprintf("<b>Queue for %s</b>\n\n<b>Now Playing:</b>\n• <code>%s</code>\n• %s/%s min\n\n<b>Total:</b> %d tracks", chat.Title, truncate(current.Name, 45), progress, utils.SecToMin(current.Duration), len(queue)))
+		sb.WriteString(fmt.Sprintf(
+			"<b>Queue for %s</b>\n\n<b>Now Playing:</b>\n• <code>%s</code>\n• %s/%s min\n\n<b>Total:</b> %d tracks",
+			chat.Title,
+			truncate(current.Name, 45),
+			progress,
+			utils.SecToMin(current.Duration),
+			len(queue),
+		))
 		text = sb.String()
 	}
 
-	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ParseMode: "HTML"})
+	_, err = m.ReplyText(c, text, replyOpts)
 	return err
 }

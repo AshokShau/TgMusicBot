@@ -9,6 +9,8 @@
 package dl
 
 import (
+	"time"
+
 	"ashokshau/tgmusic/src/utils"
 	"context"
 	"encoding/json"
@@ -20,29 +22,32 @@ import (
 	"strings"
 )
 
-type DirectLink struct {
-	Query string
+type directLink struct {
+	query string
 }
 
-func NewDirectLink(query string) *DirectLink {
-	return &DirectLink{Query: query}
+func newDirectLink(query string) *directLink {
+	return &directLink{query: query}
 }
 
-// IsValid checks if the query looks like a valid URL.
-func (d *DirectLink) IsValid() bool {
-	return strings.HasPrefix(d.Query, "http://") || strings.HasPrefix(d.Query, "https://")
+// ssValid checks if the query looks like a valid URL.
+func (d *directLink) isValid() bool {
+	return strings.HasPrefix(d.query, "http://") || strings.HasPrefix(d.query, "https://")
 }
 
-func (d *DirectLink) GetInfo(ctx context.Context) (utils.PlatformTracks, error) {
-	if !d.IsValid() {
+func (d *directLink) getInfo() (utils.PlatformTracks, error) {
+	if !d.isValid() {
 		return utils.PlatformTracks{}, errors.New("invalid url")
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "ffprobe",
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
-		d.Query,
+		d.query,
 	)
 
 	output, err := cmd.Output()
@@ -64,7 +69,7 @@ func (d *DirectLink) GetInfo(ctx context.Context) (utils.PlatformTracks, error) 
 
 	title := info.Format.Tags.Title
 	if title == "" {
-		parts := strings.Split(d.Query, "/")
+		parts := strings.Split(d.query, "/")
 		if len(parts) > 0 {
 			title = parts[len(parts)-1]
 			title = strings.SplitN(title, "?", 2)[0]
@@ -84,20 +89,20 @@ func (d *DirectLink) GetInfo(ctx context.Context) (utils.PlatformTracks, error) 
 	track := utils.MusicTrack{
 		Title:    title,
 		Duration: duration,
-		Url:      d.Query,
-		Id:       d.Query,
+		Url:      d.query,
+		Id:       d.query,
 		Platform: utils.DirectLink,
 	}
 
 	return utils.PlatformTracks{Results: []utils.MusicTrack{track}}, nil
 }
 
-func (d *DirectLink) Search(ctx context.Context) (utils.PlatformTracks, error) {
-	return d.GetInfo(ctx)
+func (d *directLink) search() (utils.PlatformTracks, error) {
+	return d.getInfo()
 }
 
-func (d *DirectLink) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
-	info, err := d.GetInfo(ctx)
+func (d *directLink) getTrack() (utils.TrackInfo, error) {
+	info, err := d.getInfo()
 	if err != nil {
 		return utils.TrackInfo{}, err
 	}
@@ -106,13 +111,15 @@ func (d *DirectLink) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
 		return utils.TrackInfo{}, errors.New("no track found")
 	}
 
+	track := info.Results[0]
 	return utils.TrackInfo{
-		URL:      d.Query,
-		Platform: utils.DirectLink,
-		CdnURL:   d.Query,
+		Id:       track.Id,
+		URL:      track.Url,
+		CdnURL:   track.Url,
+		Platform: track.Platform,
 	}, nil
 }
 
-func (d *DirectLink) downloadTrack(_ context.Context, _ utils.TrackInfo, _ bool) (string, error) {
-	return d.Query, nil
+func (d *directLink) downloadTrack(_ utils.TrackInfo, _ bool) (string, error) {
+	return d.query, nil
 }

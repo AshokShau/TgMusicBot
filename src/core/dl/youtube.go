@@ -9,6 +9,8 @@
 package dl
 
 import (
+	"time"
+
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/utils"
 	"context"
@@ -24,8 +26,8 @@ import (
 	"strings"
 )
 
-// YouTubeData provides an interface for fetching track and playlist information from YouTube.
-type YouTubeData struct {
+// youTubeData provides an interface for fetching track and playlist information from YouTube.
+type youTubeData struct {
 	Query    string
 	ApiUrl   string
 	APIKey   string
@@ -39,9 +41,9 @@ var youtubePatterns = map[string]*regexp.Regexp{
 	"yt_shorts": regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?youtube\.com/shorts/.*`),
 }
 
-// NewYouTubeData initializes a YouTubeData instance with pre-compiled regex patterns and a cleaned query.
-func NewYouTubeData(query string) *YouTubeData {
-	return &YouTubeData{
+// newYouTubeData initializes a youTubeData instance with pre-compiled regex patterns and a cleaned query.
+func newYouTubeData(query string) *youTubeData {
+	return &youTubeData{
 		Query:    strings.TrimSpace(query),
 		ApiUrl:   strings.TrimRight(config.Conf.ApiUrl, "/"),
 		APIKey:   config.Conf.ApiKey,
@@ -49,8 +51,7 @@ func NewYouTubeData(query string) *YouTubeData {
 	}
 }
 
-// IsValid checks if the query string matches any of the known YouTube URL patterns.
-func (y *YouTubeData) IsValid() bool {
+func (y *youTubeData) isValid() bool {
 	if y.Query == "" {
 		slog.Info("The query or patterns are empty.")
 		return false
@@ -64,12 +65,13 @@ func (y *YouTubeData) IsValid() bool {
 	return false
 }
 
-// GetInfo retrieves metadata for a track from YouTube.
-// It returns a PlatformTracks object or an error if the information cannot be fetched.
-func (y *YouTubeData) GetInfo(ctx context.Context) (utils.PlatformTracks, error) {
-	if !y.IsValid() {
+func (y *youTubeData) getInfo() (utils.PlatformTracks, error) {
+	if !y.isValid() {
 		return utils.PlatformTracks{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+	defer cancel()
 
 	y.Query = normalizeYouTubeURL(y.Query)
 	videoID := extractVideoID(y.Query)
@@ -102,34 +104,35 @@ func (y *YouTubeData) GetInfo(ctx context.Context) (utils.PlatformTracks, error)
 	return utils.PlatformTracks{}, errors.New("no video or playlist results were found")
 }
 
-// Search performs a search for a track on YouTube.
-func (y *YouTubeData) Search(_ context.Context) (utils.PlatformTracks, error) {
+func (y *youTubeData) search() (utils.PlatformTracks, error) {
 	tracks, err := searchYouTube(y.Query, 5)
 	if err != nil {
 		return utils.PlatformTracks{}, err
 	}
+
 	if len(tracks) == 0 {
 		return utils.PlatformTracks{}, errors.New("no video results were found")
 	}
+
 	return utils.PlatformTracks{Results: tracks}, nil
 }
 
-// GetTrack retrieves detailed information for a single track.
-func (y *YouTubeData) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
+func (y *youTubeData) getTrack() (utils.TrackInfo, error) {
 	if y.Query == "" {
 		return utils.TrackInfo{}, errors.New("the query is empty")
 	}
-	if !y.IsValid() {
+
+	if !y.isValid() {
 		return utils.TrackInfo{}, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
 	if y.ApiUrl != "" && y.APIKey != "" {
-		if trackInfo, err := NewApiData(y.Query).GetTrack(ctx); err == nil {
+		if trackInfo, err := newApiData(y.Query).getTrack(); err == nil {
 			return trackInfo, nil
 		}
 	}
 
-	getInfo, err := y.GetInfo(ctx)
+	getInfo, err := y.getInfo()
 	if err != nil {
 		return utils.TrackInfo{}, err
 	}
@@ -148,19 +151,19 @@ func (y *YouTubeData) GetTrack(ctx context.Context) (utils.TrackInfo, error) {
 }
 
 // downloadTrack handles the download of a track from YouTube.
-func (y *YouTubeData) downloadTrack(ctx context.Context, info utils.TrackInfo, video bool) (string, error) {
+func (y *youTubeData) downloadTrack(info utils.TrackInfo, video bool) (string, error) {
 	if !video && y.ApiUrl != "" && y.APIKey != "" {
-		if filePath, err := y.downloadWithApi(ctx, info.Id, video); err == nil {
+		if filePath, err := y.downloadWithApi(info.Id, video); err == nil {
 			return filePath, nil
 		}
 	}
 
-	filePath, err := y.downloadWithYtDlp(ctx, info.Id, video)
+	filePath, err := y.downloadWithYtDlp(info.Id, video)
 	return filePath, err
 }
 
 // buildYtdlpParams constructs the command-line parameters for yt-dlp to download media.
-func (y *YouTubeData) buildYtdlpParams(videoID string, video bool) []string {
+func (y *youTubeData) buildYtdlpParams(videoID string, video bool) []string {
 	outputTemplate := filepath.Join(config.Conf.DownloadsDir, "%(id)s.%(ext)s")
 
 	params := []string{
@@ -204,12 +207,16 @@ func (y *YouTubeData) buildYtdlpParams(videoID string, video bool) []string {
 }
 
 // downloadWithYtDlp downloads media from YouTube using the yt-dlp command-line tool.
-func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, video bool) (string, error) {
+func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, error) {
 	if videoID == "" {
 		return "", errors.New("videoID is empty")
 	}
 
 	ytdlpParams := y.buildYtdlpParams(videoID, video)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
 	cmd := exec.CommandContext(ctx, ytdlpParams[0], ytdlpParams[1:]...)
 
 	output, err := cmd.Output()
@@ -240,7 +247,7 @@ func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, vid
 }
 
 // getCookieFile retrieves the path to a cookie file from the configured list.
-func (y *YouTubeData) getCookieFile() string {
+func (y *youTubeData) getCookieFile() string {
 	cookiesPath := config.Conf.CookiesPath
 	if len(cookiesPath) == 0 {
 		return ""
@@ -255,15 +262,15 @@ func (y *YouTubeData) getCookieFile() string {
 }
 
 // downloadWithApi downloads a track using the external API.
-func (y *YouTubeData) downloadWithApi(ctx context.Context, videoID string, _ bool) (string, error) {
+func (y *youTubeData) downloadWithApi(videoID string, _ bool) (string, error) {
 	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
-	api := NewApiData(videoUrl)
-	track, err := api.GetTrack(ctx)
+	api := newApiData(videoUrl)
+	track, err := api.getTrack()
 	if err != nil {
 		return "", err
 	}
 
-	down, err := NewDownload(ctx, track)
+	down, err := newDownload(track)
 	if err != nil {
 		slog.Info("Error creating download: " + err.Error())
 		return "", err

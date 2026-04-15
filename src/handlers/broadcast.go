@@ -10,7 +10,6 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/src/core/db"
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -49,9 +48,6 @@ func broadcastHandler(c *td.Client, ctx *td.Context) error {
 
 	broadcastInProgress.Store(true)
 	defer broadcastInProgress.Store(false)
-
-	ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	reply, err := m.GetRepliedMessage(c)
 	if err != nil {
@@ -98,8 +94,8 @@ func broadcastHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	broadcastCancelFlag.Store(false)
-	chats, _ := db.Instance.GetAllChats(ctx2)
-	users, _ := db.Instance.GetAllUsers(ctx2)
+	chats, _ := db.Instance.GetAllChats()
+	users, _ := db.Instance.GetAllUsers()
 
 	var targets []int64
 	if !noChats {
@@ -183,7 +179,7 @@ func broadcastHandler(c *td.Client, ctx *td.Context) error {
 			}
 
 			/*
-				if wait := td.GetFloodWait(errSend); wait > 0 {
+				if wait := getFloodWait(errSend); wait > 0 {
 					c.Logger.Warn("FloodWait s for chatID=", "arg1", wait, "id", item.ID)
 
 					if item.RetryCount < 2 {

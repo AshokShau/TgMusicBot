@@ -157,7 +157,7 @@ func (c *BotConfig) validate() error {
 
 	if !isValidService(c.DefaultService) {
 		c.DefaultService = "youtube"
-		slog.Info("Invalid DEFAULT_SERVICE '', defaulting to 'youtube'", "arg1", c.DefaultService)
+		slog.Info("Invalid DEFAULT_SERVICE, defaulting to 'youtube'", "Service", c.DefaultService)
 	}
 
 	return nil

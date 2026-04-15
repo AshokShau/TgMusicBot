@@ -10,7 +10,6 @@ package handlers
 
 import (
 	"ashokshau/tgmusic/src/vc"
-	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -170,7 +169,6 @@ func gatherAppStats() *AppStats {
 
 	return stats
 }
-
 func statsHandler(c *td.Client, ctx *td.Context) error {
 	if !isDev(ctx) {
 		return td.EndGroups
@@ -182,84 +180,68 @@ func statsHandler(c *td.Client, ctx *td.Context) error {
 		chatID = 0
 	}
 
-	ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	sysMsg, err := msg.ReplyText(c, "Collecting system statistics...", nil)
 	if err != nil {
 		return err
 	}
 
 	stats := gatherAppStats()
-	chats, _ := db.Instance.GetAllChats(ctx2)
-	users, _ := db.Instance.GetAllUsers(ctx2)
+
+	chats, _ := db.Instance.GetAllChats()
+	users, _ := db.Instance.GetAllUsers()
 	ntgCpuUsage, _ := vc.Calls.CpuUsage(chatID)
 
-	var sb strings.Builder
+	memLine := fmt.Sprintf("• Ram usage: %s\n", stats.AppMemUsed)
+	if stats.MemLimit != "" {
+		memLine = fmt.Sprintf("• Ram usage: %s | %s\n", stats.AppMemUsed, stats.MemLimit)
+	}
 
-	sb.WriteString(fmt.Sprintf(
-		"<b>%s — Runtime Status</b>\n",
+	text := fmt.Sprintf(
+		"<b>%s — Runtime Status</b>\n"+
+			"────────────────────────────────────\n\n"+
+			"<b>System</b>\n"+
+			"• CPU usage: %s (%d cores)\n"+
+			"• Ram usage: %s | %s\n"+
+			"• Storage: %s | %s\n\n"+
+			"<b>Application</b>\n"+
+			"• Uptime: %s\n"+
+			"• Goroutines: %d\n"+
+			"• Go Version: %s\n"+
+			"• CPU usage: %s\n"+
+			"• NTG Calls CPU: %.2f%%\n"+
+			"%s"+
+			"• Heap: %s\n"+
+			"• GC Runs: %d (pause %s)\n\n"+
+			"<b>Database</b>\n"+
+			"• Chats: %d\n"+
+			"• Users: %d\n\n"+
+			"────────────────────────────────────",
+
 		c.Me.FirstName,
-	))
-	sb.WriteString(strings.Repeat("─", 36) + "\n\n")
 
-	sb.WriteString("<b>System</b>\n")
-	sb.WriteString(fmt.Sprintf(
-		"• CPU usage: %s (%d cores)\n",
 		stats.SystemCPU,
 		stats.CPUCores,
-	))
-	sb.WriteString(fmt.Sprintf(
-		"• Ram usage: %s | %s\n",
 		stats.SystemMemUsed,
 		stats.SystemMemTotal,
-	))
-	sb.WriteString(fmt.Sprintf(
-		"• Storage: %s | %s\n\n",
 		stats.DiskUsed,
 		stats.DiskTotal,
-	))
 
-	sb.WriteString("<b>Application</b>\n")
-	sb.WriteString(fmt.Sprintf(
-		"• Uptime: %s\n• Goroutines: %d\n• Go Version: %s\n",
 		stats.Uptime,
 		stats.Goroutines,
 		stats.GoVersion,
-	))
-	sb.WriteString(fmt.Sprintf(
-		"• CPU usage: %s\n• NTG Calls CPU: %.2f%%\n",
 		stats.AppCPU,
 		ntgCpuUsage,
-	))
-	if stats.MemLimit != "" {
-		sb.WriteString(fmt.Sprintf(
-			"• Ram usage: %s | %s\n",
-			stats.AppMemUsed,
-			stats.MemLimit,
-		))
-	} else {
-		sb.WriteString(fmt.Sprintf(
-			"• Ram usage: %s\n",
-			stats.AppMemUsed,
-		))
-	}
-	sb.WriteString(fmt.Sprintf(
-		"• Heap: %s\n• GC Runs: %d (pause %s)\n\n",
+
+		memLine,
+
 		stats.AppHeap,
 		stats.GCCount,
 		stats.GCPause,
-	))
 
-	sb.WriteString("<b>Database</b>\n")
-	sb.WriteString(fmt.Sprintf(
-		"• Chats: %d\n• Users: %d\n",
 		len(chats),
 		len(users),
-	))
+	)
 
-	sb.WriteString("\n" + strings.Repeat("─", 36))
-
-	_, _ = sysMsg.EditText(c, sb.String(), &td.EditTextMessageOpts{ParseMode: "HTML"})
+	_, _ = sysMsg.EditText(c, text, &td.EditTextMessageOpts{ParseMode: "HTML"})
 	return nil
 }

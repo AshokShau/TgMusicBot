@@ -43,14 +43,11 @@ func main() {
 			Level:     slog.LevelInfo,
 			AddSource: true,
 			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-
-				// Shorter time
 				if a.Key == slog.TimeKey {
 					t := a.Value.Time()
 					a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05"))
 				}
 
-				// Short source (file.go:line)
 				if a.Key == slog.SourceKey {
 					source := a.Value.Any().(*slog.Source)
 					a.Value = slog.StringValue(fmt.Sprintf("%s:%d", filepath.Base(source.File), source.Line))
@@ -66,6 +63,10 @@ func main() {
 	clientConfig := &gotdbot.ClientOpts{
 		LibraryPath: "./libtdjson.so.1.8.63",
 		Logger:      logger,
+		AutoRetry: &gotdbot.AutoRetry{
+			ChatNotFound: true,
+		},
+		DatabaseDirectory: "database",
 	}
 
 	client, err := gotdbot.NewClient(config.Conf.ApiId, config.Conf.ApiHash, config.Conf.Token, clientConfig)
@@ -79,6 +80,7 @@ func main() {
 		slog.Error("gotdbot.Start() error", "error", err)
 		os.Exit(1)
 	}
+
 	err = src.Init(client)
 	if err != nil {
 		panic(err)

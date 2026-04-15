@@ -27,24 +27,29 @@ import (
 func (c *TelegramCalls) joinAssistant(chatID int64, call *ubot.Context, index int) error {
 	status, err := c.checkUserStats(chatID, call, index)
 	if err != nil {
-		return fmt.Errorf("joinAssistant (client %d): check user status: %w", index, err)
+		return fmt.Errorf("joinAssistant (client-%d): check user status: %w", index, err)
 	}
 
 	logger.Info("chat member status", "chat_id", chatID, "status", status, "index", index)
 
 	switch status.(type) {
-	case *td.ChatMemberStatusCreator,
-		*td.ChatMemberStatusAdministrator,
-		*td.ChatMemberStatusMember:
+	case *td.ChatMemberStatusMember, td.ChatMemberStatusCreator, td.ChatMemberStatusAdministrator, td.ChatMemberStatusMember:
 		return nil
 
-	case *td.ChatMemberStatusLeft:
+	case *td.ChatMemberStatusLeft, td.ChatMemberStatusLeft:
 		logger.Info("assistant is not in chat, joining", "chat_id", chatID, "index", index)
 		return c.joinUb(chatID, call, index)
 
-	case *td.ChatMemberStatusBanned, *td.ChatMemberStatusRestricted:
-		_, isBanned := status.(*td.ChatMemberStatusBanned)
-		_, isMuted := status.(*td.ChatMemberStatusRestricted)
+	case *td.ChatMemberStatusBanned, *td.ChatMemberStatusRestricted,
+		td.ChatMemberStatusBanned, td.ChatMemberStatusRestricted:
+		_, isBannedPtr := status.(*td.ChatMemberStatusBanned)
+		_, isBannedVal := status.(td.ChatMemberStatusBanned)
+		isBanned := isBannedPtr || isBannedVal
+
+		_, isMutedPtr := status.(*td.ChatMemberStatusRestricted)
+		_, isMutedVal := status.(td.ChatMemberStatusRestricted)
+		isMuted := isMutedPtr || isMutedVal
+
 		logger.Info("assistant is banned or restricted, attempting recovery",
 			"chat_id", chatID, "banned", isBanned, "muted", isMuted, "index", index)
 
@@ -86,6 +91,7 @@ func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *ubot.Context,
 		); err != nil {
 			logger.Warn("failed to unban assistant", "ub_id", ubID, "error", err, "index", index)
 		}
+
 		return c.joinUb(chatID, call, index)
 	}
 
@@ -94,64 +100,40 @@ func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *ubot.Context,
 	return nil
 }
 
-// JoinAssistant attempts to join an assistant to the chat. If the assigned assistant
-// fails, it iterates through all available assistants until one succeeds or all fail.
+// JoinAssistant attempts to join the assigned assistant to the chat.
+// If it fails, it returns an error and removes the assistant from the database.
 func (c *TelegramCalls) JoinAssistant(chatID int64) (*ubot.Context, error) {
-	ctx, cancel := db.Ctx()
-	defer cancel()
+	index, err := c.getClientIndex(chatID)
+	if err != nil {
+		return nil, err
+	}
 
 	c.mu.RLock()
-	totalClients := len(c.uBContext)
+	call, ok := c.uBContext[index]
 	c.mu.RUnlock()
 
-	if totalClients == 0 {
-		return nil, errors.New("no clients are available")
+	if !ok {
+		return nil, fmt.Errorf("client %d not found in context", index)
 	}
 
-	var excludedIndices []int
+	assistantID := call.App.Me().ID
 
-	for i := 0; i < totalClients; i++ {
-		index, err := c.getClientIndex(chatID, excludedIndices)
-		if err != nil {
-			return nil, err
-		}
+	if err = c.joinAssistant(chatID, call, index); err != nil {
+		slog.Info("assistant failed to join chat",
+			"chat_id", chatID, "assistant_id", assistantID, "error", err, "index", index)
 
-		c.mu.RLock()
-		call, ok := c.uBContext[index]
-		c.mu.RUnlock()
+		cacheKey := fmt.Sprintf("%d:%d", chatID, assistantID)
+		c.statusCache.Delete(cacheKey)
+		_ = db.Instance.RemoveAssistant(chatID)
 
-		if !ok {
-			excludedIndices = append(excludedIndices, index)
-			continue
-		}
-
-		assistantID := call.App.Me().ID
-
-		if err = c.joinAssistant(chatID, call, index); err != nil {
-			slog.Info("assistant failed to join chat",
-				"chat_id", chatID, "assistant_id", assistantID, "error", err, "index", index)
-
-			excludedIndices = append(excludedIndices, index)
-
-			cacheKey := fmt.Sprintf("%d:%d", chatID, assistantID)
-			c.statusCache.Delete(cacheKey)
-			_ = db.Instance.RemoveAssistant(ctx, chatID)
-
-			if i == totalClients-1 {
-				return nil, err // all assistants exhausted
-			}
-			continue
-		}
-
-		if err := db.Instance.SetAssistant(ctx, chatID, index); err != nil {
-			slog.Warn("failed to set assistant in database", "chat_id", chatID, "index", index, "error", err)
-		}
-
-		return call, nil
+		return nil, err
 	}
 
-	// Unreachable, but satisfies the compiler :D
-	return nil, errors.New("all assistants failed to join")
+	if err := db.Instance.SetAssistant(chatID, index); err != nil {
+		slog.Warn("failed to set assistant in database", "chat_id", chatID, "index", index, "error", err)
+	}
+
+	return call, nil
 }
 
 // clientIndexFor returns the 0-based index for the given call, or -1 if not found.
@@ -172,7 +154,6 @@ func (c *TelegramCalls) clientIndexFor(call *ubot.Context) int {
 func (c *TelegramCalls) checkUserStats(chatID int64, call *ubot.Context, index int) (td.ChatMemberStatus, error) {
 	userID := call.App.Me().ID
 	cacheKey := fmt.Sprintf("%d:%d", chatID, userID)
-
 	if cached, ok := c.statusCache.Get(cacheKey); ok {
 		return cached, nil
 	}
@@ -181,8 +162,8 @@ func (c *TelegramCalls) checkUserStats(chatID int64, call *ubot.Context, index i
 	if err != nil {
 		errStr := err.Error()
 		if strings.Contains(errStr, "USER_NOT_PARTICIPANT") {
-			c.UpdateMembership(chatID, userID, td.ChatMemberStatusLeft{})
-			return td.ChatMemberStatusLeft{}, nil
+			c.UpdateMembership(chatID, userID, &td.ChatMemberStatusLeft{})
+			return &td.ChatMemberStatusLeft{}, nil
 		}
 
 		return nil, fmt.Errorf("GetChatMember (client %d) chat=%d user=%d: %w", index, chatID, userID, err)
@@ -209,7 +190,7 @@ func (c *TelegramCalls) joinUb(chatID int64, call *ubot.Context, index int) erro
 		return c.handleJoinError(chatID, ub.Me().ID, index, err)
 	}
 
-	c.UpdateMembership(chatID, ub.Me().ID, td.ChatMemberStatusMember{})
+	c.UpdateMembership(chatID, ub.Me().ID, &td.ChatMemberStatusMember{})
 	return nil
 }
 
@@ -223,6 +204,7 @@ func (c *TelegramCalls) resolveInviteLink(chatID int64, cacheKey string) (string
 		chatID, 0, 0, "FallenBeatz",
 		&td.CreateChatInviteLinkOpts{CreatesJoinRequest: false},
 	)
+
 	if err != nil {
 		return "", fmt.Errorf("create invite link for chat %d: %w", chatID, err)
 	}
@@ -239,10 +221,9 @@ func (c *TelegramCalls) resolveInviteLink(chatID int64, cacheKey string) (string
 
 // handleJoinError maps JoinChannel error strings to actionable responses.
 func (c *TelegramCalls) handleJoinError(chatID, userID int64, index int, err error) error {
-	errStr := err.Error()
-
+	errMsg := err.Error()
 	switch {
-	case strings.Contains(errStr, "INVITE_REQUEST_SENT"):
+	case strings.Contains(errMsg, "INVITE_REQUEST_SENT"):
 		time.Sleep(time.Second)
 		if approveErr := c.bot.ProcessChatJoinRequest(
 			chatID, userID,
@@ -253,23 +234,21 @@ func (c *TelegramCalls) handleJoinError(chatID, userID int64, index int, err err
 		}
 		return nil
 
-	case strings.Contains(errStr, "USER_ALREADY_PARTICIPANT"):
-		c.UpdateMembership(chatID, userID, td.ChatMemberStatusMember{})
+	case strings.Contains(errMsg, "USER_ALREADY_PARTICIPANT"):
+		c.UpdateMembership(chatID, userID, &td.ChatMemberStatusMember{})
 		return nil
 
-	case strings.Contains(errStr, "INVITE_HASH_EXPIRED"):
+	case strings.Contains(errMsg, "INVITE_HASH_EXPIRED"):
 		c.inviteCache.Delete(strconv.FormatInt(chatID, 10))
+		c.UpdateMembership(chatID, userID, &td.ChatMemberStatusBanned{})
 		return fmt.Errorf("client %d: assistant (<code>%d</code>) invite link expired or assistant is banned", index, userID)
 
-	case strings.Contains(errStr, "CHANNEL_PRIVATE"):
-		c.UpdateMembership(chatID, userID, td.ChatMemberStatusLeft{})
+	case strings.Contains(errMsg, "CHANNEL_PRIVATE"):
+		c.UpdateMembership(chatID, userID, &td.ChatMemberStatusLeft{})
 		c.inviteCache.Delete(strconv.FormatInt(chatID, 10))
 		return fmt.Errorf("client %d: assistant (<code>%d</code>) is banned from this group", index, userID)
-
-	case strings.Contains(errStr, "FROZEN_METHOD_INVALID"):
-		return fmt.Errorf("client %d: assistant (<code>%d</code>) is frozen and cannot join via invite link\n\nPlease report in support chat ASAF.", index, userID)
 	}
 
 	logger.Warn("unhandled JoinChannel error", "error", err, "index", index)
-	return fmt.Errorf("(client %d, <code>%d</code>): assistant failed to join: %w", index, userID, err)
+	return fmt.Errorf("(client%d, <code>%d</code>): assistant failed to join: %w", index, userID, err)
 }

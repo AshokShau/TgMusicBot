@@ -63,6 +63,7 @@ const (
 	Gaana      = "Gaana"
 	DirectLink = "direct_link"
 	Tidal      = "tidal"
+	MXPlayer   = "mxplayer"
 )
 
 const (

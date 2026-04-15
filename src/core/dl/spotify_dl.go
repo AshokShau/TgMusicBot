@@ -38,7 +38,7 @@ var (
 )
 
 // processSpotify manages the download and decryption of Spotify tracks.
-func (d *Download) processSpotify() (string, error) {
+func (d *download) processSpotify() (string, error) {
 	track := d.Track
 	downloadsDir := config.Conf.DownloadsDir
 	sanitizedTrackID := filepath.Base(track.Id)
@@ -79,11 +79,12 @@ func (d *Download) processSpotify() (string, error) {
 }
 
 // downloadAndDecrypt handles the download and decryption of a file.
-func (d *Download) downloadAndDecrypt(encryptedPath, decryptedPath string) error {
+func (d *download) downloadAndDecrypt(encryptedPath, decryptedPath string) error {
 	resp, err := http.Get(d.Track.CdnURL)
 	if err != nil {
 		return fmt.Errorf("failed to download the file: %w", err)
 	}
+
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
@@ -105,8 +106,8 @@ func (d *Download) downloadAndDecrypt(encryptedPath, decryptedPath string) error
 	if err != nil {
 		return fmt.Errorf("failed to decrypt the audio file: %w", err)
 	}
-	slog.Info("Decryption was completed in .", "duration", decryptTime)
 
+	slog.Info("Decryption was completed in .", "duration", decryptTime)
 	return os.WriteFile(decryptedPath, decryptedData, defaultFilePerm)
 }
 

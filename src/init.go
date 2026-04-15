@@ -12,13 +12,12 @@ import (
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/vc"
-	"context"
 
 	"github.com/AshokShau/gotdbot"
 )
 
 func Init(client *gotdbot.Client) error {
-	if err := db.InitDatabase(context.Background()); err != nil {
+	if err := db.InitDatabase(); err != nil {
 		return err
 	}
 

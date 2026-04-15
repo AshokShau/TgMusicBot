@@ -58,35 +58,45 @@ func SupportKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 	}
 }
 
-func SettingsKeyboard(playMode, adminMode string) *gotdbot.ReplyMarkupInlineKeyboard {
+func SettingsKeyboard(playMode, adminMode string, cmdDelete bool, language string) *gotdbot.ReplyMarkupInlineKeyboard {
+	playText := "Everyone"
+	if playMode == utils.Admins {
+		playText = "Admins"
+	}
 
-	createButton := func(label, settingType, settingValue, currentValue string) gotdbot.InlineKeyboardButton {
+	deleteText := "False"
+	if cmdDelete {
+		deleteText = "True"
+	}
 
-		text := label
-		if settingValue == currentValue {
-			text += " ✅"
-		}
+	adminText := "Everyone"
+	if adminMode == utils.Admins {
+		adminText = "Admins"
+	}
 
-		return cb(text, fmt.Sprintf("settings_%s_%s", settingType, settingValue))
+	langText := "English"
+	if language != "en" && language != "" {
+		langText = language
 	}
 
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
-
-			{cb("🎵 Play Mode", "settings_xxx_noop")},
-
 			{
-				createButton("Admins", "play", utils.Admins, playMode),
-				createButton("Everyone", "play", utils.Everyone, playMode),
+				cb("Play Mode ➜", "settings_main"),
+				cb(playText, "settings_play"),
 			},
-
-			{cb("🛡️ Admin Mode", "settings_xxx_none")},
-
 			{
-				createButton("Admins", "admin", utils.Admins, adminMode),
-				createButton("Everyone", "admin", utils.Everyone, adminMode),
+				cb("Command Delete ➜", "settings_main"),
+				cb(deleteText, "settings_delete"),
 			},
-
+			{
+				cb("Admin Mode ➜", "settings_main"),
+				cb(adminText, "settings_admin"),
+			},
+			{
+				cb("Language ➜", "settings_main"),
+				cb(langText, "settings_lang"),
+			},
 			{CloseBtn},
 		},
 	}

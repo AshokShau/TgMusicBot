@@ -21,8 +21,6 @@ import (
 const cookiesDr = "src/cookies"
 
 // fetchContent downloads content from Pastebin or Batbin.
-// It takes a URL as input.
-// It returns the content of the URL as a string and an error if any.
 func fetchContent(url string) (string, error) {
 	parts := strings.Split(strings.Trim(url, "/"), "/")
 	id := parts[len(parts)-1]
@@ -57,8 +55,6 @@ func fetchContent(url string) (string, error) {
 }
 
 // saveContent saves content to a file in /tmp and returns the file path.
-// It takes a URL and content as input.
-// It returns the file path and an error if any.
 func saveContent(url, content string) (string, error) {
 	parts := strings.Split(strings.Trim(url, "/"), "/")
 	filename := parts[len(parts)-1]
@@ -68,7 +64,7 @@ func saveContent(url, content string) (string, error) {
 	filename += ".txt"
 
 	filePath := filepath.Join(cookiesDr, filename)
-	// #nosec G304
+
 	f, err := os.Create(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create file %s: %w", filePath, err)

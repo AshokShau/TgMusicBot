@@ -10,7 +10,6 @@ package dl
 
 import (
 	"ashokshau/tgmusic/src/utils"
-	"context"
 	"errors"
 	"net/url"
 	"regexp"
@@ -27,23 +26,22 @@ var (
 	errMissingCDNURL = errors.New("missing cdn url")
 )
 
-// Download encapsulates the information and context required for a download operation.
-type Download struct {
+// download encapsulates the information and context required for a download operation.
+type download struct {
 	Track utils.TrackInfo
-	ctx   context.Context
 }
 
-// NewDownload creates and validates a new Download instance.
-func NewDownload(ctx context.Context, track utils.TrackInfo) (*Download, error) {
+// newDownload creates and validates a new download instance.
+func newDownload(track utils.TrackInfo) (*download, error) {
 	if track.CdnURL == "" {
 		return nil, errors.New("the CDN URL is missing")
 	}
 
-	return &Download{Track: track, ctx: ctx}, nil
+	return &download{Track: track}, nil
 }
 
 // Process initiates the download process based on the track's platform.
-func (d *Download) Process() (string, error) {
+func (d *download) Process() (string, error) {
 	switch {
 	case d.Track.CdnURL == "":
 		return "", errMissingCDNURL
@@ -57,7 +55,7 @@ func (d *Download) Process() (string, error) {
 }
 
 // processDirectDL manages direct downloads and includes improved error handling.
-func (d *Download) processDirectDL() (string, error) {
+func (d *download) processDirectDL() (string, error) {
 	// No need to download (ntgcalls can play with url)
 	return d.Track.CdnURL, nil
 }

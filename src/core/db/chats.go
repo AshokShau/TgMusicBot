@@ -9,6 +9,7 @@
 package db
 
 import (
+	"ashokshau/tgmusic/src/utils"
 	"context"
 	"errors"
 	"log/slog"
@@ -29,7 +30,7 @@ type Chats struct {
 }
 
 // getChat retrieves a chat's data from the cache or database.
-func (db *Database) getChat(ctx context.Context, chatID int64) (*Chats, error) {
+func (db *Database) getChat(chatID int64) (*Chats, error) {
 	key := toKey(chatID)
 	if cached, ok := db.chatCache.Get(key); ok {
 		return cached, nil
@@ -37,6 +38,9 @@ func (db *Database) getChat(ctx context.Context, chatID int64) (*Chats, error) {
 
 	var chat Chats
 	var err error
+
+	ctx, cancel := db.ctx()
+	defer cancel()
 
 	for i := 0; i < 3; i++ {
 		err = db.chatDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&chat)
@@ -63,11 +67,14 @@ func (db *Database) getChat(ctx context.Context, chatID int64) (*Chats, error) {
 }
 
 // AddChat adds a new chat to the database if it does not already exist.
-func (db *Database) AddChat(ctx context.Context, chatID int64) error {
-	chat, _ := db.getChat(ctx, chatID)
+func (db *Database) AddChat(chatID int64) error {
+	chat, _ := db.getChat(chatID)
 	if chat != nil {
 		return nil // Chat already exists.
 	}
+
+	ctx, cancel := db.ctx()
+	defer cancel()
 
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
@@ -77,8 +84,8 @@ func (db *Database) AddChat(ctx context.Context, chatID int64) error {
 }
 
 // GetPlayType retrieves the play type setting for a chat.
-func (db *Database) GetPlayType(ctx context.Context, chatID int64) int {
-	chat, _ := db.getChat(ctx, chatID)
+func (db *Database) GetPlayType(chatID int64) int {
+	chat, _ := db.getChat(chatID)
 	if chat == nil {
 		return 0
 	}
@@ -86,7 +93,10 @@ func (db *Database) GetPlayType(ctx context.Context, chatID int64) int {
 }
 
 // SetPlayType sets the play type for a given chat.
-func (db *Database) SetPlayType(ctx context.Context, chatID int64, playType int) error {
+func (db *Database) SetPlayType(chatID int64, playType int) error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"play_type": playType}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
 		db.chatCache.Delete(toKey(chatID))
@@ -95,8 +105,8 @@ func (db *Database) SetPlayType(ctx context.Context, chatID int64, playType int)
 }
 
 // GetPlayMode retrieves the play mode for a chat.
-func (db *Database) GetPlayMode(ctx context.Context, chatID int64) bool {
-	chat, _ := db.getChat(ctx, chatID)
+func (db *Database) GetPlayMode(chatID int64) bool {
+	chat, _ := db.getChat(chatID)
 	if chat == nil {
 		return false
 	}
@@ -104,7 +114,10 @@ func (db *Database) GetPlayMode(ctx context.Context, chatID int64) bool {
 }
 
 // SetPlayMode sets the play mode for a given chat.
-func (db *Database) SetPlayMode(ctx context.Context, chatID int64, adminPlay bool) error {
+func (db *Database) SetPlayMode(chatID int64, adminPlay bool) error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"admin_play": adminPlay}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
 		db.chatCache.Delete(toKey(chatID))
@@ -113,16 +126,19 @@ func (db *Database) SetPlayMode(ctx context.Context, chatID int64, adminPlay boo
 }
 
 // GetAdminMode retrieves the admin mode for a chat.
-func (db *Database) GetAdminMode(ctx context.Context, chatID int64) string {
-	chat, _ := db.getChat(ctx, chatID)
+func (db *Database) GetAdminMode(chatID int64) string {
+	chat, _ := db.getChat(chatID)
 	if chat == nil || chat.AdminMode == "" {
-		return "everyone"
+		return utils.Everyone
 	}
 	return chat.AdminMode
 }
 
 // SetAdminMode sets the admin mode for a given chat.
-func (db *Database) SetAdminMode(ctx context.Context, chatID int64, adminMode string) error {
+func (db *Database) SetAdminMode(chatID int64, adminMode string) error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"admin_mode": adminMode}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
 		db.chatCache.Delete(toKey(chatID))
@@ -131,8 +147,8 @@ func (db *Database) SetAdminMode(ctx context.Context, chatID int64, adminMode st
 }
 
 // GetCmdDelete retrieves the command delete setting for a chat.
-func (db *Database) GetCmdDelete(ctx context.Context, chatID int64) bool {
-	chat, _ := db.getChat(ctx, chatID)
+func (db *Database) GetCmdDelete(chatID int64) bool {
+	chat, _ := db.getChat(chatID)
 	if chat == nil {
 		return false
 	}
@@ -140,7 +156,10 @@ func (db *Database) GetCmdDelete(ctx context.Context, chatID int64) bool {
 }
 
 // SetCmdDelete sets the command delete setting for a given chat.
-func (db *Database) SetCmdDelete(ctx context.Context, chatID int64, cmdDelete bool) error {
+func (db *Database) SetCmdDelete(chatID int64, cmdDelete bool) error {
+	ctx, cancel := db.ctx()
+	defer cancel()
+
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$set": bson.M{"cmd_delete": cmdDelete}}, options.UpdateOne().SetUpsert(true))
 	if err == nil {
 		db.chatCache.Delete(toKey(chatID))
@@ -149,7 +168,10 @@ func (db *Database) SetCmdDelete(ctx context.Context, chatID int64, cmdDelete bo
 }
 
 // GetAllChats retrieves a list of all chat IDs from the database.
-func (db *Database) GetAllChats(ctx context.Context) ([]int64, error) {
+func (db *Database) GetAllChats() ([]int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	cursor, err := db.chatDB.Find(ctx, bson.M{})
 	if err != nil {
 		return nil, err

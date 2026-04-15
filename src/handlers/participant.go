@@ -110,12 +110,9 @@ func handleParticipant(client *gotdbot.Client, ctx *gotdbot.Context) error {
 
 func storeChatReference(chatID int64) {
 
-	ctx, cancel := db.Ctx()
-	defer cancel()
-
 	slog.Debug("Storing chat reference for chat", "chat_id", chatID)
 
-	if err := db.Instance.AddChat(ctx, chatID); err != nil {
+	if err := db.Instance.AddChat(chatID); err != nil {
 		slog.Error("Failed to add chat  to database", "chat_id", chatID, "error", err)
 	}
 }
@@ -313,7 +310,6 @@ func handlePromotionDemotion(
 }
 
 func updateStatusCache(chatID, userID int64, status gotdbot.ChatMemberStatus) {
-
 	call, _, err := vc.Calls.GetGroupAssistant(chatID)
 	if err != nil {
 		return

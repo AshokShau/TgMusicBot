@@ -27,39 +27,34 @@ func removeHandler(c *td.Client, ctx *td.Context) error {
 	m := ctx.EffectiveMessage
 
 	if !cache.ChatCache.IsActive(chatID) {
-		_, _ = m.ReplyText(c, "⏸ No track currently playing.", nil)
+		_, _ = m.ReplyText(c, "The bot is not streaming in the video chat.", nil)
 		return nil
 	}
 
 	queue := cache.ChatCache.GetQueue(chatID)
 	if len(queue) == 0 {
-		_, _ = m.ReplyText(c, "📭 The queue is currently empty.", nil)
+		_, _ = m.ReplyText(c, "The queue is currently empty.", nil)
 		return nil
 	}
 
 	args := Args(m)
 	if args == "" {
-		_, _ = m.ReplyText(c, "<b>❌ Remove Track</b>\n\n<b>Usage:</b> <code>/remove [track number]</code>\n\n- Use <code>1</code> to remove the first track, <code>2</code> for the second, and so on.", &td.SendTextMessageOpts{ParseMode: "HTML"})
+		_, _ = m.ReplyText(c, "<b>Usage:</b> <code>/remove [track number]</code>\n\nUse <code>1</code> to remove the first track, <code>2</code> for the second, and so on.", replyOpts)
 		return nil
 	}
 
 	trackNum, err := strconv.Atoi(args)
 	if err != nil {
-		_, _ = m.ReplyText(c, "⚠️ Please enter a valid track number.", nil)
+		_, _ = m.ReplyText(c, "Please provide a valid track number.", nil)
 		return nil
 	}
 
 	if trackNum <= 0 || trackNum > len(queue) {
-		_, _ = m.ReplyText(c, fmt.Sprintf("⚠️ The track number is not valid. Please choose a number between 1 and %d.", len(queue)), nil)
+		_, _ = m.ReplyText(c, fmt.Sprintf("Invalid track number. Please choose a number between 1 and %d.", len(queue)), nil)
 		return nil
 	}
 
 	cache.ChatCache.RemoveTrack(chatID, trackNum)
-	user, err := c.GetUser(m.SenderID())
-	if err != nil {
-		user = &td.User{FirstName: "Unknown"}
-	}
-
-	_, err = m.ReplyText(c, fmt.Sprintf("✅ Track #%d has been removed by %s.", trackNum, user.FirstName), nil)
+	_, err = m.ReplyText(c, fmt.Sprintf("Track #%d has been removed by %s.", trackNum, firstName(c, m)), replyOpts)
 	return err
 }

@@ -26,8 +26,6 @@ func settingsHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	m := ctx.EffectiveMessage
-	ctx2, cancel := db.Ctx()
-	defer cancel()
 
 	chatID := ctx.EffectiveChatId
 	admins, err := cache.GetAdmins(c, chatID, false)
@@ -49,12 +47,14 @@ func settingsHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	// Get current settings
-	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
+	getPlayMode := db.Instance.GetPlayMode(chatID)
 	playModeStr := utils.Everyone
 	if getPlayMode {
 		playModeStr = utils.Admins
 	}
-	getAdminMode := db.Instance.GetAdminMode(ctx2, chatID)
+	getAdminMode := db.Instance.GetAdminMode(chatID)
+	cmdDelete := db.Instance.GetCmdDelete(chatID)
+	language, _ := db.Instance.GetLanguage(chatID)
 
 	chat, err := m.GetChat(c)
 	if err != nil {
@@ -62,19 +62,16 @@ func settingsHandler(c *td.Client, ctx *td.Context) error {
 		return nil
 	}
 
-	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
-		chat.Title, playModeStr, getAdminMode)
+	text := fmt.Sprintf("<u><b>%s settings</b></u>\n\nClick the buttons below to change this chat's current settings.",
+		chat.Title)
 
-	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode), ParseMode: td.ParseModeHTML})
+	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode, cmdDelete, language), ParseMode: td.ParseModeHTML})
 	return err
 }
 
 func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 	chatID := ctx.EffectiveChatId
 	cb := ctx.Update.UpdateNewCallbackQuery
-
-	ctx2, cancel := db.Ctx()
-	defer cancel()
 
 	// Check admin permissions
 	admins, err := cache.GetAdmins(c, chatID, false)
@@ -92,64 +89,66 @@ func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
 	}
 
 	if !hasPerms {
-		err = cb.Answer(c, 300, true, "You don't have permission to change settings.", "")
+		err = cb.Answer(c, 0, true, "You don't have permission to change settings.", "")
 		return err
 	}
 
 	// Process the callback data
-	parts := strings.Split(cb.DataString(), "_")
-	if len(parts) < 3 {
+	data := cb.DataString()
+	if data == "settings_main" {
+		return cb.Answer(c, 0, false, "Update your chat settings", "")
+	}
+
+	parts := strings.Split(data, "_")
+	if len(parts) < 2 {
 		return nil
 	}
 
-	// Update the appropriate setting
 	settingType := parts[1]
-	settingValue := parts[2]
-
-	// Validate the setting value
-	validValues := map[string]bool{
-		utils.Admins:   true,
-		utils.Everyone: true,
-	}
-
-	if !validValues[settingValue] {
-		_ = cb.Answer(c, 300, true, "Update your chat settings", "")
-		return nil
-	}
 
 	switch settingType {
+	case "delete":
+		cmdDelete := db.Instance.GetCmdDelete(chatID)
+		_ = db.Instance.SetCmdDelete(chatID, !cmdDelete)
 	case "play":
-		adminPlay := settingValue == utils.Admins
-		_ = db.Instance.SetPlayMode(ctx2, chatID, adminPlay)
+		getPlayMode := db.Instance.GetPlayMode(chatID)
+		_ = db.Instance.SetPlayMode(chatID, !getPlayMode)
 	case "admin":
-		_ = db.Instance.SetAdminMode(ctx2, chatID, settingValue)
+		getAdminMode := db.Instance.GetAdminMode(chatID)
+		newMode := utils.Everyone
+		if getAdminMode == utils.Everyone {
+			newMode = utils.Admins
+		}
+		_ = db.Instance.SetAdminMode(chatID, newMode)
+	case "lang":
+		return cb.Answer(c, 0, true, "Language selection is not yet implemented via this menu.", "")
 	default:
-		_ = cb.Answer(c, 300, true, "Update your chat settings", "")
-		return nil
+		return cb.Answer(c, 0, true, "Unknown setting", "")
 	}
 
-	// Get updated settings
-	getPlayMode := db.Instance.GetPlayMode(ctx2, chatID)
+	getPlayMode := db.Instance.GetPlayMode(chatID)
 	playModeStr := utils.Everyone
 	if getPlayMode {
 		playModeStr = utils.Admins
 	}
-	getAdminMode := db.Instance.GetAdminMode(ctx2, chatID)
+	getAdminMode := db.Instance.GetAdminMode(chatID)
+	cmdDelete := db.Instance.GetCmdDelete(chatID)
+	language, _ := db.Instance.GetLanguage(chatID)
+
 	chat, err := c.GetChat(chatID)
 	if err != nil {
 		c.Logger.Warn("Failed to get chat", "error", err)
 		return nil
 	}
 
-	text := fmt.Sprintf("<b>Settings for %s</b>\n\n<b>Play Mode:</b> %s\n<b>Admin Mode:</b> %s",
-		chat.Title, playModeStr, getAdminMode)
+	text := fmt.Sprintf("<u><b>%s settings</b></u>\n\nClick the buttons below to change this chat's current settings.",
+		chat.Title)
 
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode), ParseMode: td.ParseModeHTML})
+	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: core.SettingsKeyboard(playModeStr, getAdminMode, cmdDelete, language), ParseMode: td.ParseModeHTML})
 	if err != nil {
 		return err
 	}
 
-	_ = cb.Answer(c, 200, false, "Settings updated", "")
-	_, _ = cb.EditMessageText(c, text, nil)
+	_ = cb.Answer(c, 0, false, "Settings updated", "")
 	return nil
 }

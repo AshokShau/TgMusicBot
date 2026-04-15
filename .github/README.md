@@ -195,7 +195,7 @@ If you find this project useful, consider supporting its development with a dona
 
 - 📦 Repo: [TgMusicBot on GitHub](https://github.com/AshokShau/TgMusicBot)
 - 💬 Support: [Telegram Group](https://t.me/FallenProjects)
-- 🐍 Old version: [TgMusicBot (Python)](https://github.com/AshokShau/TgMusicBot/tree/python) (Deprecated)
+- 🐍 Old version: [TgMusicBot (Python)](https://github.com/FallenProjects/music-bot)
 
 ---
 

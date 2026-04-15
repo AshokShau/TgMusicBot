@@ -98,8 +98,6 @@ func getFile(m *td.Message) (*td.File, string) {
 }
 
 // coalesce returns the first non-empty string.
-// It takes two strings as input.
-// It returns the first non-empty string.
 func coalesce(a, b string) string {
 	if a != "" {
 		return a
@@ -108,8 +106,6 @@ func coalesce(a, b string) string {
 }
 
 // truncate truncates a string to a maximum length.
-// It takes a string and a maximum length as input.
-// It returns the truncated string.
 func truncate(s string, max int) string {
 	if len(s) <= max {
 		return s
