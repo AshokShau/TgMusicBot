@@ -10,94 +10,134 @@ package vc
 
 import (
 	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/core/cache"
+	"ashokshau/tgmusic/src/vc/ubot"
+
 	"context"
 	"fmt"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
-
-	"ashokshau/tgmusic/src/core/cache"
 
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
-// LeaveAll makes the bot leave all groups and channels it's currently in.
 func (c *TelegramCalls) LeaveAll() (int, error) {
-	leftCount := 0
+	var totalLeft atomic.Int64
+	var wg sync.WaitGroup
+	var firstErr error
+	var errMu sync.Mutex
 
+	c.mu.RLock()
+	var ubContexts []*ubot.Context
 	for _, call := range c.uBContext {
-		userBot := call.App
+		ubContexts = append(ubContexts, call)
+	}
+	c.mu.RUnlock()
 
-		dialogs, err := userBot.GetDialogs(&telegram.DialogOptions{
-			Limit:            -1,
-			SleepThresholdMs: 20,
-		})
-		if err != nil {
-			return leftCount, fmt.Errorf("failed to get dialogs: %w", err)
+	for _, call := range ubContexts {
+		wg.Add(1)
+		go func(ctx *ubot.Context) {
+			defer wg.Done()
+			count, err := c.leaveAssistantDialogs(ctx)
+			if err != nil {
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				errMu.Unlock()
+				return
+			}
+			totalLeft.Add(int64(count))
+		}(call)
+	}
+
+	wg.Wait()
+	return int(totalLeft.Load()), firstErr
+}
+
+func (c *TelegramCalls) LeaveAllForClient(index int) (int, error) {
+	c.mu.RLock()
+	call, ok := c.uBContext[index]
+	c.mu.RUnlock()
+	if !ok {
+		return 0, fmt.Errorf("no ntgcalls instance was found for client index %d", index)
+	}
+	return c.leaveAssistantDialogs(call)
+}
+
+func (c *TelegramCalls) leaveAssistantDialogs(ctx *ubot.Context) (int, error) {
+	userBot := ctx.App
+	var totalLeft int
+	dialogs, err := userBot.GetDialogs(&telegram.DialogOptions{
+		Limit:            -1,
+		SleepThresholdMs: 20,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("account %s: failed to get dialogs: %w",
+			userBot.Me().FirstName, err)
+	}
+
+	logger.Info("found dialogs",
+		"user", userBot.Me().FirstName,
+		"count", len(dialogs),
+	)
+
+	for _, d := range dialogs {
+		var chatID int64
+		switch p := d.Peer.(type) {
+		case *telegram.PeerChannel:
+			chatID = p.ChannelID
+		case *telegram.PeerChat:
+			chatID = p.ChatID
+		default:
+			continue
 		}
 
-		logger.Info("found dialogs",
-			"user", userBot.Me().FirstName,
-			"count", len(dialogs),
-		)
-
-		activeChats := make(map[int64]bool)
-		for _, id := range cache.ChatCache.GetActiveChats() {
-			activeChats[id] = true
+		if chatID == 0 {
+			continue
 		}
 
-		for _, d := range dialogs {
-			peer := d.Peer
-			var chatID int64
+		if cache.ChatCache.IsActive(chatID) {
+			continue
+		}
 
-			switch p := peer.(type) {
-			case *telegram.PeerChannel:
-				chatID = p.ChannelID
-			case *telegram.PeerChat:
-				chatID = p.ChatID
-			case *telegram.PeerUser:
-				continue
-			default:
-				continue
-			}
-
-			if chatID == 0 || activeChats[chatID] {
-				continue
-			}
-
-			for {
-				err = userBot.LeaveChannel(chatID)
-				if err == nil {
-					leftCount++
-					break
-				}
-
-				if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") ||
-					strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
-					break
-				}
-
-				wait := telegram.GetFloodWait(err)
-				if wait > 0 {
-					logger.Warn("flood wait",
-						"chat_id", chatID,
-						"seconds", wait,
-					)
-					time.Sleep(time.Duration(wait+20) * time.Second)
-					continue
-				}
-
-				logger.Warn("leave failed",
-					"chat_id", chatID,
-					"error", err,
-				)
+		for {
+			if cache.ChatCache.IsActive(chatID) {
 				break
 			}
 
-			time.Sleep(3 * time.Second)
+			err = userBot.LeaveChannel(chatID)
+			if err == nil {
+				totalLeft++
+				break
+			}
+			if strings.Contains(err.Error(), "USER_NOT_PARTICIPANT") ||
+				strings.Contains(err.Error(), "CHANNEL_PRIVATE") {
+				break
+			}
+			wait := telegram.GetFloodWait(err)
+			if wait > 0 {
+				logger.Warn("flood wait",
+					"user", userBot.Me().FirstName,
+					"chat_id", chatID,
+					"seconds", wait,
+				)
+				time.Sleep(time.Duration(wait+20) * time.Second)
+				continue
+			}
+			logger.Warn("leave failed",
+				"user", userBot.Me().FirstName,
+				"chat_id", chatID,
+				"error", err,
+			)
+			break
 		}
-	}
 
-	return leftCount, nil
+		time.Sleep(1 * time.Second)
+	}
+	return totalLeft, nil
 }
 
 const autoLeaveInterval = 18 * time.Hour
@@ -109,10 +149,8 @@ func (c *TelegramCalls) startAutoLeave(ctx context.Context) {
 	go func() {
 		logger.Info("AutoLeave enabled, starting background task",
 			"interval", autoLeaveInterval)
-
 		ticker := time.NewTicker(autoLeaveInterval)
 		defer ticker.Stop()
-
 		for {
 			select {
 			case <-ctx.Done():
@@ -127,15 +165,12 @@ func (c *TelegramCalls) startAutoLeave(ctx context.Context) {
 
 func (c *TelegramCalls) runAutoLeave() {
 	logger.Info("AutoLeave: leaving inactive chats")
-
 	leftCount, err := c.LeaveAll()
 	if err != nil {
 		logger.Error("AutoLeave: failed to leave chats", "error", err)
 		return
 	}
-
 	logger.Info("AutoLeave: completed", "leftCount", leftCount)
-
 	if leftCount > 0 && config.Conf.LoggerId != 0 {
 		msg := fmt.Sprintf("AutoLeave: Assistant left %d inactive chats", leftCount)
 		if _, err = c.bot.SendTextMessage(config.Conf.LoggerId, msg, nil); err != nil {
