@@ -56,24 +56,32 @@ func (ctx *Context) handleUpdates() {
 
 		switch phoneCall.(type) {
 		case *tg.PhoneCallAccepted, *tg.PhoneCallRequested, *tg.PhoneCallWaiting:
+			ctx.inputCallsMu.Lock()
 			ctx.inputCalls[userId] = &tg.InputPhoneCall{
 				ID:         ID,
 				AccessHash: AccessHash,
 			}
+			ctx.inputCallsMu.Unlock()
 		}
 
 		switch call := phoneCall.(type) {
 		case *tg.PhoneCallAccepted:
-			if ctx.p2pConfigs[userId] != nil {
-				ctx.p2pConfigs[userId].GAorB = call.GB
-				ctx.p2pConfigs[userId].WaitData <- nil
+			ctx.p2pConfigsMu.RLock()
+			p2pConfig := ctx.p2pConfigs[userId]
+			ctx.p2pConfigsMu.RUnlock()
+			if p2pConfig != nil {
+				p2pConfig.GAorB = call.GB
+				p2pConfig.WaitData <- nil
 			}
 		case *tg.PhoneCallObj:
-			if ctx.p2pConfigs[userId] != nil {
-				ctx.p2pConfigs[userId].GAorB = call.GAOrB
-				ctx.p2pConfigs[userId].KeyFingerprint = call.KeyFingerprint
-				ctx.p2pConfigs[userId].PhoneCall = call
-				ctx.p2pConfigs[userId].WaitData <- nil
+			ctx.p2pConfigsMu.RLock()
+			p2pConfig := ctx.p2pConfigs[userId]
+			ctx.p2pConfigsMu.RUnlock()
+			if p2pConfig != nil {
+				p2pConfig.GAorB = call.GAOrB
+				p2pConfig.KeyFingerprint = call.KeyFingerprint
+				p2pConfig.PhoneCall = call
+				p2pConfig.WaitData <- nil
 			}
 		case *tg.PhoneCallDiscarded:
 			var reasonMessage string
@@ -83,18 +91,28 @@ func (ctx *Context) handleUpdates() {
 			case *tg.PhoneCallDiscardReasonHangup:
 				reasonMessage = fmt.Sprintf("call declined by %d", userId)
 			}
-			if ctx.p2pConfigs[userId] != nil {
-				ctx.p2pConfigs[userId].WaitData <- fmt.Errorf("%s", reasonMessage)
+			ctx.p2pConfigsMu.RLock()
+			p2pConfig := ctx.p2pConfigs[userId]
+			ctx.p2pConfigsMu.RUnlock()
+			if p2pConfig != nil {
+				p2pConfig.WaitData <- fmt.Errorf("%s", reasonMessage)
 			}
+			ctx.inputCallsMu.Lock()
 			delete(ctx.inputCalls, userId)
+			ctx.inputCallsMu.Unlock()
 			_ = ctx.binding.Stop(userId)
 		case *tg.PhoneCallRequested:
-			if ctx.p2pConfigs[userId] == nil {
+			ctx.p2pConfigsMu.RLock()
+			p2pConfig := ctx.p2pConfigs[userId]
+			ctx.p2pConfigsMu.RUnlock()
+			if p2pConfig == nil {
 				p2pConfigs, err := ctx.getP2PConfigs(call.GAHash)
 				if err != nil {
 					return err
 				}
+				ctx.p2pConfigsMu.Lock()
 				ctx.p2pConfigs[userId] = p2pConfigs
+				ctx.p2pConfigsMu.Unlock()
 				for _, callback := range ctx.incomingCallCallbacks {
 					go callback(ctx, userId)
 				}
@@ -117,14 +135,17 @@ func (ctx *Context) handleUpdates() {
 				participantId := getParticipantId(participant.Peer)
 				if participant.Left {
 					delete(ctx.callParticipants[chatId].CallParticipants, participantId)
+					ctx.callSourcesMu.Lock()
 					if ctx.callSources != nil && ctx.callSources[chatId] != nil {
 						delete(ctx.callSources[chatId].CameraSources, participantId)
 						delete(ctx.callSources[chatId].ScreenSources, participantId)
 					}
+					ctx.callSourcesMu.Unlock()
 					continue
 				}
 
 				ctx.callParticipants[chatId].CallParticipants[participantId] = participant
+				ctx.callSourcesMu.Lock()
 				if ctx.callSources != nil && ctx.callSources[chatId] != nil {
 					wasCamera := ctx.callSources[chatId].CameraSources[participantId] != ""
 					wasScreen := ctx.callSources[chatId].ScreenSources[participantId] != ""
@@ -163,6 +184,7 @@ func (ctx *Context) handleUpdates() {
 						}
 					}
 				}
+				ctx.callSourcesMu.Unlock()
 			}
 			ctx.callParticipants[chatId].LastMtprotoUpdate = time.Now()
 			ctx.participantsMutex.Unlock()
@@ -172,11 +194,14 @@ func (ctx *Context) handleUpdates() {
 				if participantId == ctx.self.ID {
 					connectionMode, err := ctx.binding.GetConnectionMode(chatId)
 					if err == nil && connectionMode == ntgcalls.StreamConnection && participant.CanSelfUnmute {
-						if ctx.pendingConnections[chatId] != nil {
+						ctx.pendingConnectionsMu.RLock()
+						pendingConnection := ctx.pendingConnections[chatId]
+						ctx.pendingConnectionsMu.RUnlock()
+						if pendingConnection != nil {
 							_ = ctx.connectCall(
 								chatId,
-								ctx.pendingConnections[chatId].MediaDescription,
-								ctx.pendingConnections[chatId].Payload,
+								pendingConnection.MediaDescription,
+								pendingConnection.Payload,
 							)
 						}
 					} else if !participant.CanSelfUnmute {
@@ -321,18 +346,24 @@ func (ctx *Context) handleUpdates() {
 	})
 
 	ctx.binding.OnSignal(func(chatId int64, signal []byte) {
-		_, _ = ctx.App.PhoneSendSignalingData(ctx.inputCalls[chatId], signal)
+		ctx.inputCallsMu.RLock()
+		inputCall := ctx.inputCalls[chatId]
+		ctx.inputCallsMu.RUnlock()
+		_, _ = ctx.App.PhoneSendSignalingData(inputCall, signal)
 	})
 
 	ctx.binding.OnConnectionChange(func(chatId int64, state ntgcalls.NetworkInfo) {
-		if ctx.waitConnect[chatId] != nil {
+		ctx.waitConnectMu.RLock()
+		waitConnect := ctx.waitConnect[chatId]
+		ctx.waitConnectMu.RUnlock()
+		if waitConnect != nil {
 			switch state.State {
 			case ntgcalls.Connected:
-				ctx.waitConnect[chatId] <- nil
+				waitConnect <- nil
 			case ntgcalls.Closed, ntgcalls.Failed:
-				ctx.waitConnect[chatId] <- fmt.Errorf("connection failed")
+				waitConnect <- fmt.Errorf("connection failed")
 			case ntgcalls.Timeout:
-				ctx.waitConnect[chatId] <- fmt.Errorf("connection timeout")
+				waitConnect <- fmt.Errorf("connection timeout")
 			default:
 			}
 		}

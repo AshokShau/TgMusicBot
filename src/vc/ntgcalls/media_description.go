@@ -21,20 +21,16 @@ type MediaDescription struct {
 func (ctx *MediaDescription) ParseToC() C.ntg_media_description_struct {
 	var x C.ntg_media_description_struct
 	if ctx.Microphone != nil {
-		microphone := ctx.Microphone.ParseToC()
-		x.microphone = &microphone
+		x.microphone = new(ctx.Microphone.ParseToC())
 	}
 	if ctx.Speaker != nil {
-		speaker := ctx.Speaker.ParseToC()
-		x.speaker = &speaker
+		x.speaker = new(ctx.Speaker.ParseToC())
 	}
 	if ctx.Camera != nil {
-		camera := ctx.Camera.ParseToC()
-		x.camera = &camera
+		x.camera = new(ctx.Camera.ParseToC())
 	}
 	if ctx.Screen != nil {
-		screen := ctx.Screen.ParseToC()
-		x.screen = &screen
+		x.screen = new(ctx.Screen.ParseToC())
 	}
 	return x
 }

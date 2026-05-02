@@ -29,6 +29,7 @@ import (
 	"ashokshau/tgmusic/src/utils"
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 	"ashokshau/tgmusic/src/vc/ubot"
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -435,6 +436,8 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 	defer c.mu.Unlock()
 
 	c.bot = client
+
+	c.startAutoLeave(context.Background())
 
 	for _, call := range c.uBContext {
 		call.OnStreamEnd(func(chatID int64, streamType ntgcalls.StreamType, device ntgcalls.StreamDevice) {

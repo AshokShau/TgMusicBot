@@ -46,8 +46,9 @@ func LoadConfig() error {
 		SupportGroup:      getEnvStr("SUPPORT_GROUP", "https://t.me/FallenSupport"),
 		SupportChannel:    getEnvStr("SUPPORT_CHANNEL", "https://t.me/FallenProjects"),
 		cookiesUrl:        processCookieURLs(os.Getenv("COOKIES_URL")),
-		StartImg:          getEnvStr("START_IMG", "https://i.pinimg.com/736x/5a/ec/35/5aec35d6fd33e7b75aafb1ac76b5fcd3.jpg"),
+		StartImg:          getEnvStr("START_IMG", "https://i.pinimg.com/736x/0d/f4/65/0df465d1e98239ecb6283400605fc813.jpg"),
 		Port:              getEnvStr("PORT", "6060"),
+		AutoLeave:         getEnvBool("AUTO_LEAVE", false),
 	}
 
 	devsEnv := os.Getenv("DEVS")
@@ -88,4 +89,17 @@ func LoadConfig() error {
 	}
 
 	return nil
+}
+
+// getEnvBool gets environment variable as bool with default value
+func getEnvBool(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	val, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+	return val
 }

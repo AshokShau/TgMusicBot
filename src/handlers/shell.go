@@ -53,8 +53,7 @@ func runShellCommand(cmd string, timeout time.Duration) (string, string, int) {
 
 	exitCode := 0
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			exitCode = exitErr.ExitCode()
 		}
 	}

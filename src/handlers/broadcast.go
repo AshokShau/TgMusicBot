@@ -165,7 +165,7 @@ Examples:
 					ReplyMarkup: reply.ReplyMarkup,
 				})
 			} else {
-				_, errSend = reply.Forward(c, chatID, nil)
+				_, errSend = reply.Forward(c, chatID, &td.ForwardMessageOpts{})
 			}
 
 			if errSend == nil {

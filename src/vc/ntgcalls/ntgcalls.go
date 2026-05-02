@@ -337,9 +337,8 @@ func (ctx *Client) InitExchange(chatId int64, dhConfig DhConfig, gAHash []byte) 
 	var buffer *C.uint8_t
 	var size C.int
 	gAHashC, gAHashSize := parseBytes(gAHash)
-	dhConfigC := dhConfig.ParseToC()
 	f := CreateFuture()
-	C.ntg_init_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), &dhConfigC, gAHashC, gAHashSize, &buffer, &size, f.ParseToC())
+	C.ntg_init_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), new(dhConfig.ParseToC()), gAHashC, gAHashSize, &buffer, &size, f.ParseToC())
 	f.wait()
 	defer C.free(unsafe.Pointer(buffer))
 	return C.GoBytes(unsafe.Pointer(buffer), size), parseErrorCode(f)

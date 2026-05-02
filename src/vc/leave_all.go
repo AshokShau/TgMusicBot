@@ -9,6 +9,8 @@
 package vc
 
 import (
+	"ashokshau/tgmusic/config"
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -80,7 +82,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 						"chat_id", chatID,
 						"seconds", wait,
 					)
-					time.Sleep(time.Duration(wait+30) * time.Second)
+					time.Sleep(time.Duration(wait+20) * time.Second)
 					continue
 				}
 
@@ -96,4 +98,48 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 	}
 
 	return leftCount, nil
+}
+
+const autoLeaveInterval = 18 * time.Hour
+
+func (c *TelegramCalls) startAutoLeave(ctx context.Context) {
+	if !config.Conf.AutoLeave {
+		return
+	}
+	go func() {
+		logger.Info("AutoLeave enabled, starting background task",
+			"interval", autoLeaveInterval)
+
+		ticker := time.NewTicker(autoLeaveInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				logger.Info("AutoLeave: background task stopped")
+				return
+			case <-ticker.C:
+				c.runAutoLeave()
+			}
+		}
+	}()
+}
+
+func (c *TelegramCalls) runAutoLeave() {
+	logger.Info("AutoLeave: leaving inactive chats")
+
+	leftCount, err := c.LeaveAll()
+	if err != nil {
+		logger.Error("AutoLeave: failed to leave chats", "error", err)
+		return
+	}
+
+	logger.Info("AutoLeave: completed", "leftCount", leftCount)
+
+	if leftCount > 0 && config.Conf.LoggerId != 0 {
+		msg := fmt.Sprintf("AutoLeave: Assistant left %d inactive chats", leftCount)
+		if _, err = c.bot.SendTextMessage(config.Conf.LoggerId, msg, nil); err != nil {
+			logger.Error("AutoLeave: failed to send log message", "error", err)
+		}
+	}
 }

@@ -19,6 +19,9 @@ func (ctx *Context) updateSources(chatId int64) error {
 		return err
 	}
 
+	ctx.callSourcesMu.Lock()
+	defer ctx.callSourcesMu.Unlock()
+
 	if ctx.callSources[chatId] == nil {
 		ctx.callSources[chatId] = &types.CallSources{
 			CameraSources: make(map[int64]string),
