@@ -10,7 +10,9 @@ package ubot
 
 func (ctx *Context) Stop(chatId int64) error {
 	ctx.presentations = stdRemove(ctx.presentations, chatId)
+	ctx.callSourcesMu.Lock()
 	delete(ctx.callSources, chatId)
+	ctx.callSourcesMu.Unlock()
 	err := ctx.binding.Stop(chatId)
 	if err != nil {
 		return err

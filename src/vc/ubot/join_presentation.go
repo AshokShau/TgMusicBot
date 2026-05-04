@@ -17,22 +17,28 @@ import (
 
 func (ctx *Context) joinPresentation(chatId int64, join bool) error {
 	defer func() {
+		ctx.waitConnectMu.Lock()
 		if ctx.waitConnect[chatId] != nil {
 			delete(ctx.waitConnect, chatId)
 		}
+		ctx.waitConnectMu.Unlock()
 	}()
 	connectionMode, err := ctx.binding.GetConnectionMode(chatId)
 	if err != nil {
 		return err
 	}
 	if connectionMode == ntgcalls.StreamConnection {
+		ctx.pendingConnectionsMu.Lock()
 		if ctx.pendingConnections[chatId] != nil {
 			ctx.pendingConnections[chatId].Presentation = join
 		}
+		ctx.pendingConnectionsMu.Unlock()
 	} else if connectionMode == ntgcalls.RtcConnection {
 		if join {
 			if !slices.Contains(ctx.presentations, chatId) {
+				ctx.waitConnectMu.Lock()
 				ctx.waitConnect[chatId] = make(chan error)
+				ctx.waitConnectMu.Unlock()
 				jsonParams, err := ctx.binding.InitPresentation(chatId)
 				if err != nil {
 					return err
@@ -65,7 +71,10 @@ func (ctx *Context) joinPresentation(chatId int64, join bool) error {
 				if err != nil {
 					return err
 				}
-				<-ctx.waitConnect[chatId]
+				ctx.waitConnectMu.RLock()
+				waitConnect := ctx.waitConnect[chatId]
+				ctx.waitConnectMu.RUnlock()
+				<-waitConnect
 				ctx.presentations = append(ctx.presentations, chatId)
 			}
 		} else if slices.Contains(ctx.presentations, chatId) {

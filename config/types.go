@@ -41,6 +41,7 @@ type BotConfig struct {
 	cookiesUrl        []string // cookiesUrl is a list of URLs to cookies files.
 	StartImg          string   // StartImg is the URL or path to the start image.
 	Port              string
+	AutoLeave         bool // AutoLeave is a boolean setting to automatically leave inactive chats.
 }
 
 // getSessionStrings gets session strings from environment variable with prefix

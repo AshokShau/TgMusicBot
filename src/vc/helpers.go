@@ -24,14 +24,14 @@ import (
 )
 
 // handleFlood manages flood wait errors by pausing execution for short waits.
-// It sleeps only if the wait is <= 10 seconds. Otherwise it returns false.
+// It sleeps only if the wait is <= 5 seconds. Otherwise it returns false.
 func handleFlood(err error) bool {
 	wait := telegram.GetFloodWait(err)
 	if wait <= 0 {
 		return false
 	}
 
-	if wait > 10 {
+	if wait > 5 {
 		logger.Warn("Flood wait too long, skipping sleep", "seconds", wait)
 		return false
 	}

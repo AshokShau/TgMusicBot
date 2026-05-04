@@ -29,6 +29,7 @@ import (
 	"ashokshau/tgmusic/src/utils"
 	"ashokshau/tgmusic/src/vc/ntgcalls"
 	"ashokshau/tgmusic/src/vc/ubot"
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -44,7 +45,6 @@ import (
 const DefaultStreamURL = "https://t.me/FallenSongs/1295"
 
 // getClientIndex selects an assistant client index (0-based) for a given chat.
-// It prioritizes existing assignments from the database.
 func (c *TelegramCalls) getClientIndex(chatID int64) (int, error) {
 	c.mu.RLock()
 	totalClients := len(c.uBContext)
@@ -103,50 +103,11 @@ func (c *TelegramCalls) GetGroupAssistant(chatID int64) (*ubot.Context, int, err
 	return call, clientIndex, nil
 }
 
-// PlayMedia plays media in a voice chat.
-func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffmpegParameters string) error {
-	c.mu.RLock()
-	totalClients := len(c.uBContext)
-	c.mu.RUnlock()
-
-	if totalClients == 0 {
-		return fmt.Errorf("no clients are available")
-	}
-
-	var lastErr error
-	for i := 0; i < totalClients; i++ {
-		err := c.play(chatID, filePath, video, ffmpegParameters)
-		if err == nil {
-			return nil
-		}
-
-		errMsg := err.Error()
-		if strings.Contains(errMsg, "FROZEN_METHOD_INVALID") ||
-			strings.Contains(errMsg, "CHANNELS_TOO_MUCH") ||
-			strings.Contains(errMsg, "FLOOD_WAIT_X") {
-			_ = db.Instance.RemoveAssistant(chatID)
-			lastErr = err
-			continue
-		}
-
-		return err
-	}
-
-	return lastErr
-}
-
-func (c *TelegramCalls) play(chatID int64, filePath string, video bool, ffmpegParameters string) error {
-	call, index, err := c.GetGroupAssistant(chatID)
-	if err != nil {
-		return err
-	}
-
+func (c *TelegramCalls) playMedia(chatID int64, filePath string, video bool, ffmpegParameters string, call *ubot.Context, index int) error {
 	if chatID < 0 {
-		var joinErr error
-		call, joinErr = c.JoinAssistant(chatID)
-		if joinErr != nil {
+		if err := c.joinAssistant(chatID, call, index); err != nil {
 			cache.ChatCache.ClearChat(chatID)
-			return joinErr
+			return err
 		}
 	} else {
 		_, _ = call.App.ResolvePeer(chatID)
@@ -154,14 +115,9 @@ func (c *TelegramCalls) play(chatID int64, filePath string, video bool, ffmpegPa
 
 	logger.Debug("Playing media in chat", "id", chatID, "path", filePath, "index", index)
 	mediaDesc := getMediaDescription(filePath, video, ffmpegParameters)
-	if err = call.Play(chatID, mediaDesc); err != nil {
+	if err := call.Play(chatID, mediaDesc); err != nil {
 		cache.ChatCache.ClearChat(chatID)
-		if strings.Contains(err.Error(), "is closed") {
-			return errors.New("<b>No active video chat found.</b>\n\nPlease start one and <b>try again</b>")
-		}
-
-		logger.Error("Failed to play the media", "error", err, "index", index)
-		return fmt.Errorf("client%d: playback failed: %w", index, err)
+		return err
 	}
 
 	if db.Instance.GetLoggerStatus() {
@@ -169,6 +125,83 @@ func (c *TelegramCalls) play(chatID int64, filePath string, video bool, ffmpegPa
 	}
 
 	return nil
+}
+
+// PlayMedia plays media in a voice chat with automatic assistant rotation on certain errors.
+func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffmpegParameters string) error {
+	tried := make(map[int]bool)
+	var lastErr error
+
+	for {
+		c.mu.RLock()
+		totalClients := len(c.uBContext)
+		c.mu.RUnlock()
+
+		if len(tried) >= totalClients {
+			if lastErr != nil {
+				return lastErr
+			}
+			return fmt.Errorf("no available assistants to play media")
+		}
+
+		call, index, err := c.GetGroupAssistant(chatID)
+		if err != nil {
+			return err
+		}
+
+		if tried[index] {
+			index = -1
+			c.mu.RLock()
+			for i, ctx := range c.uBContext {
+				if !tried[i] {
+					index = i
+					call = ctx
+					break
+				}
+			}
+			c.mu.RUnlock()
+			if index == -1 {
+				break
+			}
+		}
+
+		tried[index] = true
+
+		err = c.playMedia(chatID, filePath, video, ffmpegParameters, call, index)
+		if err == nil {
+			_ = db.Instance.SetAssistant(chatID, index)
+			return nil
+		}
+
+		lastErr = err
+
+		if strings.Contains(err.Error(), "is closed") || strings.Contains(err.Error(), "GROUPCALL_FORBIDDEN") {
+			return errors.New("<b>No active video chat found.</b>\n\nPlease start one and <b>try again</b>")
+		}
+
+		if strings.Contains(err.Error(), "GROUPCALL_INVALID") {
+			return fmt.Errorf("<b>GROUPCALL_INVALID:</b> start a video chat and try again.\n\nIf the problem persists, please report it to the developer.")
+		}
+
+		if strings.Contains(err.Error(), "CHANNELS_TOO_MUCH") {
+			go func(idx int) {
+				_, _ = c.LeaveAllForClient(idx)
+			}(index)
+
+			_ = db.Instance.RemoveAssistant(chatID)
+			continue
+		}
+
+		if strings.Contains(err.Error(), "FROZEN_METHOD_INVALID") || strings.Contains(err.Error(), "FLOOD_WAIT_X") {
+			_ = db.Instance.RemoveAssistant(chatID)
+			continue
+		}
+
+		logger.Error("Failed to play the media", "error", err, "index", index)
+		return fmt.Errorf("client%d: playback failed: %w", index, err)
+	}
+
+	return fmt.Errorf("failed to play media after trying all assistants: %w", lastErr)
 }
 
 // downloadAndPrepareSong handles the download and preparation of a song for playback.
@@ -274,9 +307,14 @@ func (c *TelegramCalls) Stop(chatId int64) error {
 	if err != nil {
 		return err
 	}
+
 	cache.ChatCache.ClearChat(chatId)
 	err = call.Stop(chatId)
 	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			return nil
+		}
+
 		slog.Info("[Stop] Failed to stop the call", "error", err, "index", index)
 		return fmt.Errorf("failed to stop call (client %d): %w", index, err)
 	}
@@ -435,6 +473,8 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 	defer c.mu.Unlock()
 
 	c.bot = client
+
+	c.startAutoLeave(context.Background())
 
 	for _, call := range c.uBContext {
 		call.OnStreamEnd(func(chatID int64, streamType ntgcalls.StreamType, device ntgcalls.StreamDevice) {

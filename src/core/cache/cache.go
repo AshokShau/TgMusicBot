@@ -158,8 +158,8 @@ func getJanitor() *janitor {
 	return sharedJanitor
 }
 
-func (j *janitor) run() {
-	ticker := time.NewTicker(j.interval)
+func (j *janitor) runWith(interval time.Duration, stop chan struct{}) {
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
@@ -177,7 +177,7 @@ func (j *janitor) run() {
 			for _, c := range caches {
 				c.evictExpired()
 			}
-		case <-j.stop:
+		case <-stop:
 			return
 		}
 	}
@@ -195,7 +195,7 @@ func (j *janitor) register(c cleaner) {
 		j.interval = janitorInterval
 		j.stop = make(chan struct{})
 		j.running = true
-		go j.run()
+		go j.runWith(j.interval, j.stop)
 	}
 }
 

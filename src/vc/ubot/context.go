@@ -22,6 +22,11 @@ type Context struct {
 	mutedByAdmin          []int64
 	presentations         []int64
 	pendingPresentation   map[int64]bool
+	pendingConnectionsMu  sync.RWMutex
+	p2pConfigsMu          sync.RWMutex
+	inputCallsMu          sync.RWMutex
+	callSourcesMu         sync.RWMutex
+	waitConnectMu         sync.RWMutex
 	p2pConfigs            map[int64]*types.P2PConfig
 	inputCalls            map[int64]*tg.InputPhoneCall
 	inputGroupCalls       map[int64]tg.InputGroupCall
