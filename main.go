@@ -59,14 +59,16 @@ func main() {
 	)
 
 	slog.SetDefault(logger)
+	tdDir := "database"
+	_ = os.Remove(tdDir)
 
 	clientConfig := &gotdbot.ClientOpts{
-		LibraryPath: "./libtdjson.so.1.8.63",
+		LibraryPath: "./libtdjson.so.1.8.64",
 		Logger:      logger,
 		AutoRetry: &gotdbot.AutoRetry{
 			ChatNotFound: true,
 		},
-		DatabaseDirectory: "database",
+		DatabaseDirectory: tdDir,
 	}
 
 	client, err := gotdbot.NewClient(config.Conf.ApiId, config.Conf.ApiHash, config.Conf.Token, clientConfig)
