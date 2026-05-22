@@ -8,6 +8,8 @@
 
 package ntgcalls
 
+import "sync"
+
 type Client struct {
 	ptr                         uintptr
 	connectionChangeCallbacks   []ConnectionChangeCallback
@@ -18,4 +20,6 @@ type Client struct {
 	remoteSourceCallbacks       []RemoteSourceCallback
 	broadcastTimestampCallbacks []BroadcastTimestampCallback
 	broadcastPartCallbacks      []BroadcastPartCallback
+	mediaAllocMu                sync.Mutex
+	mediaAllocations            map[int64]map[StreamDevice]*mediaAllocation
 }

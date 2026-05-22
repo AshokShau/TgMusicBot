@@ -42,8 +42,6 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-const DefaultStreamURL = "https://t.me/FallenSongs/1295"
-
 // getClientIndex selects an assistant client index (0-based) for a given chat.
 func (c *TelegramCalls) getClientIndex(chatID int64) (int, error) {
 	c.mu.RLock()
@@ -197,8 +195,8 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 			continue
 		}
 
-		logger.Error("Failed to play the media", "error", err, "index", index)
-		return fmt.Errorf("client%d: playback failed: %w", index, err)
+		logger.Error("Failed to play the media", "error", err, "index", index, "chatID", chatID)
+		return fmt.Errorf("playback failed: %s", err.Error())
 	}
 
 	return fmt.Errorf("failed to play media after trying all assistants: %w", lastErr)
@@ -212,15 +210,10 @@ func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *t
 	}
 
 	dlPath, err := dl.DownloadCachedTrack(song, c.bot)
-	if err != nil {
+	song.FilePath = dlPath
+	if err != nil || song.FilePath == "" {
 		_, _ = reply.EditText(c.bot, "⚠️ Download failed. Skipping track...", nil)
 		return err
-	}
-
-	song.FilePath = dlPath
-	if song.FilePath == "" {
-		_, _ = reply.EditText(c.bot, "⚠️ Download failed. Skipping track...", nil)
-		return errors.New("download failed due to an empty file path")
 	}
 
 	return nil
@@ -267,24 +260,20 @@ func (c *TelegramCalls) playSong(chatID int64, song *utils.CachedTrack) error {
 	}
 
 	if err = c.PlayMedia(chatID, song.FilePath, song.IsVideo, ""); err != nil {
-		_, err := reply.EditText(c.bot, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
-		return err
+		_, _ = reply.EditText(c.bot, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
+		return nil
 	}
 
 	if song.Duration == 0 {
 		song.Duration = utils.GetMediaDuration(song.FilePath)
 	}
 
-	escURL := html.EscapeString(song.URL)
-	escName := html.EscapeString(song.Name)
-	escUser := html.EscapeString(song.User)
-
 	text := fmt.Sprintf(
 		"<u><b>| Started streaming</b></u>\n\n<b>Title:</b> <a href='%s'>%s</a>\n\n<b>Duration:</b> %s min\n<b>Requested by:</b> %s",
-		escURL,
-		escName,
+		html.EscapeString(song.URL),
+		html.EscapeString(song.Name),
 		utils.SecToMin(song.Duration),
-		escUser,
+		html.EscapeString(song.User),
 	)
 
 	_, err = reply.EditText(c.bot, text, &td.EditTextMessageOpts{
@@ -316,7 +305,7 @@ func (c *TelegramCalls) Stop(chatId int64) error {
 		}
 
 		slog.Info("[Stop] Failed to stop the call", "error", err, "index", index)
-		return fmt.Errorf("failed to stop call (client %d): %w", index, err)
+		return fmt.Errorf("failed to stop call: %w", err)
 	}
 	return nil
 }
@@ -332,7 +321,7 @@ func (c *TelegramCalls) Pause(chatId int64) (bool, error) {
 	res, err := call.Pause(chatId)
 	if err != nil {
 		slog.Warn("[Pause] Failed to pause the call", "error", err, "index", index)
-		return res, fmt.Errorf("failed to pause (client %d): %w", index, err)
+		return res, fmt.Errorf("failed to pause: %w", err)
 	}
 	return res, err
 }

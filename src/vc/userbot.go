@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/core/db"
 	"ashokshau/tgmusic/src/vc/ubot"
 
 	td "github.com/AshokShau/gotdbot"
@@ -27,13 +26,13 @@ import (
 func (c *TelegramCalls) joinAssistant(chatID int64, call *ubot.Context, index int) error {
 	status, err := c.checkUserStats(chatID, call, index)
 	if err != nil {
-		return fmt.Errorf("joinAssistant (client-%d): check user status: %w", index, err)
+		return fmt.Errorf("(client%d): failed to check user status: %w", index, err)
 	}
 
 	logger.Info("chat member status", "chat_id", chatID, "status", status, "index", index)
 
 	switch status.(type) {
-	case *td.ChatMemberStatusMember, td.ChatMemberStatusCreator, td.ChatMemberStatusAdministrator, td.ChatMemberStatusMember:
+	case *td.ChatMemberStatusMember, td.ChatMemberStatusCreator, td.ChatMemberStatusAdministrator, td.ChatMemberStatusMember, *td.ChatMemberStatusAdministrator, *td.ChatMemberStatusCreator:
 		return nil
 
 	case *td.ChatMemberStatusLeft, td.ChatMemberStatusLeft:
@@ -68,7 +67,7 @@ func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *ubot.Context,
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an admin in chat") {
 			return fmt.Errorf(
-				"client %d: bot is not an admin, cannot unban my assistant (<code>%d</code>)",
+				"client%d: bot is not an admin, cannot unban my assistant (<code>%d</code>)",
 				index, ubID,
 			)
 		}
@@ -78,7 +77,7 @@ func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *ubot.Context,
 	admin, ok := botStatus.Status.(*td.ChatMemberStatusAdministrator)
 	if !ok || admin.Rights == nil || !admin.Rights.CanRestrictMembers {
 		return fmt.Errorf(
-			"assistant (client %d, <code>%d</code>): bot lacks CanRestrictMembers",
+			"client%d is banned in your group (<code>%d</code>) & bot lacks CanRestrictMembers to unban my assistant",
 			index, ubID,
 		)
 	}
@@ -98,42 +97,6 @@ func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *ubot.Context,
 	// isMuted: restricted but not banned — nothing actionable right now.
 	// TODO: call SetChatMemberStatus to lift restrictions.
 	return nil
-}
-
-// JoinAssistant attempts to join the assigned assistant to the chat.
-// If it fails, it returns an error and removes the assistant from the database.
-func (c *TelegramCalls) JoinAssistant(chatID int64) (*ubot.Context, error) {
-	index, err := c.getClientIndex(chatID)
-	if err != nil {
-		return nil, err
-	}
-
-	c.mu.RLock()
-	call, ok := c.uBContext[index]
-	c.mu.RUnlock()
-
-	if !ok {
-		return nil, fmt.Errorf("client %d not found in context", index)
-	}
-
-	assistantID := call.App.Me().ID
-
-	if err = c.joinAssistant(chatID, call, index); err != nil {
-		slog.Info("assistant failed to join chat",
-			"chat_id", chatID, "assistant_id", assistantID, "error", err, "index", index)
-
-		cacheKey := fmt.Sprintf("%d:%d", chatID, assistantID)
-		c.statusCache.Delete(cacheKey)
-		_ = db.Instance.RemoveAssistant(chatID)
-
-		return nil, err
-	}
-
-	if err := db.Instance.SetAssistant(chatID, index); err != nil {
-		slog.Warn("failed to set assistant in database", "chat_id", chatID, "index", index, "error", err)
-	}
-
-	return call, nil
 }
 
 // clientIndexFor returns the 0-based index for the given call, or -1 if not found.

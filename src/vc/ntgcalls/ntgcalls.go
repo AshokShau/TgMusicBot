@@ -82,14 +82,16 @@ func handleLogs(logMessage C.ntg_log_message_struct) {
 func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_type_enum, streamDevice C.ntg_stream_device_enum, ptr unsafe.Pointer) {
 	self := (*Client)(ptr)
 	goChatID := int64(chatID)
+	goStreamDevice := parseStreamDevice(streamDevice)
 	var goStreamType StreamType
 	if streamType == C.NTG_STREAM_AUDIO {
 		goStreamType = AudioStream
 	} else {
 		goStreamType = VideoStream
 	}
+	self.releaseMediaAllocation(goChatID, goStreamDevice)
 	for _, x0 := range self.streamEndCallbacks {
-		go x0(goChatID, goStreamType, parseStreamDevice(streamDevice))
+		go x0(goChatID, goStreamType, goStreamDevice)
 	}
 }
 
@@ -402,9 +404,21 @@ func (ctx *Client) Connect(chatId int64, params string, isPresentation bool) err
 
 func (ctx *Client) SetStreamSources(chatId int64, streamMode StreamMode, desc MediaDescription) error {
 	f := CreateFuture()
-	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), desc.ParseToC(), f.ParseToC())
+	cDesc, devices, cleanup, err := desc.allocateC()
+	if err != nil {
+		return err
+	}
+	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), cDesc, f.ParseToC())
 	f.wait()
-	return parseErrorCode(f)
+	err = parseErrorCode(f)
+	if err != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return err
+	}
+	ctx.registerMediaAllocation(chatId, devices, cleanup)
+	return nil
 }
 
 func (ctx *Client) SendExternalFrame(chatId int64, streamDevice StreamDevice, data []byte, frameData FrameData) error {

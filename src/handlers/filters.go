@@ -117,11 +117,10 @@ func playMode(c *td.Client, ctx *td.Context) bool {
 		}
 
 		senderID := m.SenderID()
-		isAdmin := slices.ContainsFunc(admins, func(a *td.ChatMember) bool {
+		admin := slices.ContainsFunc(admins, func(a *td.ChatMember) bool {
 			return SenderID(a.MemberId) == senderID
 		})
-
-		if !isAdmin && !db.Instance.IsAuthUser(chatID, senderID) {
+		if !admin && !db.Instance.IsAuthUser(chatID, senderID) {
 			_, _ = m.ReplyText(c, "Play mode is enabled. Only administrators and authorized users can start playback.", nil)
 			return false
 		}

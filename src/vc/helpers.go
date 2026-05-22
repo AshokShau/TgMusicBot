@@ -23,6 +23,8 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
+const DefaultStreamURL = "https://t.me/FallenSongs/1295"
+
 // handleFlood manages flood wait errors by pausing execution for short waits.
 // It sleeps only if the wait is <= 5 seconds. Otherwise it returns false.
 func handleFlood(err error) bool {

@@ -34,3 +34,61 @@ func (ctx *MediaDescription) ParseToC() C.ntg_media_description_struct {
 	}
 	return x
 }
+
+func (ctx *MediaDescription) allocateC() (C.ntg_media_description_struct, []StreamDevice, func(), error) {
+	var desc C.ntg_media_description_struct
+	var devices []StreamDevice
+	cleanups := make([]func(), 0, 4)
+
+	cleanupAll := func() {
+		for i := len(cleanups) - 1; i >= 0; i-- {
+			cleanups[i]()
+		}
+	}
+
+	if ctx.Microphone != nil {
+		audioDesc, cleanup, err := ctx.Microphone.allocC()
+		if err != nil {
+			cleanupAll()
+			return C.ntg_media_description_struct{}, nil, nil, err
+		}
+		desc.microphone = audioDesc
+		devices = append(devices, MicrophoneStream)
+		cleanups = append(cleanups, cleanup)
+	}
+
+	if ctx.Speaker != nil {
+		audioDesc, cleanup, err := ctx.Speaker.allocC()
+		if err != nil {
+			cleanupAll()
+			return C.ntg_media_description_struct{}, nil, nil, err
+		}
+		desc.speaker = audioDesc
+		devices = append(devices, SpeakerStream)
+		cleanups = append(cleanups, cleanup)
+	}
+
+	if ctx.Camera != nil {
+		videoDesc, cleanup, err := ctx.Camera.allocC()
+		if err != nil {
+			cleanupAll()
+			return C.ntg_media_description_struct{}, nil, nil, err
+		}
+		desc.camera = videoDesc
+		devices = append(devices, CameraStream)
+		cleanups = append(cleanups, cleanup)
+	}
+
+	if ctx.Screen != nil {
+		videoDesc, cleanup, err := ctx.Screen.allocC()
+		if err != nil {
+			cleanupAll()
+			return C.ntg_media_description_struct{}, nil, nil, err
+		}
+		desc.screen = videoDesc
+		devices = append(devices, ScreenStream)
+		cleanups = append(cleanups, cleanup)
+	}
+
+	return desc, devices, cleanupAll, nil
+}

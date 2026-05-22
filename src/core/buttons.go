@@ -124,7 +124,6 @@ func HelpMenuKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 }
 
 func BackHelpMenuKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
-
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
 			{HelpBtn, HomeBtn},
@@ -134,7 +133,6 @@ func BackHelpMenuKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 }
 
 func ControlButtons(mode string) *gotdbot.ReplyMarkupInlineKeyboard {
-
 	skipBtn := cb("‣‣I", "play_skip")
 	stopBtn := cb("▢", "play_stop")
 	pauseBtn := cb("II", "play_pause")
