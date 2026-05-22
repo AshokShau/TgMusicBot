@@ -196,7 +196,7 @@ func (c *TelegramCalls) PlayMedia(chatID int64, filePath string, video bool, ffm
 		}
 
 		logger.Error("Failed to play the media", "error", err, "index", index, "chatID", chatID)
-		return fmt.Errorf("playback failed: %s", err.Error())
+		return fmt.Errorf("playback failed: %w", err)
 	}
 
 	return fmt.Errorf("failed to play media after trying all assistants: %w", lastErr)
