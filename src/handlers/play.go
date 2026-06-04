@@ -153,8 +153,8 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 		return err
 	}
 
-	if file.Size > config.Conf.MaxFileSize {
-		_, err := updater.EditText(c, fmt.Sprintf("File too large. Max size: %d MB.", config.Conf.MaxFileSize/(1024*1024)), nil)
+	if file.Size > config.MaxFileSize {
+		_, err := updater.EditText(c, fmt.Sprintf("File too large. Max size: %d MB.", config.MaxFileSize/(1024*1024)), nil)
 		if err != nil {
 			c.Logger.Warn("Edit message failed", "error", err)
 		}
@@ -269,8 +269,8 @@ func handleUrl(c *td.Client, m *td.Message, updater *td.Message, trackInfo utils
 
 // handleSingleTrack handles a single track.
 func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song utils.MusicTrack, filePath string, chatId int64, isVideo bool) error {
-	if song.Duration > int(config.Conf.SongDurationLimit) {
-		_, err := updater.EditText(c, fmt.Sprintf("Sorry, song exceeds max duration of %d minutes.", config.Conf.SongDurationLimit/60), nil)
+	if song.Duration > int(config.SongDurationLimit) {
+		_, err := updater.EditText(c, fmt.Sprintf("Sorry, song exceeds max duration of %d minutes.", config.SongDurationLimit/60), nil)
 		return err
 	}
 
@@ -349,7 +349,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 	var firstTrack *utils.CachedTrack
 
 	for _, track := range tracks {
-		if track.Duration > int(config.Conf.SongDurationLimit) {
+		if track.Duration > int(config.SongDurationLimit) {
 			skippedTracks = append(skippedTracks, track.Title)
 			continue
 		}
@@ -364,7 +364,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 
 	if len(tracksToAdd) == 0 {
 		if len(skippedTracks) > 0 {
-			_, err := updater.EditText(c, fmt.Sprintf("All tracks were skipped (max duration %d min).", config.Conf.SongDurationLimit/60), nil)
+			_, err := updater.EditText(c, fmt.Sprintf("All tracks were skipped (max duration %d min).", config.SongDurationLimit/60), nil)
 			return err
 		}
 		_, err := updater.EditText(c, "No valid tracks found.", nil)

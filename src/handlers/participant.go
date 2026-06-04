@@ -207,7 +207,7 @@ func sendJoinLog(client *gotdbot.Client, chatID int64, chat *gotdbot.Supergroup)
 	)
 
 	_, err := client.SendTextMessage(
-		config.Conf.LoggerId,
+		config.LoggerId,
 		text,
 		&gotdbot.SendTextMessageOpts{
 			ParseMode: "HTML",

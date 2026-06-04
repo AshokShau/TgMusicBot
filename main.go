@@ -28,12 +28,8 @@ import (
 
 // main serves as the entry point for the application.
 func main() {
-	if err := config.LoadConfig(); err != nil {
-		panic(err)
-	}
-
 	go func() {
-		if err := http.ListenAndServe("0.0.0.0:"+config.Conf.Port, nil); err != nil {
+		if err := http.ListenAndServe("0.0.0.0:"+config.Port, nil); err != nil {
 			slog.Info("pprof server error", "error", err)
 		}
 	}()
@@ -61,7 +57,6 @@ func main() {
 	slog.SetDefault(logger)
 	tdDir := "database"
 	_ = os.Remove(tdDir)
-
 	clientConfig := &gotdbot.ClientOpts{
 		LibraryPath: "./libtdjson.so.1.8.64",
 		Logger:      logger,
@@ -71,7 +66,7 @@ func main() {
 		DatabaseDirectory: tdDir,
 	}
 
-	client, err := gotdbot.NewClient(config.Conf.ApiId, config.Conf.ApiHash, config.Conf.Token, clientConfig)
+	client, err := gotdbot.NewClient(config.ApiId, config.ApiHash, config.Token, clientConfig)
 	if err != nil {
 		slog.Error("gotdbot.NewClient error", "error", err)
 		os.Exit(1)
@@ -96,7 +91,7 @@ func main() {
 	}
 
 	slog.Info("Bot started as @ (ID: )", "arg1", username, "id", me.Id)
-	_, _ = client.SendTextMessage(config.Conf.LoggerId, "The bot has started!", nil)
+	_, _ = client.SendTextMessage(config.LoggerId, "The bot has started!", nil)
 	client.Idle()
 	slog.Info("The bot is shutting down...")
 	vc.Calls.StopAllClients()

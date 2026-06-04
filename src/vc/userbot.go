@@ -17,13 +17,12 @@ import (
 	"time"
 
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/vc/ubot"
 
 	td "github.com/AshokShau/gotdbot"
 )
 
 // joinAssistant ensures the assistant is a member of the specified chat.
-func (c *TelegramCalls) joinAssistant(chatID int64, call *ubot.Context, index int) error {
+func (c *TelegramCalls) joinAssistant(chatID int64, call *Assistant, index int) error {
 	status, err := c.checkUserStats(chatID, call, index)
 	if err != nil {
 		return fmt.Errorf("(client%d): failed to check user status: %w", index, err)
@@ -61,7 +60,7 @@ func (c *TelegramCalls) joinAssistant(chatID int64, call *ubot.Context, index in
 }
 
 // recoverBannedAssistant attempts to unban or unmute the assistant using bot admin rights.
-func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *ubot.Context, index int, isBanned bool) error {
+func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *Assistant, index int, isBanned bool) error {
 	ubID := call.App.Me().ID
 	botStatus, err := cache.GetUserAdmin(c.bot, chatID, c.bot.Me.Id, false)
 	if err != nil {
@@ -101,10 +100,10 @@ func (c *TelegramCalls) recoverBannedAssistant(chatID int64, call *ubot.Context,
 
 // clientIndexFor returns the 0-based index for the given call, or -1 if not found.
 // Caller must not hold mu.
-func (c *TelegramCalls) clientIndexFor(call *ubot.Context) int {
+func (c *TelegramCalls) clientIndexFor(call *Assistant) int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	for idx, ctx := range c.uBContext {
+	for idx, ctx := range c.assistants {
 		if ctx == call {
 			return idx
 		}
@@ -114,7 +113,7 @@ func (c *TelegramCalls) clientIndexFor(call *ubot.Context) int {
 
 // checkUserStats returns the assistant's membership status in chatID.
 // Results are cached; a cache miss triggers a live Telegram API call.
-func (c *TelegramCalls) checkUserStats(chatID int64, call *ubot.Context, index int) (td.ChatMemberStatus, error) {
+func (c *TelegramCalls) checkUserStats(chatID int64, call *Assistant, index int) (td.ChatMemberStatus, error) {
 	userID := call.App.Me().ID
 	cacheKey := fmt.Sprintf("%d:%d", chatID, userID)
 	if cached, ok := c.statusCache.Get(cacheKey); ok {
@@ -137,7 +136,7 @@ func (c *TelegramCalls) checkUserStats(chatID int64, call *ubot.Context, index i
 }
 
 // joinUb joins the assistant to chatID via an ChatInviteLink link.
-func (c *TelegramCalls) joinUb(chatID int64, call *ubot.Context, index int) error {
+func (c *TelegramCalls) joinUb(chatID int64, call *Assistant, index int) error {
 	ub := call.App
 	cacheKey := strconv.FormatInt(chatID, 10)
 

@@ -123,7 +123,7 @@ func loggerHandler(c *td.Client, ctx *td.Context) error {
 
 	m := ctx.EffectiveMessage
 
-	if config.Conf.LoggerId == 0 {
+	if config.LoggerId == 0 {
 		_, _ = m.ReplyText(c, "Please set LOGGER_ID in .env first.", nil)
 		return td.EndGroups
 	}

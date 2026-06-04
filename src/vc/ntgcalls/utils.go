@@ -1,11 +1,3 @@
-/*
- * TgMusicBot - Telegram Music Bot
- *  Copyright (c) 2025-2026 Ashok Shau
- *
- *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
- */
-
 package ntgcalls
 
 //#include "ntgcalls.h"
@@ -121,33 +113,6 @@ func parseStreamStatus(status C.ntg_stream_status_enum) StreamStatus {
 		return IdlingStream
 	}
 	return ActiveStream
-}
-
-func parseRtcServers(rtcServers []RTCServer) *C.ntg_rtc_server_struct {
-	if len(rtcServers) > 0 {
-		rawServers := make([]C.ntg_rtc_server_struct, len(rtcServers))
-		for i, server := range rtcServers {
-			rawServers[i] = C.ntg_rtc_server_struct{
-				ipv4:        C.CString(server.Ipv4),
-				ipv6:        C.CString(server.Ipv6),
-				username:    C.CString(server.Username),
-				password:    C.CString(server.Password),
-				port:        C.uint16_t(server.Port),
-				turn:        C.bool(server.Turn),
-				stun:        C.bool(server.Stun),
-				tcp:         C.bool(server.Tcp),
-				peerTag:     nil,
-				peerTagSize: 0,
-			}
-			if len(server.PeerTag) > 0 {
-				peerTagC, peerTagSize := parseBytes(server.PeerTag)
-				rawServers[i].peerTag = peerTagC
-				rawServers[i].peerTagSize = peerTagSize
-			}
-		}
-		return (*C.ntg_rtc_server_struct)(unsafe.Pointer(&rawServers[0]))
-	}
-	return nil
 }
 
 func parseSsrcGroups(ssrcGroups []SsrcGroup) *C.ntg_ssrc_group_struct {

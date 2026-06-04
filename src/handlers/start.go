@@ -60,7 +60,7 @@ func startHandler(c *td.Client, ctx *td.Context) error {
 			c.Me.FirstName,
 		)
 
-		_, err := m.ReplyPhoto(c, td.InputFileRemote{Id: config.Conf.StartImg}, &td.SendPhotoOpts{
+		_, err := m.ReplyPhoto(c, td.InputFileRemote{Id: config.StartImg}, &td.SendPhotoOpts{
 			ParseMode:   "HTML",
 			Caption:     response,
 			ReplyMarkup: core.AddMeMarkup(c.Me.Usernames.EditableUsername),

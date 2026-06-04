@@ -51,7 +51,7 @@ func InitDatabase() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	opts := options.Client().ApplyURI(config.Conf.MongoUri).
+	opts := options.Client().ApplyURI(config.MongoUri).
 		SetMinPoolSize(10).
 		SetMaxConnIdleTime(10 * time.Minute).
 		SetConnectTimeout(20 * time.Second)
@@ -61,7 +61,7 @@ func InitDatabase() error {
 		return err
 	}
 
-	db := client.Database(config.Conf.DbName)
+	db := client.Database(config.DbName)
 	Instance = &Database{
 		client:      client,
 		DB:          db,

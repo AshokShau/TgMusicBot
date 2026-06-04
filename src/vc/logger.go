@@ -19,7 +19,7 @@ import (
 // sendLogger sends a formatted log message to the designated logger chat.
 // It includes details about the song being played, such as its title, duration, and the user who requested it.
 func sendLogger(client *td.Client, chatID int64, song *utils.CachedTrack) {
-	if chatID == 0 || song == nil || chatID == config.Conf.LoggerId {
+	if chatID == 0 || song == nil || chatID == config.LoggerId {
 		return
 	}
 
@@ -34,7 +34,7 @@ func sendLogger(client *td.Client, chatID int64, song *utils.CachedTrack) {
 		song.IsVideo,
 	)
 
-	_, err := client.SendTextMessage(config.Conf.LoggerId, text, &td.SendTextMessageOpts{DisableWebPagePreview: true, ParseMode: "HTML"})
+	_, err := client.SendTextMessage(config.LoggerId, text, &td.SendTextMessageOpts{DisableWebPagePreview: true, ParseMode: "HTML"})
 	if err != nil {
 		logger.Warn("Failed to send the message", "error", err)
 	}

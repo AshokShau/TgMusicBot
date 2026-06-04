@@ -1,11 +1,3 @@
-/*
- * TgMusicBot - Telegram Music Bot
- *  Copyright (c) 2025-2026 Ashok Shau
- *
- *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
- */
-
 package ntgcalls
 
 //#include "ntgcalls.h"
@@ -25,7 +17,6 @@ type MediaSegmentStatus int
 type StreamEndCallback func(chatId int64, streamType StreamType, streamDevice StreamDevice)
 type UpgradeCallback func(chatId int64, state MediaState)
 type ConnectionChangeCallback func(chatId int64, state NetworkInfo)
-type SignalCallback func(chatId int64, signal []byte)
 type FrameCallback func(chatId int64, mode StreamMode, device StreamDevice, frames []Frame)
 type RemoteSourceCallback func(chatId int64, source RemoteSource)
 type BroadcastTimestampCallback func(chatId int64)

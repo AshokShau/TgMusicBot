@@ -11,7 +11,6 @@ package vc
 import (
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/vc/ubot"
 
 	"context"
 	"fmt"
@@ -30,15 +29,15 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 	var errMu sync.Mutex
 
 	c.mu.RLock()
-	var ubContexts []*ubot.Context
-	for _, call := range c.uBContext {
+	var ubContexts []*Assistant
+	for _, call := range c.assistants {
 		ubContexts = append(ubContexts, call)
 	}
 	c.mu.RUnlock()
 
 	for _, call := range ubContexts {
 		wg.Add(1)
-		go func(ctx *ubot.Context) {
+		go func(ctx *Assistant) {
 			defer wg.Done()
 			count, err := c.leaveAssistantDialogs(ctx)
 			if err != nil {
@@ -59,7 +58,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 
 func (c *TelegramCalls) LeaveAllForClient(index int) (int, error) {
 	c.mu.RLock()
-	call, ok := c.uBContext[index]
+	call, ok := c.assistants[index]
 	c.mu.RUnlock()
 	if !ok {
 		return 0, fmt.Errorf("no ntgcalls instance was found for client index %d", index)
@@ -67,7 +66,7 @@ func (c *TelegramCalls) LeaveAllForClient(index int) (int, error) {
 	return c.leaveAssistantDialogs(call)
 }
 
-func (c *TelegramCalls) leaveAssistantDialogs(ctx *ubot.Context) (int, error) {
+func (c *TelegramCalls) leaveAssistantDialogs(ctx *Assistant) (int, error) {
 	userBot := ctx.App
 	var totalLeft int
 	dialogs, err := userBot.GetDialogs(&telegram.DialogOptions{
@@ -143,7 +142,7 @@ func (c *TelegramCalls) leaveAssistantDialogs(ctx *ubot.Context) (int, error) {
 const autoLeaveInterval = 18 * time.Hour
 
 func (c *TelegramCalls) startAutoLeave(ctx context.Context) {
-	if !config.Conf.AutoLeave {
+	if !config.AutoLeave {
 		return
 	}
 	go func() {
@@ -171,9 +170,9 @@ func (c *TelegramCalls) runAutoLeave() {
 		return
 	}
 	logger.Info("AutoLeave: completed", "leftCount", leftCount)
-	if leftCount > 0 && config.Conf.LoggerId != 0 {
+	if leftCount > 0 && config.LoggerId != 0 {
 		msg := fmt.Sprintf("AutoLeave: Assistant left %d inactive chats", leftCount)
-		if _, err = c.bot.SendTextMessage(config.Conf.LoggerId, msg, nil); err != nil {
+		if _, err = c.bot.SendTextMessage(config.LoggerId, msg, nil); err != nil {
 			logger.Error("AutoLeave: failed to send log message", "error", err)
 		}
 	}

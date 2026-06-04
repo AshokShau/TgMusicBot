@@ -61,7 +61,7 @@ var replyOpts = &gotdbot.SendTextMessageOpts{
 func isDev(ctx *gotdbot.Context) bool {
 	m := ctx.EffectiveMessage
 
-	for _, dev := range config.Conf.DEVS {
+	for _, dev := range config.DEVS {
 		if dev == m.SenderID() {
 			return true
 		}

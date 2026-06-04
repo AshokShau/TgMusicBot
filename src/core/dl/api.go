@@ -9,6 +9,7 @@
 package dl
 
 import (
+	"log/slog"
 	"time"
 
 	"ashokshau/tgmusic/config"
@@ -57,8 +58,8 @@ var apiPatterns = map[string]*regexp.Regexp{
 func newApiData(query string) *apiData {
 	return &apiData{
 		Query:    strings.TrimSpace(query),
-		ApiUrl:   strings.TrimRight(config.Conf.ApiUrl, "/"),
-		APIKey:   config.Conf.ApiKey,
+		ApiUrl:   strings.TrimRight(config.ApiUrl, "/"),
+		APIKey:   config.ApiKey,
 		Patterns: apiPatterns,
 	}
 }
@@ -123,7 +124,7 @@ func (a *apiData) search() (utils.PlatformTracks, error) {
 	}
 	req.Header.Set("X-API-Key", a.APIKey)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return utils.PlatformTracks{}, fmt.Errorf("the search request failed: %w", err)
 	}
@@ -136,9 +137,11 @@ func (a *apiData) search() (utils.PlatformTracks, error) {
 	}
 
 	var data utils.PlatformTracks
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		slog.Warn("Failed to decode search response", "error", err)
 		return utils.PlatformTracks{}, fmt.Errorf("failed to decode the search response: %w", err)
 	}
+
 	return data, nil
 }
 
@@ -159,7 +162,8 @@ func (a *apiData) getTrack() (utils.TrackInfo, error) {
 	}
 
 	var data utils.TrackInfo
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		slog.Warn("Failed to decode the GetTrack response", "error", err)
 		return utils.TrackInfo{}, fmt.Errorf("failed to decode the GetTrack response: %w", err)
 	}
 

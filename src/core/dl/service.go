@@ -47,7 +47,7 @@ func NewDownloaderWrapper(query string) *DownloaderWrapper {
 	} else if direct.isValid() {
 		chosen = direct
 	} else {
-		switch config.Conf.DefaultService {
+		switch config.DefaultService {
 		case "spotify":
 			chosen = api
 		default:

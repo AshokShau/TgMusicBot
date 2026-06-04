@@ -45,8 +45,8 @@ var youtubePatterns = map[string]*regexp.Regexp{
 func newYouTubeData(query string) *youTubeData {
 	return &youTubeData{
 		Query:    strings.TrimSpace(query),
-		ApiUrl:   strings.TrimRight(config.Conf.ApiUrl, "/"),
-		APIKey:   config.Conf.ApiKey,
+		ApiUrl:   strings.TrimRight(config.ApiUrl, "/"),
+		APIKey:   config.ApiKey,
 		Patterns: youtubePatterns,
 	}
 }
@@ -170,13 +170,12 @@ func (y *youTubeData) downloadTrack(info utils.TrackInfo, video bool) (string, e
 		}
 	}
 
-	filePath, err := y.downloadWithYtDlp(info.Id, video)
-	return filePath, err
+	return y.downloadWithYtDlp(info.Id, video)
 }
 
 // buildYtdlpParams constructs the command-line parameters for yt-dlp to download media.
 func (y *youTubeData) buildYtdlpParams(videoID string, video bool) []string {
-	outputTemplate := filepath.Join(config.Conf.DownloadsDir, "%(id)s.%(ext)s")
+	outputTemplate := filepath.Join(config.DownloadsDir, "%(id)s.%(ext)s")
 
 	params := []string{
 		"yt-dlp",
@@ -208,8 +207,8 @@ func (y *youTubeData) buildYtdlpParams(videoID string, video bool) []string {
 
 	if cookieFile := y.getCookieFile(); cookieFile != "" {
 		params = append(params, "--cookies", cookieFile)
-	} else if config.Conf.Proxy != "" {
-		params = append(params, "--proxy", config.Conf.Proxy)
+	} else if config.Proxy != "" {
+		params = append(params, "--proxy", config.Proxy)
 	}
 
 	videoURL := "https://www.youtube.com/watch?v=" + videoID
@@ -259,7 +258,7 @@ func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, err
 
 // getCookieFile retrieves the path to a cookie file from the configured list.
 func (y *youTubeData) getCookieFile() string {
-	cookiesPath := config.Conf.CookiesPath
+	cookiesPath := config.CookiesPath
 	if len(cookiesPath) == 0 {
 		return ""
 	}

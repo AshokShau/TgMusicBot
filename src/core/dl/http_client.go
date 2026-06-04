@@ -67,10 +67,10 @@ var client = &http.Client{
 // sendRequest performs an HTTP request with a given context, method, URL, body, and headers.
 func sendRequest(method, fullURL string, body io.Reader, headers map[string]string) (*http.Response, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
 	if err != nil {
+		cancel()
 		slog.Info("Error creating request", "error", err)
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -95,7 +95,8 @@ func sendRequest(method, fullURL string, body io.Reader, headers map[string]stri
 		resp, reqErr = client.Do(req)
 		if reqErr == nil {
 			if resp.StatusCode < 500 {
-				return resp, nil // Success
+				resp.Body = &cancelOnClose{ReadCloser: resp.Body, cancel: cancel}
+				return resp, nil
 			}
 			if err := resp.Body.Close(); err != nil {
 				slog.Info("failed to close response body", "error", err)
@@ -109,6 +110,7 @@ func sendRequest(method, fullURL string, body io.Reader, headers map[string]stri
 		}
 	}
 
+	cancel()
 	if reqErr == nil {
 		reqErr = fmt.Errorf("request failed after %d attempts", maxRetries)
 	}
@@ -133,17 +135,17 @@ func generateUniqueName(ext string) string {
 // determineFilename safely determines a valid filename for a download.
 func determineFilename(urlStr, contentDisp string) string {
 	if filename := extractFilename(contentDisp); filename != "" {
-		return filepath.Join(config.Conf.DownloadsDir, sanitizeFilename(filename))
+		return filepath.Join(config.DownloadsDir, sanitizeFilename(filename))
 	}
 
 	if parsedURL, err := url.Parse(urlStr); err == nil {
 		filename := path.Base(parsedURL.Path)
 		if filename != "" && filename != "/" && !strings.Contains(filename, "?") {
-			return filepath.Join(config.Conf.DownloadsDir, sanitizeFilename(filename))
+			return filepath.Join(config.DownloadsDir, sanitizeFilename(filename))
 		}
 	}
 
-	return filepath.Join(config.Conf.DownloadsDir, generateUniqueName(".tmp"))
+	return filepath.Join(config.DownloadsDir, generateUniqueName(".tmp"))
 }
 
 // writeToFile writes data from an io.Reader to a specified file.
@@ -177,7 +179,7 @@ func downloadFile(urlStr, fileName string, overwrite bool) (string, error) {
 		return "", fmt.Errorf("failed to create the request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("the request failed: %w", err)
 	}
@@ -213,4 +215,16 @@ func downloadFile(urlStr, fileName string, overwrite bool) (string, error) {
 	}
 
 	return fileName, nil
+}
+
+// cancelOnClose cancels the request context after the response body is closed.
+type cancelOnClose struct {
+	io.ReadCloser
+	cancel context.CancelFunc
+}
+
+func (c *cancelOnClose) Close() error {
+	err := c.ReadCloser.Close()
+	c.cancel()
+	return err
 }

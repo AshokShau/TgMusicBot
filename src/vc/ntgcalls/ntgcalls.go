@@ -1,11 +1,3 @@
-/*
- * TgMusicBot - Telegram Music Bot
- *  Copyright (c) 2025-2026 Ashok Shau
- *
- *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
- */
-
 package ntgcalls
 
 //#include "ntgcalls.h"
@@ -41,7 +33,6 @@ func NTgCalls() *Client {
 	selfPointer := unsafe.Pointer(instance)
 	C.ntg_on_stream_end(C.uintptr_t(instance.ptr), (C.ntg_stream_callback)(unsafe.Pointer(C.handleStreamEnd)), selfPointer)
 	C.ntg_on_upgrade(C.uintptr_t(instance.ptr), (C.ntg_upgrade_callback)(unsafe.Pointer(C.handleUpgrade)), selfPointer)
-	C.ntg_on_signaling_data(C.uintptr_t(instance.ptr), (C.ntg_signaling_callback)(unsafe.Pointer(C.handleSignal)), selfPointer)
 	C.ntg_on_connection_change(C.uintptr_t(instance.ptr), (C.ntg_connection_callback)(unsafe.Pointer(C.handleConnectionChange)), selfPointer)
 	C.ntg_on_frames(C.uintptr_t(instance.ptr), (C.ntg_frame_callback)(unsafe.Pointer(C.handleFrames)), selfPointer)
 	C.ntg_on_remote_source_change(C.uintptr_t(instance.ptr), (C.ntg_remote_source_callback)(unsafe.Pointer(C.handleRemoteSourceChange)), selfPointer)
@@ -82,16 +73,14 @@ func handleLogs(logMessage C.ntg_log_message_struct) {
 func handleStreamEnd(_ C.uintptr_t, chatID C.int64_t, streamType C.ntg_stream_type_enum, streamDevice C.ntg_stream_device_enum, ptr unsafe.Pointer) {
 	self := (*Client)(ptr)
 	goChatID := int64(chatID)
-	goStreamDevice := parseStreamDevice(streamDevice)
 	var goStreamType StreamType
 	if streamType == C.NTG_STREAM_AUDIO {
 		goStreamType = AudioStream
 	} else {
 		goStreamType = VideoStream
 	}
-	self.releaseMediaAllocation(goChatID, goStreamDevice)
 	for _, x0 := range self.streamEndCallbacks {
-		go x0(goChatID, goStreamType, goStreamDevice)
+		go x0(goChatID, goStreamType, parseStreamDevice(streamDevice))
 	}
 }
 
@@ -107,15 +96,6 @@ func handleUpgrade(_ C.uintptr_t, chatID C.int64_t, state C.ntg_media_state_stru
 	}
 	for _, x0 := range self.upgradeCallbacks {
 		go x0(goChatID, goState)
-	}
-}
-
-//export handleSignal
-func handleSignal(_ C.uintptr_t, chatID C.int64_t, data *C.uint8_t, size C.int, ptr unsafe.Pointer) {
-	self := (*Client)(ptr)
-	goChatID := int64(chatID)
-	for _, x0 := range self.signalCallbacks {
-		go x0(goChatID, C.GoBytes(unsafe.Pointer(data), size))
 	}
 }
 
@@ -230,10 +210,6 @@ func (ctx *Client) OnConnectionChange(callback ConnectionChangeCallback) {
 	ctx.connectionChangeCallbacks = append(ctx.connectionChangeCallbacks, callback)
 }
 
-func (ctx *Client) OnSignal(callback SignalCallback) {
-	ctx.signalCallbacks = append(ctx.signalCallbacks, callback)
-}
-
 func (ctx *Client) OnFrame(callback FrameCallback) {
 	ctx.frameCallbacks = append(ctx.frameCallbacks, callback)
 }
@@ -328,60 +304,6 @@ func (ctx *Client) RemoveIncomingVideo(chatId int64, endpoint string) error {
 	return parseErrorCode(f)
 }
 
-func (ctx *Client) CreateP2PCall(chatId int64) error {
-	f := CreateFuture()
-	C.ntg_create_p2p(C.uintptr_t(ctx.ptr), C.int64_t(chatId), f.ParseToC())
-	f.wait()
-	return parseErrorCode(f)
-}
-
-func (ctx *Client) InitExchange(chatId int64, dhConfig DhConfig, gAHash []byte) ([]byte, error) {
-	var buffer *C.uint8_t
-	var size C.int
-	gAHashC, gAHashSize := parseBytes(gAHash)
-	f := CreateFuture()
-	C.ntg_init_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), new(dhConfig.ParseToC()), gAHashC, gAHashSize, &buffer, &size, f.ParseToC())
-	f.wait()
-	defer C.free(unsafe.Pointer(buffer))
-	return C.GoBytes(unsafe.Pointer(buffer), size), parseErrorCode(f)
-}
-
-func (ctx *Client) ExchangeKeys(chatId int64, gAB []byte, fingerprint int64) (AuthParams, error) {
-	f := CreateFuture()
-	var buffer C.ntg_auth_params_struct
-	gABC, gABSize := parseBytes(gAB)
-	C.ntg_exchange_keys(C.uintptr_t(ctx.ptr), C.int64_t(chatId), gABC, gABSize, C.int64_t(fingerprint), &buffer, f.ParseToC())
-	f.wait()
-	return AuthParams{
-		GAOrB:          C.GoBytes(unsafe.Pointer(buffer.g_a_or_b), buffer.sizeGAB),
-		KeyFingerprint: int64(buffer.key_fingerprint),
-	}, parseErrorCode(f)
-}
-
-func (ctx *Client) SkipExchange(chatId int64, encryptionKey []byte, isOutgoing bool) error {
-	f := CreateFuture()
-	encryptionKeyC, encryptionKeySize := parseBytes(encryptionKey)
-	C.ntg_skip_exchange(C.uintptr_t(ctx.ptr), C.int64_t(chatId), encryptionKeyC, encryptionKeySize, C.bool(isOutgoing), f.ParseToC())
-	f.wait()
-	return parseErrorCode(f)
-}
-
-func (ctx *Client) ConnectP2P(chatId int64, rtcServers []RTCServer, versions []string, P2PAllowed bool) error {
-	f := CreateFuture()
-	versionsC, sizeVersions := parseStringVectorC(versions)
-	C.ntg_connect_p2p(C.uintptr_t(ctx.ptr), C.int64_t(chatId), parseRtcServers(rtcServers), C.int(len(rtcServers)), versionsC, C.int(sizeVersions), C.bool(P2PAllowed), f.ParseToC())
-	f.wait()
-	return parseErrorCode(f)
-}
-
-func (ctx *Client) SendSignalingData(chatId int64, data []byte) error {
-	f := CreateFuture()
-	dataC, dataSize := parseBytes(data)
-	C.ntg_send_signaling_data(C.uintptr_t(ctx.ptr), C.int64_t(chatId), dataC, dataSize, f.ParseToC())
-	f.wait()
-	return parseErrorCode(f)
-}
-
 //goland:noinspection GoUnusedExportedFunction
 func GetProtocol() Protocol {
 	var buffer C.ntg_protocol_struct
@@ -389,7 +311,6 @@ func GetProtocol() Protocol {
 	return Protocol{
 		MinLayer:     int32(buffer.minLayer),
 		MaxLayer:     int32(buffer.maxLayer),
-		UdpP2P:       bool(buffer.udpP2P),
 		UdpReflector: bool(buffer.udpReflector),
 		Versions:     parseStringVector(unsafe.Pointer(buffer.libraryVersions), buffer.libraryVersionsSize),
 	}
@@ -404,21 +325,9 @@ func (ctx *Client) Connect(chatId int64, params string, isPresentation bool) err
 
 func (ctx *Client) SetStreamSources(chatId int64, streamMode StreamMode, desc MediaDescription) error {
 	f := CreateFuture()
-	cDesc, devices, cleanup, err := desc.allocateC()
-	if err != nil {
-		return err
-	}
-	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), cDesc, f.ParseToC())
+	C.ntg_set_stream_sources(C.uintptr_t(ctx.ptr), C.int64_t(chatId), streamMode.ParseToC(), desc.ParseToC(), f.ParseToC())
 	f.wait()
-	err = parseErrorCode(f)
-	if err != nil {
-		if cleanup != nil {
-			cleanup()
-		}
-		return err
-	}
-	ctx.registerMediaAllocation(chatId, devices, cleanup)
-	return nil
+	return parseErrorCode(f)
 }
 
 func (ctx *Client) SendExternalFrame(chatId int64, streamDevice StreamDevice, data []byte, frameData FrameData) error {

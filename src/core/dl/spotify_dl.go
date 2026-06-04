@@ -40,7 +40,7 @@ var (
 // processSpotify manages the download and decryption of Spotify tracks.
 func (d *download) processSpotify() (string, error) {
 	track := d.Track
-	downloadsDir := config.Conf.DownloadsDir
+	downloadsDir := config.DownloadsDir
 	sanitizedTrackID := filepath.Base(track.Id)
 
 	outputFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
@@ -187,7 +187,7 @@ func fixOGG(inputFile string, track utils.TrackInfo) (string, error) {
 	defer cancel()
 
 	sanitizedTrackID := filepath.Base(track.Id)
-	outputFile := filepath.Join(config.Conf.DownloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
+	outputFile := filepath.Join(config.DownloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
 	cmd := exec.CommandContext(ctx, "ffmpeg", "-i", inputFile, "-c", "copy", outputFile)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("ffmpeg failed with error: %w\nOutput: %s", err, string(output))

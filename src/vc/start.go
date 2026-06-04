@@ -3,7 +3,6 @@ package vc
 import (
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/vc/sessions"
-	"ashokshau/tgmusic/src/vc/ubot"
 	"fmt"
 	"log/slog"
 
@@ -13,9 +12,9 @@ import (
 // StartClient initializes a new userbot client and adds it to the pool of available assistants.
 // It authenticates with Telegram using the provided API ID, API hash, and session string.
 // The session type is determined by the configuration (pyrogram, telethon, or gogram).
-func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) (*ubot.Context, error) {
+func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) (*Assistant, error) {
 	c.mu.Lock()
-	clientIndex := len(c.uBContext)
+	clientIndex := len(c.assistants)
 	c.mu.Unlock()
 
 	clientName := fmt.Sprintf("client%d", clientIndex)
@@ -32,7 +31,7 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) 
 		LogLevel:      tg.InfoLevel,
 	}
 
-	switch config.Conf.SessionType {
+	switch config.SessionType {
 	case "telethon":
 		sess, err = sessions.DecodeTelethonSessionString(stringSession)
 		if err != nil {
@@ -48,7 +47,7 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) 
 	case "gogram":
 		clientConfig.StringSession = stringSession
 	default:
-		return nil, fmt.Errorf("unsupported session type: %s", config.Conf.SessionType)
+		return nil, fmt.Errorf("unsupported session type: %s", config.SessionType)
 	}
 
 	mtProto, err := tg.NewClient(clientConfig)
@@ -89,15 +88,15 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) 
 		}
 	}
 
-	call, err := ubot.NewInstance(mtProto)
+	call, err := newAssistant(mtProto)
 	if err != nil {
 		_ = mtProto.Stop()
-		return nil, fmt.Errorf("failed to create the ubot instance: %w", err)
+		return nil, fmt.Errorf("failed to create the assistant instance: %w", err)
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.uBContext[clientIndex] = call
+	c.assistants[clientIndex] = call
 	c.clients[clientIndex] = mtProto
 
 	logger.Info("[TelegramCalls] Client started", "client", clientName, "id", me.ID, "username", me.Username)
@@ -109,7 +108,7 @@ func (c *TelegramCalls) StopAllClients() {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	for _, call := range c.uBContext {
+	for _, call := range c.assistants {
 		call.Close()
 	}
 

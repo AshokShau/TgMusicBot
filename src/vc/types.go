@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/vc/ubot"
 
 	td "github.com/AshokShau/gotdbot"
 	tg "github.com/amarnathcjd/gogram/telegram"
@@ -27,7 +26,7 @@ var urlRegex = regexp.MustCompile(`^https?://`)
 // TelegramCalls manages the state and operations for voice calls, including userbots and the main bot client.
 type TelegramCalls struct {
 	mu          sync.RWMutex
-	uBContext   map[int]*ubot.Context
+	assistants  map[int]*Assistant
 	clients     map[int]*tg.Client
 	bot         *td.Client
 	statusCache *cache.Cache[td.ChatMemberStatus]
@@ -43,7 +42,7 @@ var (
 func getCalls() *TelegramCalls {
 	once.Do(func() {
 		instance = &TelegramCalls{
-			uBContext:   make(map[int]*ubot.Context),
+			assistants:  make(map[int]*Assistant),
 			clients:     make(map[int]*tg.Client),
 			statusCache: cache.NewCache[td.ChatMemberStatus](2 * time.Hour),
 			inviteCache: cache.NewCache[string](2 * time.Hour),

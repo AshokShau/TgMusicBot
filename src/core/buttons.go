@@ -47,8 +47,8 @@ var SourceCodeBtn = url("Source Code", "https://github.com/AshokShau/TgMusicBot"
 
 func SupportKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 
-	channelBtn := url("Updates", config.Conf.SupportChannel)
-	groupBtn := url("Group", config.Conf.SupportGroup)
+	channelBtn := url("Updates", config.SupportChannel)
+	groupBtn := url("Group", config.SupportGroup)
 
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
@@ -59,8 +59,8 @@ func SupportKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 }
 
 func SupportBtn() *gotdbot.ReplyMarkupInlineKeyboard {
-	channelBtn := url("Updates", config.Conf.SupportChannel)
-	groupBtn := url("Group", config.Conf.SupportGroup)
+	channelBtn := url("Updates", config.SupportChannel)
+	groupBtn := url("Group", config.SupportGroup)
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
 			{channelBtn, groupBtn},
@@ -199,8 +199,8 @@ func AddMeMarkup(username string) *gotdbot.ReplyMarkupInlineKeyboard {
 		fmt.Sprintf("https://t.me/%s?startgroup=true", username),
 	)
 
-	channelBtn := url("Updates", config.Conf.SupportChannel)
-	groupBtn := url("Group", config.Conf.SupportGroup)
+	channelBtn := url("Updates", config.SupportChannel)
+	groupBtn := url("Group", config.SupportGroup)
 
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{

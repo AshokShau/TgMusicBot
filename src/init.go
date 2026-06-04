@@ -21,8 +21,8 @@ func Init(client *gotdbot.Client) error {
 		return err
 	}
 
-	for _, session := range config.Conf.SessionStrings {
-		_, err := vc.Calls.StartClient(config.Conf.ApiId, config.Conf.ApiHash, session)
+	for _, session := range config.SessionStrings {
+		_, err := vc.Calls.StartClient(config.ApiId, config.ApiHash, session)
 		if err != nil {
 			return err
 		}

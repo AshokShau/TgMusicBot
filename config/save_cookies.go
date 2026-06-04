@@ -80,22 +80,21 @@ func saveContent(url, content string) (string, error) {
 	return filePath, nil
 }
 
-// saveAllCookies downloads all URLs and stores paths in Conf.CookiesPath.
-// It takes a slice of URLs as input.
+// saveAllCookies downloads all URLs and stores paths in CookiesPath.
 func saveAllCookies(urls []string) {
 	for _, url := range urls {
 		content, err := fetchContent(url)
 		if err != nil {
-			slog.Info("Error fetching cookies from", "arg1", url, "error", err)
+			slog.Info("Error fetching cookies from", "url", url, "error", err)
 			continue
 		}
 
 		path, err := saveContent(url, content)
 		if err != nil {
-			slog.Info("Error saving cookies for", "arg1", url, "error", err)
+			slog.Info("Error saving cookies for", "url", url, "error", err)
 			continue
 		}
 
-		Conf.CookiesPath = append(Conf.CookiesPath, path)
+		CookiesPath = append(CookiesPath, path)
 	}
 }
