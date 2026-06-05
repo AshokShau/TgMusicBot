@@ -128,7 +128,7 @@ func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_
 		goStreamMode = PlaybackStream
 	}
 	rawFrames := make([]Frame, size)
-	for i := 0; i < int(size); i++ {
+	for i := uint64(0); i < uint64(size); i++ {
 		rawFrame := *(*C.ntg_frame_struct)(unsafe.Pointer(uintptr(unsafe.Pointer(frames)) + uintptr(i)*unsafe.Sizeof(C.ntg_frame_struct{})))
 		rawFrames[i] = Frame{
 			Ssrc: uint32(rawFrame.ssrc),
