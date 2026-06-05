@@ -134,10 +134,10 @@ func handleFrames(_ C.uintptr_t, chatID C.int64_t, streamMode C.ntg_stream_mode_
 			Ssrc: uint32(rawFrame.ssrc),
 			Data: C.GoBytes(unsafe.Pointer(rawFrame.data), rawFrame.sizeData),
 			FrameData: FrameData{
-				AbsoluteCaptureTimestampMs: int64(rawFrame.frameData.absoluteCaptureTimestampMs),
-				Width:                      uint16(rawFrame.frameData.width),
-				Height:                     uint16(rawFrame.frameData.height),
-				Rotation:                   uint16(rawFrame.frameData.rotation),
+				AbsoluteCaptureTimestampMs: int64(frames.frameData.absoluteCaptureTimestampMs),
+				Width:                      uint16(frames.frameData.width),
+				Height:                     uint16(frames.frameData.height),
+				Rotation:                   uint16(frames.frameData.rotation),
 			},
 		}
 	}
