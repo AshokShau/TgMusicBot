@@ -120,7 +120,8 @@ func sendRequest(method, fullURL string, body io.Reader, headers map[string]stri
 
 // isTemporaryError determines if an error is temporary and thus worth retrying.
 func isTemporaryError(err error) bool {
-	if netErr, ok := errors.AsType[net.Error](err); ok {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
 		return netErr.Timeout() || netErr.Temporary()
 	}
 	return false

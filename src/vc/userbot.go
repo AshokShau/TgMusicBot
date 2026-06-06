@@ -176,7 +176,6 @@ func (c *TelegramCalls) resolveInviteLink(chatID int64, cacheKey string) (string
 		return "", errors.New("telegram returned an empty invite link")
 	}
 
-	link = strings.Replace(link, "https://t.me/+", "https://t.me/joinchat/", 1)
 	c.UpdateInviteLink(chatID, link)
 	return link, nil
 }
@@ -201,9 +200,11 @@ func (c *TelegramCalls) handleJoinError(chatID, userID int64, index int, err err
 		return nil
 
 	case strings.Contains(errMsg, "INVITE_HASH_EXPIRED"):
+		cached, _ := c.inviteCache.Get(strconv.FormatInt(chatID, 10))
+		logger.Warn("invite link expired", "chat_id", chatID, "index", index, "cached_link", cached)
 		c.inviteCache.Delete(strconv.FormatInt(chatID, 10))
 		c.UpdateMembership(chatID, userID, &td.ChatMemberStatusBanned{})
-		return fmt.Errorf("client %d: assistant (<code>%d</code>) invite link expired or assistant is banned", index, userID)
+		return fmt.Errorf("client %d: assistant (<code>%d</code>) invite link expired", index, userID)
 
 	case strings.Contains(errMsg, "CHANNEL_PRIVATE"):
 		c.UpdateMembership(chatID, userID, &td.ChatMemberStatusLeft{})

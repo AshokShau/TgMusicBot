@@ -1,6 +1,6 @@
 module ashokshau/tgmusic
 
-go 1.26
+go 1.25.0
 
 require (
 	github.com/AshokShau/gotdbot v0.9.2
