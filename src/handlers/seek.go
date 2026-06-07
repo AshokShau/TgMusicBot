@@ -9,23 +9,21 @@
 package handlers
 
 import (
+	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/utils"
+	"ashokshau/tgmusic/src/vc"
 	"fmt"
 	"strconv"
-
-	"ashokshau/tgmusic/src/core/cache"
-	"ashokshau/tgmusic/src/vc"
 
 	td "github.com/AshokShau/gotdbot"
 )
 
 // seekHandler handles the /seek command.
-func seekHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func seekHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
-	chatID := ctx.EffectiveChatId
-	m := ctx.EffectiveMessage
+	chatID := m.ChatId
 
 	if !cache.ChatCache.IsActive(chatID) {
 		_, err := m.ReplyText(c, "The bot is not streaming in the video chat.", nil)

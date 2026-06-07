@@ -18,12 +18,12 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func pauseHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func pauseHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 	chatID := m.ChatId
 
 	if !cache.ChatCache.IsActive(chatID) {
@@ -40,11 +40,11 @@ func pauseHandler(c *td.Client, ctx *td.Context) error {
 	return err
 }
 
-func resumeHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func resumeHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
-	m := ctx.EffectiveMessage
+	
 	chatID := m.ChatId
 
 	if chatID > 0 {

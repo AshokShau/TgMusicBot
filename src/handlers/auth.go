@@ -16,12 +16,12 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func authListHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func authListHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 	if m.IsPrivate() {
 		return nil
 	}
@@ -43,12 +43,12 @@ func authListHandler(c *td.Client, ctx *td.Context) error {
 	return td.EndGroups
 }
 
-func addAuthHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func addAuthHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 	if m.IsPrivate() {
 		return td.EndGroups
 	}
@@ -90,12 +90,12 @@ func addAuthHandler(c *td.Client, ctx *td.Context) error {
 	return err
 }
 
-func removeAuthHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func removeAuthHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 	if m.IsPrivate() {
 		return td.EndGroups
 	}

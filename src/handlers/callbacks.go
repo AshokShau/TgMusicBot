@@ -23,8 +23,7 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func playCallbackHandler(c *td.Client, ctx *td.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func playCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	if !adminModeCB(c, cb) {
 		return td.EndGroups
 	}
@@ -180,8 +179,7 @@ func playCallbackHandler(c *td.Client, ctx *td.Context) error {
 	return nil
 }
 
-func vcPlayHandler(c *td.Client, ctx *td.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func vcPlayHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	data := cb.DataString()
 
 	if strings.Contains(data, "vcplay_close") {

@@ -22,13 +22,13 @@ import (
 )
 
 // queueHandler displays the current playback queue with detailed information.
-func queueHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func queueHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
-	chatID := ctx.EffectiveChatId
+	
+	chatID := m.ChatId
 
 	chat, err := c.GetChat(chatID)
 	if err != nil {

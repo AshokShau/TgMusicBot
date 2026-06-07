@@ -17,10 +17,9 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func handleVoiceChatMessage(c *td.Client, ctx *td.Context) error {
-	update := ctx.Update.UpdateNewMessage
+func handleVoiceChatMessage(c *td.Client, update *td.UpdateNewMessage) error {
 	m := update.Message
-	chatID := ctx.EffectiveChatId
+	chatID := m.ChatId
 
 	if m.IsGroup() {
 		text := fmt.Sprintf(

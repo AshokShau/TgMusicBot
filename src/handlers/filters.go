@@ -46,8 +46,8 @@ func checkBotAdmin(c *td.Client, chatID int64, replyErr func(msg string)) bool {
 	}
 }
 
-func adminMode(c *td.Client, ctx *td.Context) bool {
-	m := ctx.EffectiveMessage
+func adminMode(c *td.Client, m *td.Message) bool {
+	
 	if m.IsPrivate() {
 		return false
 	}
@@ -97,8 +97,8 @@ func adminModeCB(c *td.Client, cb *td.UpdateNewCallbackQuery) bool {
 	}
 }
 
-func playMode(c *td.Client, ctx *td.Context) bool {
-	m := ctx.EffectiveMessage
+func playMode(c *td.Client, m *td.Message) bool {
+	
 	if m.IsPrivate() {
 		return false
 	}

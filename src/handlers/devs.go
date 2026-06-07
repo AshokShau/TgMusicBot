@@ -23,12 +23,12 @@ import (
 // activeVcHandler handles the /activevc command.
 // It takes a telegram.NewMessage object as input.
 // It returns an error if any.
-func activeVcHandler(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func activeVcHandler(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 	activeChats := cache.ChatCache.GetActiveChats()
 	if len(activeChats) == 0 {
 		_, err := m.ReplyText(c, "No active chats found.", nil)
@@ -76,12 +76,12 @@ func activeVcHandler(c *td.Client, ctx *td.Context) error {
 }
 
 // Handles the /clearass command to remove all assistant assignments
-func clearAssistantsHandler(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func clearAssistantsHandler(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 
 	done, err := db.Instance.ClearAllAssistants()
 	if err != nil {
@@ -94,12 +94,12 @@ func clearAssistantsHandler(c *td.Client, ctx *td.Context) error {
 }
 
 // Handles the /leaveall command to leave all chats
-func leaveAllHandler(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func leaveAllHandler(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 	reply, err := m.ReplyText(c, "Assistant is leaving all chats...", nil)
 	if err != nil {
 		return err
@@ -116,12 +116,12 @@ func leaveAllHandler(c *td.Client, ctx *td.Context) error {
 }
 
 // Handles the /logger command to toggle logger status
-func loggerHandler(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func loggerHandler(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 
 	if config.LoggerId == 0 {
 		_, _ = m.ReplyText(c, "Please set LOGGER_ID in .env first.", nil)

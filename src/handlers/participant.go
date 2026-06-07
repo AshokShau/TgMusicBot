@@ -20,13 +20,12 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func handleParticipant(client *gotdbot.Client, ctx *gotdbot.Context) error {
-	update := ctx.Update.UpdateChatMember
+func handleParticipant(client *gotdbot.Client, update *gotdbot.UpdateChatMember) error {
 	if update == nil {
 		return gotdbot.EndGroups
 	}
 
-	chatID := ctx.EffectiveChatId
+	chatID := update.ChatId
 	me := client.Me
 
 	getMemberInfo := func(memberId gotdbot.MessageSender) (int64, string) {

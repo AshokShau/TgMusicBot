@@ -55,8 +55,7 @@ func getHelpCategories() map[string]struct {
 	}
 }
 
-func helpCallbackHandler(c *td.Client, ctx *td.Context) error {
-	cb := ctx.Update.UpdateNewCallbackQuery
+func helpCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	data := cb.DataString()
 
 	user, err := c.GetUser(cb.SenderUserId)

@@ -174,8 +174,9 @@ func (y *youTubeData) downloadTrack(info utils.TrackInfo, video bool) (string, e
 }
 
 // buildYtdlpParams constructs the command-line parameters for yt-dlp to download media.
-func (y *youTubeData) buildYtdlpParams(videoID string, video bool) []string {
+func (y *youTubeData) buildYtdlpParams(videoID string, video bool) ([]string, string) {
 	outputTemplate := filepath.Join(config.DownloadsDir, "%(id)s.%(ext)s")
+	var cookieFile string
 
 	params := []string{
 		"yt-dlp",
@@ -205,7 +206,8 @@ func (y *youTubeData) buildYtdlpParams(videoID string, video bool) []string {
 		params = append(params, "-f", "bestaudio[ext=m4a]/bestaudio")
 	}
 
-	if cookieFile := y.getCookieFile(); cookieFile != "" {
+	cookieFile = y.getCookieFile()
+	if cookieFile != "" {
 		params = append(params, "--cookies", cookieFile)
 	} else if config.Proxy != "" {
 		params = append(params, "--proxy", config.Proxy)
@@ -214,7 +216,7 @@ func (y *youTubeData) buildYtdlpParams(videoID string, video bool) []string {
 	videoURL := "https://www.youtube.com/watch?v=" + videoID
 	params = append(params, videoURL, "--print", "after_move:filepath")
 
-	return params
+	return params, cookieFile
 }
 
 // downloadWithYtDlp downloads media from YouTube using the yt-dlp command-line tool.
@@ -223,7 +225,7 @@ func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, err
 		return "", errors.New("videoID is empty")
 	}
 
-	ytdlpParams := y.buildYtdlpParams(videoID, video)
+	ytdlpParams, cookieFile := y.buildYtdlpParams(videoID, video)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -235,6 +237,9 @@ func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, err
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			stderr := string(exitErr.Stderr)
+			if cookieFile != "" && strings.Contains(stderr, "Sign in to confirm you're not a bot") {
+				_ = os.Remove(cookieFile)
+			}
 			return "", fmt.Errorf("yt-dlp failed with exit code %d: %s", exitErr.ExitCode(), stderr)
 		}
 

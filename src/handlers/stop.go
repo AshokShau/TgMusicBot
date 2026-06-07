@@ -18,12 +18,12 @@ import (
 )
 
 // stopHandler handles the /stop command.
-func stopHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func stopHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
-	m := ctx.EffectiveMessage
-	chatID := ctx.EffectiveChatId
+	
+	chatID := m.ChatId
 
 	if !cache.ChatCache.IsActive(chatID) {
 		_, _ = m.ReplyText(c, "The bot isn't streaming in the video chat.", nil)

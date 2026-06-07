@@ -49,11 +49,11 @@ func getFloodWait(err error) int {
 	return 0
 }
 
-func cancelBroadcastHandler(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func cancelBroadcastHandler(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
-	m := ctx.EffectiveMessage
+	
 	if !broadcastInProgress.Load() {
 		_, _ = m.ReplyText(c, "No broadcast in progress.", nil)
 		return td.EndGroups
@@ -64,12 +64,12 @@ func cancelBroadcastHandler(c *td.Client, ctx *td.Context) error {
 	return td.EndGroups
 }
 
-func broadcastHandler(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func broadcastHandler(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 	if broadcastInProgress.Load() {
 		_, _ = m.ReplyText(c, "A broadcast is already in progress.", nil)
 		return td.EndGroups

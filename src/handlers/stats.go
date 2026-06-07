@@ -168,12 +168,12 @@ func gatherAppStats() *AppStats {
 
 	return stats
 }
-func statsHandler(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func statsHandler(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
 
-	msg := ctx.EffectiveMessage
+	msg := m
 	sysMsg, err := msg.ReplyText(c, "Collecting system statistics...", nil)
 	if err != nil {
 		return err

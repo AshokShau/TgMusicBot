@@ -25,25 +25,25 @@ import (
 )
 
 // playHandler handles the /play command.
-func playHandler(c *td.Client, ctx *td.Context) error {
-	if !playMode(c, ctx) {
+func playHandler(c *td.Client, m *td.Message) error {
+	if !playMode(c, m) {
 		return td.EndGroups
 	}
 
-	return handlePlay(c, ctx, false)
+	return handlePlay(c, m, false)
 }
 
 // vPlayHandler handles the /vplay command.
-func vPlayHandler(c *td.Client, ctx *td.Context) error {
-	if !playMode(c, ctx) {
+func vPlayHandler(c *td.Client, m *td.Message) error {
+	if !playMode(c, m) {
 		return td.EndGroups
 	}
-	return handlePlay(c, ctx, true)
+	return handlePlay(c, m, true)
 }
 
-func handlePlay(c *td.Client, ctx *td.Context, isVideo bool) error {
-	chatID := ctx.EffectiveChatId
-	m := ctx.EffectiveMessage
+func handlePlay(c *td.Client, m *td.Message, isVideo bool) error {
+	chatID := m.ChatId
+	
 
 	if queueLen := cache.ChatCache.GetQueueLength(chatID); queueLen > 10 {
 		_, _ = m.ReplyText(c, "Queue is full (max 10 tracks). Use /end to clear.", nil)

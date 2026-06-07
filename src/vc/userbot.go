@@ -9,6 +9,8 @@
 package vc
 
 import (
+	"ashokshau/tgmusic/config"
+	"ashokshau/tgmusic/src/vc/sessions"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -19,6 +21,7 @@ import (
 	"ashokshau/tgmusic/src/core/cache"
 
 	td "github.com/AshokShau/gotdbot"
+	tg "github.com/amarnathcjd/gogram/telegram"
 )
 
 // joinAssistant ensures the assistant is a member of the specified chat.
@@ -214,4 +217,109 @@ func (c *TelegramCalls) handleJoinError(chatID, userID int64, index int, err err
 
 	logger.Warn("unhandled JoinChannel error", "error", err, "index", index)
 	return fmt.Errorf("(client%d, <code>%d</code>): assistant failed to join: %w", index, userID, err)
+}
+
+func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession string) (*Assistant, error) {
+	c.mu.Lock()
+	clientIndex := len(c.assistants)
+	c.mu.Unlock()
+
+	clientName := fmt.Sprintf("client%d", clientIndex)
+
+	var sess *tg.Session
+	var err error
+
+	clientConfig := tg.ClientConfig{
+		AppID:         apiID,
+		AppHash:       apiHash,
+		MemorySession: true,
+		SessionName:   clientName,
+		FloodHandler:  handleFlood,
+		LogLevel:      tg.InfoLevel,
+	}
+
+	switch config.SessionType {
+	case "telethon":
+		sess, err = sessions.DecodeTelethonSessionString(stringSession)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode telethon session string for %s: %w", clientName, err)
+		}
+		clientConfig.StringSession = sess.Encode()
+	case "pyrogram":
+		sess, err = sessions.DecodePyrogramSessionString(stringSession)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode pyrogram session string for %s: %w", clientName, err)
+		}
+		clientConfig.StringSession = sess.Encode()
+	case "gogram":
+		clientConfig.StringSession = stringSession
+	default:
+		return nil, fmt.Errorf("unsupported session type: %s", config.SessionType)
+	}
+
+	mtProto, err := tg.NewClient(clientConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create the MTProto client: %w", err)
+	}
+
+	if err = mtProto.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start the client: %w", err)
+	}
+
+	me := mtProto.Me()
+	if me.Bot {
+		_ = mtProto.Stop()
+		return nil, fmt.Errorf("the client %s is a bot", clientName)
+	}
+
+	appConfig, err := mtProto.HelpGetAppConfig(0)
+	if err != nil {
+		logger.Warn("[TelegramCalls] failed to fetch app config", "client", clientName, "error", err)
+	} else {
+		isFreeze := false
+		if cfg, ok := appConfig.(*tg.HelpAppConfigObj); ok {
+			if cfgObj, ok := cfg.Config.(*tg.JsonObject); ok {
+				for _, entry := range cfgObj.Value {
+					if entry != nil && entry.Key == "freeze_since_date" {
+						isFreeze = true
+						break
+					}
+				}
+			}
+		}
+
+		if isFreeze {
+			logger.Warn("[TelegramCalls] The client is frozen and cannot be used for voice calls", "client", clientName, "id", me.ID, "username", me.Username)
+			_ = mtProto.Stop()
+			return nil, nil
+		}
+	}
+
+	call, err := newAssistant(mtProto)
+	if err != nil {
+		_ = mtProto.Stop()
+		return nil, fmt.Errorf("failed to create the assistant instance: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.assistants[clientIndex] = call
+	c.clients[clientIndex] = mtProto
+
+	logger.Info("[TelegramCalls] Client started", "client", clientName, "id", me.ID, "username", me.Username)
+	return call, nil
+}
+
+func (c *TelegramCalls) StopAllClients() {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	for _, call := range c.assistants {
+		call.Close()
+	}
+
+	for idx, client := range c.clients {
+		slog.Info("[TelegramCalls] Stopping the client", "index", idx)
+		_ = client.Stop()
+	}
 }

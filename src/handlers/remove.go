@@ -18,13 +18,13 @@ import (
 )
 
 // removeHandler handles the /remove command.
-func removeHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func removeHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
 
-	chatID := ctx.EffectiveChatId
-	m := ctx.EffectiveMessage
+	chatID := m.ChatId
+	
 
 	if !cache.ChatCache.IsActive(chatID) {
 		_, _ = m.ReplyText(c, "The bot is not streaming in the video chat.", nil)

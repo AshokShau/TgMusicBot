@@ -19,8 +19,8 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func createPlaylistHandler(c *td.Client, ctx *td.Context) error {
-	m := ctx.EffectiveMessage
+func createPlaylistHandler(c *td.Client, m *td.Message) error {
+	
 	userID := m.SenderID()
 
 	args := Args(m)
@@ -63,8 +63,8 @@ func createPlaylistHandler(c *td.Client, ctx *td.Context) error {
 	return td.EndGroups
 }
 
-func deletePlaylistHandler(c *td.Client, ctx *td.Context) error {
-	m := ctx.EffectiveMessage
+func deletePlaylistHandler(c *td.Client, m *td.Message) error {
+	
 	userID := m.SenderID()
 
 	args := Args(m)
@@ -114,8 +114,8 @@ func deletePlaylistHandler(c *td.Client, ctx *td.Context) error {
 
 	return err
 }
-func addToPlaylistHandler(c *td.Client, ctx *td.Context) error {
-	m := ctx.EffectiveMessage
+func addToPlaylistHandler(c *td.Client, m *td.Message) error {
+	
 	userID := m.SenderID()
 
 	args := strings.SplitN(Args(m), " ", 2)
@@ -210,8 +210,8 @@ func addToPlaylistHandler(c *td.Client, ctx *td.Context) error {
 	return err
 }
 
-func removeFromPlaylistHandler(c *td.Client, ctx *td.Context) error {
-	m := ctx.EffectiveMessage
+func removeFromPlaylistHandler(c *td.Client, m *td.Message) error {
+	
 	userID := m.SenderID()
 
 	args := strings.SplitN(Args(m), " ", 2)
@@ -271,8 +271,8 @@ func removeFromPlaylistHandler(c *td.Client, ctx *td.Context) error {
 	return err
 }
 
-func playlistInfoHandler(c *td.Client, ctx *td.Context) error {
-	m := ctx.EffectiveMessage
+func playlistInfoHandler(c *td.Client, m *td.Message) error {
+	
 
 	args := Args(m)
 	if args == "" {
@@ -314,8 +314,8 @@ func playlistInfoHandler(c *td.Client, ctx *td.Context) error {
 	return td.EndGroups
 }
 
-func myPlaylistsHandler(c *td.Client, ctx *td.Context) error {
-	m := ctx.EffectiveMessage
+func myPlaylistsHandler(c *td.Client, m *td.Message) error {
+	
 	userID := m.SenderID()
 
 	playlists, err := db.Instance.GetUserPlaylists(userID)

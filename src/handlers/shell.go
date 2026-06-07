@@ -62,9 +62,7 @@ func runShellCommand(cmd string, timeout time.Duration) (string, string, int) {
 	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), exitCode
 }
 
-func shellRunner(c *td.Client, ctx *td.Context) error {
-	m := ctx.EffectiveMessage
-
+func shellRunner(c *td.Client, m *td.Message) error {
 	args := strings.TrimSpace(Args(m))
 	if args == "" {
 		_, _ = m.ReplyText(c, "Usage: /sh cmd", nil)
@@ -128,10 +126,10 @@ func shellRunner(c *td.Client, ctx *td.Context) error {
 }
 
 // shellCommand handles /sh commands
-func shellCommand(c *td.Client, ctx *td.Context) error {
-	if !isDev(ctx) {
+func shellCommand(c *td.Client, m *td.Message) error {
+	if !isDev(c, m) {
 		return td.EndGroups
 	}
 
-	return shellRunner(c, ctx)
+	return shellRunner(c, m)
 }

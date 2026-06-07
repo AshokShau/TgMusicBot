@@ -20,14 +20,14 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func settingsHandler(c *td.Client, ctx *td.Context) error {
-	if !adminMode(c, ctx) {
+func settingsHandler(c *td.Client, m *td.Message) error {
+	if !adminMode(c, m) {
 		return td.EndGroups
 	}
 
-	m := ctx.EffectiveMessage
+	
 
-	chatID := ctx.EffectiveChatId
+	chatID := m.ChatId
 	admins, err := cache.GetAdmins(c, chatID, false)
 	if err != nil {
 		return err
@@ -69,9 +69,8 @@ func settingsHandler(c *td.Client, ctx *td.Context) error {
 	return err
 }
 
-func settingsCallbackHandler(c *td.Client, ctx *td.Context) error {
-	chatID := ctx.EffectiveChatId
-	cb := ctx.Update.UpdateNewCallbackQuery
+func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	chatID := cb.ChatId
 
 	// Check admin permissions
 	admins, err := cache.GetAdmins(c, chatID, false)

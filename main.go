@@ -59,7 +59,6 @@ func main() {
 	_ = os.Remove(tdDir)
 	clientConfig := &gotdbot.ClientOpts{
 		LibraryPath: "./libtdjson.so.1.8.64",
-		Logger:      logger,
 		AutoRetry: &gotdbot.AutoRetry{
 			ChatNotFound: true,
 		},
@@ -72,7 +71,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	dispatcher := client.Dispatcher
 	if err = client.Start(); err != nil {
 		slog.Error("gotdbot.Start() error", "error", err)
 		os.Exit(1)
@@ -83,7 +81,7 @@ func main() {
 		panic(err)
 	}
 
-	handlers.LoadModules(dispatcher)
+	handlers.LoadModules(client)
 	me := client.Me
 	username := ""
 	if me.Usernames != nil && len(me.Usernames.ActiveUsernames) > 0 {
