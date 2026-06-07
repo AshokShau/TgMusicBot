@@ -38,12 +38,16 @@ func vPlayHandler(c *td.Client, m *td.Message) error {
 	if !playMode(c, m) {
 		return td.EndGroups
 	}
+
+	if !config.EnableVideoPlayback {
+		_, _ = m.ReplyText(c, "🎥 Video playback is currently disabled.\n\nAs more people use the bot, video streaming can sometimes cause lag and reduce music quality in voice chats. To ensure a smooth listening experience for everyone, this feature has been turned off for now.\n\nThanks for your support and understanding ❤️", nil)
+		return td.EndGroups
+	}
 	return handlePlay(c, m, true)
 }
 
 func handlePlay(c *td.Client, m *td.Message, isVideo bool) error {
 	chatID := m.ChatId
-	
 
 	if queueLen := cache.ChatCache.GetQueueLength(chatID); queueLen > 10 {
 		_, _ = m.ReplyText(c, "Queue is full (max 10 tracks). Use /end to clear.", nil)
