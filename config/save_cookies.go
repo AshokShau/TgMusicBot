@@ -16,9 +16,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
-const cookiesDr = "src/cookies"
+const (
+	cookiesDr        = "src/cookies"
+	cookieFetchTimeout = 30 * time.Second
+	cookieRefreshInterval = time.Hour
+)
+
+var cookieHTTPClient = &http.Client{Timeout: cookieFetchTimeout}
 
 // fetchContent downloads content from Pastebin or Batbin.
 // It takes a URL as input.
@@ -36,7 +43,7 @@ func fetchContent(url string) (string, error) {
 		rawURL = url
 	}
 
-	resp, err := http.Get(rawURL)
+	resp, err := cookieHTTPClient.Get(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to GET %s: %w", rawURL, err)
 	}
@@ -56,7 +63,7 @@ func fetchContent(url string) (string, error) {
 	return string(body), nil
 }
 
-// saveContent saves content to a file in /tmp and returns the file path.
+// saveContent saves content to a file in the cookies directory and returns the file path.
 // It takes a URL and content as input.
 // It returns the file path and an error if any.
 func saveContent(url, content string) (string, error) {
@@ -84,22 +91,41 @@ func saveContent(url, content string) (string, error) {
 	return filePath, nil
 }
 
-// saveAllCookies downloads all URLs and stores paths in Conf.CookiesPath.
+// refreshCookies downloads all URLs and atomically replaces Conf.CookiesPath.
 // It takes a slice of URLs as input.
-func saveAllCookies(urls []string) {
+func refreshCookies(urls []string) {
+	paths := make([]string, 0, len(urls))
 	for _, url := range urls {
 		content, err := fetchContent(url)
 		if err != nil {
-			slog.Info("Error fetching cookies from", "arg1", url, "error", err)
+			slog.Info("Error fetching cookies from", "url", url, "error", err)
 			continue
 		}
 
 		path, err := saveContent(url, content)
 		if err != nil {
-			slog.Info("Error saving cookies for", "arg1", url, "error", err)
+			slog.Info("Error saving cookies for", "url", url, "error", err)
 			continue
 		}
 
-		Conf.CookiesPath = append(Conf.CookiesPath, path)
+		paths = append(paths, path)
+	}
+
+	Conf.SetCookiesPath(paths)
+	slog.Info("Refreshed cookies", "count", len(paths), "total_urls", len(urls))
+}
+
+// startCookieRefresher runs an initial fetch and then refreshes on a fixed interval.
+// It exits when there are no URLs configured.
+func startCookieRefresher(urls []string) {
+	if len(urls) == 0 {
+		return
+	}
+	refreshCookies(urls)
+
+	ticker := time.NewTicker(cookieRefreshInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		refreshCookies(urls)
 	}
 }

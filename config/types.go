@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // BotConfig holds the configuration for the bot.
@@ -37,9 +38,29 @@ type BotConfig struct {
 	SupportGroup      string   // SupportGroup is the Telegram group link.
 	SupportChannel    string   // SupportChannel is the Telegram channel link.
 	DEVS              []int64  // DEVS is a list of developer user IDs.
-	CookiesPath       []string // CookiesPath is a list of paths to cookies files.
+	CookiesPath       []string // CookiesPath is a list of paths to cookies files. Use GetCookiesPath/SetCookiesPath for concurrent access.
 	cookiesUrl        []string // cookiesUrl is a list of URLs to cookies files.
+	cookiesMu         sync.RWMutex
 	Port              string
+}
+
+// GetCookiesPath returns a snapshot of the current cookie file paths.
+func (c *BotConfig) GetCookiesPath() []string {
+	c.cookiesMu.RLock()
+	defer c.cookiesMu.RUnlock()
+	if len(c.CookiesPath) == 0 {
+		return nil
+	}
+	out := make([]string, len(c.CookiesPath))
+	copy(out, c.CookiesPath)
+	return out
+}
+
+// SetCookiesPath atomically replaces the cookie file paths.
+func (c *BotConfig) SetCookiesPath(paths []string) {
+	c.cookiesMu.Lock()
+	c.CookiesPath = paths
+	c.cookiesMu.Unlock()
 }
 
 // getSessionStrings gets session strings from environment variable with prefix

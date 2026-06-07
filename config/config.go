@@ -83,7 +83,7 @@ func LoadConfig() error {
 		if err := os.MkdirAll(cookiesDr, 0750); err != nil {
 			return fmt.Errorf("failed to create temp dir: %w", err)
 		}
-		go saveAllCookies(Conf.cookiesUrl)
+		go startCookieRefresher(Conf.cookiesUrl)
 	}
 
 	return nil

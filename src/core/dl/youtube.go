@@ -241,7 +241,7 @@ func (y *YouTubeData) downloadWithYtDlp(ctx context.Context, videoID string, vid
 
 // getCookieFile retrieves the path to a cookie file from the configured list.
 func (y *YouTubeData) getCookieFile() string {
-	cookiesPath := config.Conf.CookiesPath
+	cookiesPath := config.Conf.GetCookiesPath()
 	if len(cookiesPath) == 0 {
 		return ""
 	}
