@@ -21,11 +21,13 @@ import (
 )
 
 func settingsHandler(c *td.Client, m *td.Message) error {
+	if m.IsPrivate() {
+		return nil
+	}
+
 	if !adminMode(c, m) {
 		return td.EndGroups
 	}
-
-	
 
 	chatID := m.ChatId
 	admins, err := cache.GetAdmins(c, chatID, false)
@@ -70,6 +72,10 @@ func settingsHandler(c *td.Client, m *td.Message) error {
 }
 
 func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
+	if cb.IsPrivate() {
+		return nil
+	}
+
 	chatID := cb.ChatId
 
 	// Check admin permissions
