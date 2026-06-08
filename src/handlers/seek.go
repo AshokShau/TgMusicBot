@@ -9,11 +9,12 @@
 package handlers
 
 import (
-	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/utils"
-	"ashokshau/tgmusic/src/vc"
 	"fmt"
 	"strconv"
+
+	"ashokshau/tgmusic/src/core/cache"
+	"ashokshau/tgmusic/src/vc"
 
 	td "github.com/AshokShau/gotdbot"
 )
@@ -66,6 +67,7 @@ func seekHandler(c *td.Client, m *td.Message) error {
 	}
 
 	if err = vc.Calls.SeekStream(
+		c,
 		chatID,
 		playingSong.FilePath,
 		toSeek,

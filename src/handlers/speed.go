@@ -48,7 +48,7 @@ func speedHandler(c *td.Client, m *td.Message) error {
 		return nil
 	}
 
-	if err = vc.Calls.ChangeSpeed(chatID, speed); err != nil {
+	if err = vc.Calls.ChangeSpeed(c, chatID, speed); err != nil {
 		_, _ = m.ReplyText(c, fmt.Sprintf("An error occurred while changing the speed: %s", err.Error()), replyOpts)
 		return nil
 	}

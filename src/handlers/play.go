@@ -211,7 +211,7 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 
 	saveCache.FilePath = filePath
 
-	if err = vc.Calls.PlayMedia(chatId, saveCache.FilePath, saveCache.IsVideo, ""); err != nil {
+	if err = vc.Calls.PlayMedia(c, chatId, saveCache.FilePath, saveCache.IsVideo, ""); err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
 		_, err = updater.EditText(c, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return err
@@ -309,7 +309,7 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 		saveCache.FilePath = dlResult
 	}
 
-	if err := vc.Calls.PlayMedia(chatId, saveCache.FilePath, saveCache.IsVideo, ""); err != nil {
+	if err := vc.Calls.PlayMedia(c, chatId, saveCache.FilePath, saveCache.IsVideo, ""); err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
 		_, err = updater.EditText(c, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return err
@@ -415,7 +415,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 	}
 
 	if shouldPlayFirst && firstTrack != nil {
-		_ = vc.Calls.PlayNext(chatId)
+		_ = vc.Calls.PlayNext(c, chatId)
 	}
 
 	_, err := updater.EditText(c, fullMessage, &td.EditTextMessageOpts{

@@ -67,7 +67,7 @@ func playCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	switch {
 	case strings.Contains(data, "play_skip"):
-		if err := vc.Calls.PlayNext(chatID); err != nil {
+		if err := vc.Calls.PlayNext(c, chatID); err != nil {
 			_ = cb.Answer(c, 0, false, "Unable to skip the current track.", "")
 			_, _ = cb.EditMessageText(c, "Unable to skip the current track.", &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons(""), ParseMode: "HTML", DisableWebPagePreview: true})
 			return nil

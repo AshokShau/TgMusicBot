@@ -80,5 +80,5 @@ func LoadModules(c *gotdbot.Client) {
 	c.OnUpdateChatMember(handleParticipant, nil)
 	c.OnUpdateNewMessage(handleVoiceChatMessage, nil)
 
-	c.Logger.Debug("Handlers loaded successfully")
+	c.Debug("Handlers loaded successfully")
 }

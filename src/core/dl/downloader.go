@@ -24,10 +24,15 @@ func DownloadCachedTrack(cached *utils.CachedTrack, bot *td.Client) (string, err
 		return downloadTelegramFile(cached, bot)
 	}
 
-	return downloadViaWrapper(cached, bot)
+	dlBot := bot
+	if DlBot != nil {
+		dlBot = DlBot
+	}
+
+	return downloadViaWrapper(cached, dlBot)
 }
 
-func downloadViaWrapper(cached *utils.CachedTrack, bot *td.Client) (string, error) {
+func downloadViaWrapper(cached *utils.CachedTrack, dlBot *td.Client) (string, error) {
 	wrapper := NewDownloaderWrapper(cached.URL)
 	if !wrapper.IsValid() {
 		return "", fmt.Errorf("invalid cached URL: %s", cached.URL)
@@ -44,7 +49,7 @@ func downloadViaWrapper(cached *utils.CachedTrack, bot *td.Client) (string, erro
 	}
 
 	if utils.TelegramMessageRegex.MatchString(path) {
-		return downloadFromTelegramMessage(bot, path)
+		return downloadFromTelegramMessage(dlBot, path)
 	}
 
 	return path, nil
@@ -70,14 +75,14 @@ func downloadFromTelegramMessage(bot *td.Client, msgURL string) (string, error) 
 		return "", fmt.Errorf("get telegram message: %w", err)
 	}
 
-	download, err := msg.Download(bot, 1, 0, 0, true)
+	file, err := msg.Download(bot, 1, 0, 0, true)
 	if err != nil {
 		return "", err
 	}
 
-	if download == nil || download.Local == nil {
+	if file == nil || file.Local == nil {
 		return "", fmt.Errorf("failed to download file from Telegram message")
 	}
 
-	return download.Local.Path, nil
+	return file.Local.Path, nil
 }

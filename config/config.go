@@ -22,6 +22,7 @@ var (
 	ApiId               = getEnvInt32("API_ID", 0)
 	ApiHash             = os.Getenv("API_HASH")
 	Token               = os.Getenv("TOKEN")
+	DlBotToken          = os.Getenv("DL_BOT_TOKEN")
 	SessionStrings      = getSessionStrings("STRING", 10)
 	SessionType         = getEnv("SESSION_TYPE", "pyrogram")
 	MongoUri            = os.Getenv("MONGO_URI")

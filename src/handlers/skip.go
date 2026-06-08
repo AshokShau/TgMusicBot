@@ -29,6 +29,6 @@ func skipHandler(c *td.Client, m *td.Message) error {
 		return nil
 	}
 
-	_ = vc.Calls.PlayNext(chatID)
+	_ = vc.Calls.PlayNext(c, chatID)
 	return nil
 }

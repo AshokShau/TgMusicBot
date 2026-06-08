@@ -30,7 +30,7 @@ import (
 
 const (
 	defaultRequestTimeout = 30 * time.Second
-	defaultConnectTimeout = 10 * time.Second
+	defaultConnectTimeout = 15 * time.Second
 	maxRetries            = 2
 	initialBackoff        = 1 * time.Second
 )
@@ -66,20 +66,16 @@ var client = &http.Client{
 
 // sendRequest performs an HTTP request with a given context, method, URL, body, and headers.
 func sendRequest(method, fullURL string, body io.Reader, headers map[string]string) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-
-	req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
+	baseReq, err := http.NewRequest(method, fullURL, nil)
 	if err != nil {
-		cancel()
-		slog.Info("Error creating request", "error", err)
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create base request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-	req.Header.Set("Accept", "*/*")
+	baseReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	baseReq.Header.Set("Accept", "*/*")
 
 	for k, v := range headers {
-		req.Header.Set(k, v)
+		baseReq.Header.Set(k, v)
 	}
 
 	var resp *http.Response
@@ -92,30 +88,50 @@ func sendRequest(method, fullURL string, body io.Reader, headers map[string]stri
 			backoff *= 2
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+		req, err := http.NewRequestWithContext(ctx, method, fullURL, body)
+		if err != nil {
+			cancel()
+			reqErr = err
+			break
+		}
+		req.Header = baseReq.Header.Clone()
+
 		resp, reqErr = client.Do(req)
 		if reqErr == nil {
 			if resp.StatusCode < 500 {
 				resp.Body = &cancelOnClose{ReadCloser: resp.Body, cancel: cancel}
 				return resp, nil
 			}
-			if err := resp.Body.Close(); err != nil {
+			cancel()
+			if err = resp.Body.Close(); err != nil {
 				slog.Info("failed to close response body", "error", err)
 			}
 			reqErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-		} else if isTemporaryError(reqErr) {
-			slog.Info("Temporary error on", "attempt", attempt+1, "maxRetries", maxRetries, "error", reqErr)
-			continue // Retry on temporary errors
 		} else {
+			cancel()
+			if isTemporaryError(reqErr) {
+				slog.Info("Temporary error on", "attempt", attempt+1, "maxRetries", maxRetries, "error", reqErr)
+				continue
+			}
 			break // Do not retry on permanent errors
 		}
 	}
 
-	cancel()
 	if reqErr == nil {
 		reqErr = fmt.Errorf("request failed after %d attempts", maxRetries)
 	}
 
-	return nil, fmt.Errorf("request failed: %w", reqErr)
+	errMsg := maskSensitiveInfo(reqErr.Error())
+	return nil, fmt.Errorf("request failed: %s", errMsg)
+}
+
+// maskSensitiveInfo removes the API key from error messages.
+func maskSensitiveInfo(msg string) string {
+	if config.ApiKey == "" {
+		return msg
+	}
+	return strings.ReplaceAll(msg, config.ApiKey, "REDACTED")
 }
 
 // isTemporaryError determines if an error is temporary and thus worth retrying.

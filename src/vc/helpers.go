@@ -25,15 +25,15 @@ import (
 
 // downloadAndPrepareSong handles the download and preparation of a song for playback.
 // It returns an error if the download or preparation fails.
-func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *td.Message) error {
+func (c *TelegramCalls) downloadAndPrepareSong(bot *td.Client, song *utils.CachedTrack, reply *td.Message) error {
 	if song.FilePath != "" {
 		return nil
 	}
 
-	dlPath, err := dl.DownloadCachedTrack(song, c.bot)
+	dlPath, err := dl.DownloadCachedTrack(song, bot)
 	song.FilePath = dlPath
 	if err != nil || song.FilePath == "" {
-		_, _ = reply.EditText(c.bot, "⚠️ Download failed. Skipping track...", nil)
+		_, _ = reply.EditText(bot, "⚠️ Download failed. Skipping track...", nil)
 		return err
 	}
 
@@ -41,29 +41,29 @@ func (c *TelegramCalls) downloadAndPrepareSong(song *utils.CachedTrack, reply *t
 }
 
 // PlayNext plays the next song in the queue, handles looping, and notifies the chat when the queue is finished.
-func (c *TelegramCalls) PlayNext(chatID int64) error {
+func (c *TelegramCalls) PlayNext(bot *td.Client, chatID int64) error {
 	loop := cache.ChatCache.GetLoopCount(chatID)
 	if loop > 0 {
 		cache.ChatCache.SetLoopCount(chatID, loop-1)
 		if currentsSong := cache.ChatCache.GetPlayingTrack(chatID); currentsSong != nil {
-			return c.playSong(chatID, currentsSong)
+			return c.playSong(bot, chatID, currentsSong)
 		}
 	}
 
 	if nextSong := cache.ChatCache.GetUpcomingTrack(chatID); nextSong != nil {
 		cache.ChatCache.RemoveCurrentSong(chatID)
-		return c.playSong(chatID, nextSong)
+		return c.playSong(bot, chatID, nextSong)
 	}
 
 	cache.ChatCache.RemoveCurrentSong(chatID)
-	return c.handleNoSong(chatID)
+	return c.handleNoSong(bot, chatID)
 }
 
 // handleNoSong manages the situation where there are no more songs in the queue by stopping the playback
 // and sending a notification to the chat.
-func (c *TelegramCalls) handleNoSong(chatID int64) error {
+func (c *TelegramCalls) handleNoSong(bot *td.Client, chatID int64) error {
 	_ = c.Stop(chatID)
-	_, _ = c.bot.SendTextMessage(chatID, "🎵 Queue finished. Add more songs with /play.", nil)
+	_, _ = bot.SendTextMessage(chatID, "🎵 Queue finished. Add more songs with /play.", nil)
 	return nil
 }
 

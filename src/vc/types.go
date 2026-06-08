@@ -28,7 +28,6 @@ type TelegramCalls struct {
 	mu          sync.RWMutex
 	assistants  map[int]*Assistant
 	clients     map[int]*tg.Client
-	bot         *td.Client
 	statusCache *cache.Cache[td.ChatMemberStatus]
 	inviteCache *cache.Cache[string]
 }

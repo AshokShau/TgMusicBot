@@ -11,6 +11,7 @@ package main
 import (
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src"
+	"ashokshau/tgmusic/src/core/dl"
 	"ashokshau/tgmusic/src/handlers"
 	"fmt"
 	"log/slog"
@@ -57,23 +58,38 @@ func main() {
 	slog.SetDefault(logger)
 	tdDir := "database"
 	_ = os.Remove(tdDir)
-	clientConfig := &gotdbot.ClientOpts{
-		LibraryPath: "./libtdjson.so.1.8.64",
-		AutoRetry: &gotdbot.AutoRetry{
-			ChatNotFound: true,
-		},
-		DatabaseDirectory: tdDir,
+	libPath := "./libtdjson.so.1.8.64"
+
+	manager := gotdbot.NewClientManager(libPath)
+
+	clientConfig := gotdbot.DefaultClientConfig()
+	clientConfig.AutoRetry = &gotdbot.AutoRetry{
+		ChatNotFound: true,
 	}
 
-	client, err := gotdbot.NewClient(config.ApiId, config.ApiHash, config.Token, clientConfig)
+	clientConfig.DatabaseDirectory = tdDir
+	client, err := manager.RegisterClient(config.ApiId, config.ApiHash, config.Token, clientConfig)
 	if err != nil {
-		slog.Error("gotdbot.NewClient error", "error", err)
+		slog.Error("manager.RegisterClient error", "error", err)
 		os.Exit(1)
 	}
 
-	if err = client.Start(); err != nil {
-		slog.Error("gotdbot.Start() error", "error", err)
-		os.Exit(1)
+	if config.DlBotToken != "" {
+		dlClientConfig := gotdbot.DefaultClientConfig()
+		dlClientConfig.AutoRetry = &gotdbot.AutoRetry{
+			ChatNotFound: true,
+		}
+		dlClientConfig.DatabaseDirectory = tdDir + "_dl"
+		_ = os.Remove(dlClientConfig.DatabaseDirectory)
+
+		dlClient, err := manager.RegisterClient(config.ApiId, config.ApiHash, config.DlBotToken, dlClientConfig)
+		if err != nil {
+			slog.Error("manager.RegisterClient (DL) error", "error", err)
+			dl.DlBot = client
+		} else {
+			dl.DlBot = dlClient
+			dlClient.Logger.Info("Download bot registered successfully")
+		}
 	}
 
 	err = src.Init(client)
@@ -82,15 +98,8 @@ func main() {
 	}
 
 	handlers.LoadModules(client)
-	me := client.Me
-	username := ""
-	if me.Usernames != nil && len(me.Usernames.ActiveUsernames) > 0 {
-		username = me.Usernames.ActiveUsernames[0]
-	}
-
-	slog.Info("Bot started as @ (ID: )", "arg1", username, "id", me.Id)
 	_, _ = client.SendTextMessage(config.LoggerId, "The bot has started!", nil)
-	client.Idle()
-	slog.Info("The bot is shutting down...")
+	manager.Idle()
+	client.Logger.Info("The bot is shutting down...")
 	vc.Calls.StopAllClients()
 }

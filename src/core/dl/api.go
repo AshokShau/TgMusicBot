@@ -10,11 +10,9 @@ package dl
 
 import (
 	"log/slog"
-	"time"
 
 	"ashokshau/tgmusic/config"
 	"ashokshau/tgmusic/src/utils"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -110,21 +108,12 @@ func (a *apiData) search() (utils.PlatformTracks, error) {
 		return a.getInfo()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
 	fullURL := fmt.Sprintf("%s/api/search?%s", a.ApiUrl, url.Values{
 		"query": {a.Query},
 		"limit": {"5"},
 	}.Encode())
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
-	if err != nil {
-		return utils.PlatformTracks{}, fmt.Errorf("failed to create the search request: %w", err)
-	}
-	req.Header.Set("X-API-Key", a.APIKey)
-
-	resp, err := client.Do(req)
+	resp, err := sendRequest(http.MethodGet, fullURL, nil, map[string]string{"X-API-Key": a.APIKey})
 	if err != nil {
 		return utils.PlatformTracks{}, fmt.Errorf("the search request failed: %w", err)
 	}
@@ -150,6 +139,7 @@ func (a *apiData) getTrack() (utils.TrackInfo, error) {
 	fullURL := fmt.Sprintf("%s/api/track?%s", a.ApiUrl, url.Values{"url": {a.Query}}.Encode())
 	resp, err := sendRequest(http.MethodGet, fullURL, nil, map[string]string{"X-API-Key": a.APIKey})
 	if err != nil {
+		slog.Warn("GetTrack request failed", "error", err)
 		return utils.TrackInfo{}, fmt.Errorf("the GetTrack request failed: %w", err)
 	}
 

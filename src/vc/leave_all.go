@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	td "github.com/AshokShau/gotdbot"
 	"github.com/amarnathcjd/gogram/telegram"
 )
 
@@ -141,7 +142,7 @@ func (c *TelegramCalls) leaveAssistantDialogs(ctx *Assistant) (int, error) {
 
 const autoLeaveInterval = 18 * time.Hour
 
-func (c *TelegramCalls) startAutoLeave(ctx context.Context) {
+func (c *TelegramCalls) startAutoLeave(ctx context.Context, bot *td.Client) {
 	if !config.AutoLeave {
 		return
 	}
@@ -156,13 +157,13 @@ func (c *TelegramCalls) startAutoLeave(ctx context.Context) {
 				logger.Info("AutoLeave: background task stopped")
 				return
 			case <-ticker.C:
-				c.runAutoLeave()
+				c.runAutoLeave(bot)
 			}
 		}
 	}()
 }
 
-func (c *TelegramCalls) runAutoLeave() {
+func (c *TelegramCalls) runAutoLeave(bot *td.Client) {
 	logger.Info("AutoLeave: leaving inactive chats")
 	leftCount, err := c.LeaveAll()
 	if err != nil {
@@ -172,7 +173,7 @@ func (c *TelegramCalls) runAutoLeave() {
 	logger.Info("AutoLeave: completed", "leftCount", leftCount)
 	if leftCount > 0 && config.LoggerId != 0 {
 		msg := fmt.Sprintf("AutoLeave: Assistant left %d inactive chats", leftCount)
-		if _, err = c.bot.SendTextMessage(config.LoggerId, msg, nil); err != nil {
+		if _, err = bot.SendTextMessage(config.LoggerId, msg, nil); err != nil {
 			logger.Error("AutoLeave: failed to send log message", "error", err)
 		}
 	}
