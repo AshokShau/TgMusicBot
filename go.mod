@@ -3,11 +3,11 @@ module ashokshau/tgmusic
 go 1.25.0
 
 require (
-	github.com/AshokShau/gotdbot v0.9.3-0.20260608125401-09a194e5ddd9
-	github.com/amarnathcjd/gogram v1.7.3
+	github.com/AshokShau/gotdbot v0.9.4-0.20260615093546-68cb5390ddbb
+	github.com/amarnathcjd/gogram v1.7.6
 	github.com/joho/godotenv v1.5.1
 	github.com/shirou/gopsutil/v3 v3.24.5
-	go.mongodb.org/mongo-driver/v2 v2.6.0
+	go.mongodb.org/mongo-driver/v2 v2.7.0
 )
 
 require (
@@ -25,8 +25,8 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 )

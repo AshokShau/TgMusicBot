@@ -114,7 +114,7 @@ func shellRunner(c *td.Client, m *td.Message) error {
 	defer os.Remove(file)
 
 	_, err = msg.EditMedia(c, td.InputMessageDocument{
-		Document: td.InputFileLocal{Path: file},
+		Document: &td.InputDocument{Document: td.InputFileLocal{Path: file}},
 	}, nil)
 
 	if err != nil {
