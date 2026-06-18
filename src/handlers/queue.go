@@ -27,7 +27,6 @@ func queueHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	chatID := m.ChatId
 
 	chat, err := c.GetChat(chatID)

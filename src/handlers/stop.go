@@ -22,7 +22,7 @@ func stopHandler(c *td.Client, m *td.Message) error {
 	if !adminMode(c, m) {
 		return td.EndGroups
 	}
-	
+
 	chatID := m.ChatId
 
 	if !cache.ChatCache.IsActive(chatID) {
@@ -30,7 +30,7 @@ func stopHandler(c *td.Client, m *td.Message) error {
 		return nil
 	}
 
-	_ = vc.Calls.Stop(chatID)
+	_ = vc.Calls.Stop(chatID, false)
 	_, _ = m.ReplyText(c, fmt.Sprintf("<b>Stream ended by</b> %s", firstName(c, m)), replyOpts)
 	return nil
 }

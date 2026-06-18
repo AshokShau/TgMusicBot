@@ -77,7 +77,7 @@ func playCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 		return nil
 
 	case strings.Contains(data, "play_stop"):
-		if err := vc.Calls.Stop(chatID); err != nil {
+		if err := vc.Calls.Stop(chatID, false); err != nil {
 			_ = cb.Answer(c, 0, false, "Unable to stop playback.", "")
 			_, _ = cb.EditMessageText(c, "Unable to stop playback.", &td.EditTextMessageOpts{ReplyMarkup: core.ControlButtons(""), ParseMode: "HTML", DisableWebPagePreview: true})
 			return nil

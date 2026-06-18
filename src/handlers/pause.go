@@ -23,7 +23,6 @@ func pauseHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	chatID := m.ChatId
 
 	if !cache.ChatCache.IsActive(chatID) {
@@ -44,7 +43,7 @@ func resumeHandler(c *td.Client, m *td.Message) error {
 	if !adminMode(c, m) {
 		return td.EndGroups
 	}
-	
+
 	chatID := m.ChatId
 
 	if chatID > 0 {

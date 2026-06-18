@@ -22,7 +22,6 @@ func loopHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	chatID := m.ChatId
 
 	if !cache.ChatCache.IsActive(chatID) {

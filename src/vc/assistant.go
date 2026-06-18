@@ -75,7 +75,7 @@ func (a *Assistant) Play(ctx context.Context, chatId int64, mediaDescription ntg
 	return nil
 }
 
-func (a *Assistant) stopCall(ctx context.Context, chatId int64) error {
+func (a *Assistant) stopCall(chatId int64, banned bool) error {
 	a.mu.Lock()
 	a.presentations = stdRemove(a.presentations, chatId)
 	delete(a.pendingConnections, chatId)
@@ -86,7 +86,7 @@ func (a *Assistant) stopCall(ctx context.Context, chatId int64) error {
 		return err
 	}
 
-	if inputGroupCall == nil {
+	if banned || inputGroupCall == nil {
 		return nil
 	}
 	_, err := a.App.PhoneLeaveGroupCall(inputGroupCall, 0)
@@ -121,7 +121,7 @@ func (a *Assistant) connectCall(ctx context.Context, chatId int64, mediaDescript
 			return err
 		}
 
-		inputGroupCall, err := a.getInputGroupCall(ctx, chatId)
+		inputGroupCall, err := a.getInputGroupCall(chatId)
 		if err != nil {
 			_ = a.binding.Stop(chatId)
 			return err
@@ -224,7 +224,7 @@ func (a *Assistant) joinPresentation(ctx context.Context, chatId int64, join boo
 			return err
 		}
 		resultParams := "{\"transport\": null}"
-		inputGroupCall, err := a.getInputGroupCall(ctx, chatId)
+		inputGroupCall, err := a.getInputGroupCall(chatId)
 		if err != nil {
 			return err
 		}
@@ -287,7 +287,7 @@ func (a *Assistant) joinPresentation(ctx context.Context, chatId int64, join boo
 	return nil
 }
 
-func (a *Assistant) getInputGroupCall(ctx context.Context, chatId int64) (tg.InputGroupCall, error) {
+func (a *Assistant) getInputGroupCall(chatId int64) (tg.InputGroupCall, error) {
 	a.mu.RLock()
 	call, ok := a.inputGroupCalls[chatId]
 	a.mu.RUnlock()
@@ -339,7 +339,7 @@ func (a *Assistant) getInputGroupCall(ctx context.Context, chatId int64) (tg.Inp
 	return nil, fmt.Errorf("group call for chatId %d not found", chatId)
 }
 
-func (a *Assistant) setCallStatus(ctx context.Context, call tg.InputGroupCall, state ntgcalls.MediaState) error {
+func (a *Assistant) setCallStatus(call tg.InputGroupCall, state ntgcalls.MediaState) error {
 	if call == nil {
 		return errors.New("missing input group call")
 	}
@@ -362,7 +362,7 @@ func (a *Assistant) setCallStatus(ctx context.Context, call tg.InputGroupCall, s
 	return err
 }
 
-func (a *Assistant) parseChatId(ctx context.Context, chatId any) (int64, error) {
+func (a *Assistant) parseChatId(chatId any) (int64, error) {
 	if chatId == nil {
 		return 0, fmt.Errorf("chatId cannot be nil")
 	}
@@ -499,7 +499,7 @@ func (a *Assistant) onGroupCallParticipants(m tg.Update, _ *tg.Client) error {
 				a.App.Log.Warnf("failed to get call state: %v", stateErr)
 				break
 			}
-			if statusErr := a.setCallStatus(context.Background(), participantsUpdate.Call, state); statusErr != nil {
+			if statusErr := a.setCallStatus(participantsUpdate.Call, state); statusErr != nil {
 				a.App.Log.Warnf("failed to update call status: %v", statusErr)
 				break
 			}
@@ -519,7 +519,7 @@ func (a *Assistant) onGroupCall(m tg.Update, _ *tg.Client) error {
 		var err error
 
 		if updateGroupCall.Peer != nil {
-			chatID, err = a.parseChatId(context.Background(), updateGroupCall.Peer)
+			chatID, err = a.parseChatId(updateGroupCall.Peer)
 			if err != nil {
 				return err
 			}
@@ -658,7 +658,7 @@ func (a *Assistant) onUpgrade(chatId int64, state ntgcalls.MediaState) {
 	if inputGroupCall == nil {
 		return
 	}
-	if err := a.setCallStatus(context.Background(), inputGroupCall, state); err != nil {
+	if err := a.setCallStatus(inputGroupCall, state); err != nil {
 		a.App.Log.Warnf("failed to update call status: %v", err)
 	}
 }

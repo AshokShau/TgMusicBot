@@ -24,7 +24,6 @@ func removeHandler(c *td.Client, m *td.Message) error {
 	}
 
 	chatID := m.ChatId
-	
 
 	if !cache.ChatCache.IsActive(chatID) {
 		_, _ = m.ReplyText(c, "The bot is not streaming in the video chat.", nil)

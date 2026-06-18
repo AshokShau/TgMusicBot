@@ -21,7 +21,6 @@ func authListHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	if m.IsPrivate() {
 		return nil
 	}
@@ -48,7 +47,6 @@ func addAuthHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	if m.IsPrivate() {
 		return td.EndGroups
 	}
@@ -95,7 +93,6 @@ func removeAuthHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	if m.IsPrivate() {
 		return td.EndGroups
 	}

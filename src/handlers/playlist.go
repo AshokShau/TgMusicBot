@@ -20,7 +20,7 @@ import (
 )
 
 func createPlaylistHandler(c *td.Client, m *td.Message) error {
-	
+
 	userID := m.SenderID()
 
 	args := Args(m)
@@ -64,7 +64,7 @@ func createPlaylistHandler(c *td.Client, m *td.Message) error {
 }
 
 func deletePlaylistHandler(c *td.Client, m *td.Message) error {
-	
+
 	userID := m.SenderID()
 
 	args := Args(m)
@@ -115,7 +115,7 @@ func deletePlaylistHandler(c *td.Client, m *td.Message) error {
 	return err
 }
 func addToPlaylistHandler(c *td.Client, m *td.Message) error {
-	
+
 	userID := m.SenderID()
 
 	args := strings.SplitN(Args(m), " ", 2)
@@ -211,7 +211,7 @@ func addToPlaylistHandler(c *td.Client, m *td.Message) error {
 }
 
 func removeFromPlaylistHandler(c *td.Client, m *td.Message) error {
-	
+
 	userID := m.SenderID()
 
 	args := strings.SplitN(Args(m), " ", 2)
@@ -272,7 +272,6 @@ func removeFromPlaylistHandler(c *td.Client, m *td.Message) error {
 }
 
 func playlistInfoHandler(c *td.Client, m *td.Message) error {
-	
 
 	args := Args(m)
 	if args == "" {
@@ -315,7 +314,7 @@ func playlistInfoHandler(c *td.Client, m *td.Message) error {
 }
 
 func myPlaylistsHandler(c *td.Client, m *td.Message) error {
-	
+
 	userID := m.SenderID()
 
 	playlists, err := db.Instance.GetUserPlaylists(userID)

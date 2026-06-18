@@ -99,132 +99,6 @@ func (c *TelegramCalls) GetGroupAssistant(chatID int64) (*Assistant, int, error)
 	return call, clientIndex, nil
 }
 
-func (c *TelegramCalls) playMedia(bot *td.Client, chatID int64, filePath string, video bool, ffmpegParameters string, call *Assistant, index int) error {
-	if chatID > 0 {
-		return errors.New("private calls are not supported for media playback")
-	}
-
-	if err := c.joinAssistant(bot, chatID, call, index); err != nil {
-		cache.ChatCache.ClearChat(chatID)
-		return err
-	}
-
-	logger.Debug("Playing media in chat", "id", chatID, "path", filePath, "index", index)
-
-	mediaDesc := getMediaDescription(filePath, video, ffmpegParameters)
-	if err := call.Play(context.Background(), chatID, mediaDesc); err != nil {
-		cache.ChatCache.ClearChat(chatID)
-		return err
-	}
-
-	if db.Instance.GetLoggerStatus() {
-		go sendLogger(bot, chatID, cache.ChatCache.GetPlayingTrack(chatID))
-	}
-
-	return nil
-}
-
-// PlayMedia plays media in a voice chat with automatic assistant rotation on certain errors.
-func (c *TelegramCalls) PlayMedia(bot *td.Client, chatID int64, filePath string, video bool, ffmpegParameters string) error {
-	call, index, err := c.GetGroupAssistant(chatID)
-	if err != nil {
-		return err
-	}
-
-	err = c.playMedia(bot, chatID, filePath, video, ffmpegParameters, call, index)
-	if err == nil {
-		_ = db.Instance.SetAssistant(chatID, index)
-		return nil
-	}
-
-	if strings.Contains(err.Error(), "GROUPCALL_ADD_PARTICIPANTS_FAILED") {
-		err = c.playMedia(bot, chatID, filePath, video, ffmpegParameters, call, index)
-		if err == nil {
-			_ = db.Instance.SetAssistant(chatID, index)
-			return nil
-		}
-	}
-
-	isRetryable := strings.Contains(err.Error(), "CHANNELS_TOO_MUCH") ||
-		strings.Contains(err.Error(), "FROZEN_METHOD_INVALID") ||
-		strings.Contains(err.Error(), "FLOOD_WAIT_X") ||
-		strings.Contains(err.Error(), "GROUPCALL_ADD_PARTICIPANTS_FAILED")
-
-	if !isRetryable {
-		if strings.Contains(err.Error(), "is closed") || strings.Contains(err.Error(), "GROUPCALL_FORBIDDEN") {
-			return errors.New("<b>No active video chat found.</b>\n\nPlease start one and <b>try again</b>")
-		}
-
-		if strings.Contains(err.Error(), "GROUPCALL_INVALID") {
-			return fmt.Errorf("<b>GROUPCALL_INVALID:</b> start a video chat and try again.\n\nIf the problem persists, please report it to the developer.")
-		}
-
-		logger.Error("Failed to play the media", "error", err, "index", index, "chatID", chatID)
-		return fmt.Errorf("playback failed: %w", err)
-	}
-
-	tried := map[int]bool{index: true}
-	lastErr := err
-
-	if strings.Contains(err.Error(), "CHANNELS_TOO_MUCH") {
-		go func(idx int) { _, _ = c.LeaveAllForClient(idx) }(index)
-		_ = db.Instance.RemoveAssistant(chatID)
-	} else if strings.Contains(err.Error(), "FROZEN_METHOD_INVALID") || strings.Contains(err.Error(), "FLOOD_WAIT_X") {
-		_ = db.Instance.RemoveAssistant(chatID)
-	}
-
-	for {
-		c.mu.RLock()
-		totalClients := len(c.assistants)
-		c.mu.RUnlock()
-
-		if len(tried) >= totalClients {
-			return fmt.Errorf("playback failed after trying all assistants: %w", lastErr)
-		}
-
-		nextIndex := -1
-		c.mu.RLock()
-		for i, ctx := range c.assistants {
-			if !tried[i] {
-				nextIndex = i
-				call = ctx
-				break
-			}
-		}
-		c.mu.RUnlock()
-
-		if nextIndex == -1 {
-			break
-		}
-
-		tried[nextIndex] = true
-		err = c.playMedia(bot, chatID, filePath, video, ffmpegParameters, call, nextIndex)
-		if err == nil {
-			_ = db.Instance.SetAssistant(chatID, nextIndex)
-			return nil
-		}
-
-		lastErr = err
-		if strings.Contains(err.Error(), "GROUPCALL_ADD_PARTICIPANTS_FAILED") {
-			err = c.playMedia(bot, chatID, filePath, video, ffmpegParameters, call, nextIndex)
-			if err == nil {
-				_ = db.Instance.SetAssistant(chatID, nextIndex)
-				return nil
-			}
-			lastErr = err
-		}
-
-		if strings.Contains(err.Error(), "CHANNELS_TOO_MUCH") {
-			go func(idx int) { _, _ = c.LeaveAllForClient(idx) }(nextIndex)
-		} else if !strings.Contains(err.Error(), "FROZEN_METHOD_INVALID") && !strings.Contains(err.Error(), "FLOOD_WAIT_X") && !strings.Contains(err.Error(), "GROUPCALL_ADD_PARTICIPANTS_FAILED") {
-			break
-		}
-	}
-
-	logger.Error("Failed to play the media after rotation", "error", lastErr, "chatID", chatID)
-	return fmt.Errorf("playback failed: %w", lastErr)
-}
-
 // playSong downloads and plays a single song. It sends a message to the chat to indicate the download status
 // and updates it with the song's information once playback begins.
 func (c *TelegramCalls) playSong(bot *td.Client, chatID int64, song *utils.CachedTrack) error {
@@ -270,14 +144,14 @@ func (c *TelegramCalls) playSong(bot *td.Client, chatID int64, song *utils.Cache
 }
 
 // Stop halts media playback in a voice chat and clears the chat's cache.
-func (c *TelegramCalls) Stop(chatId int64) error {
+func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
 	call, index, err := c.GetGroupAssistant(chatId)
 	if err != nil {
 		return err
 	}
 
 	cache.ChatCache.ClearChat(chatId)
-	err = call.stopCall(context.Background(), chatId)
+	err = call.stopCall(chatId, banned)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return nil

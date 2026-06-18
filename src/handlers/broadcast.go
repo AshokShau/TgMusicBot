@@ -53,7 +53,7 @@ func cancelBroadcastHandler(c *td.Client, m *td.Message) error {
 	if !isDev(c, m) {
 		return td.EndGroups
 	}
-	
+
 	if !broadcastInProgress.Load() {
 		_, _ = m.ReplyText(c, "No broadcast in progress.", nil)
 		return td.EndGroups
@@ -69,7 +69,6 @@ func broadcastHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	if broadcastInProgress.Load() {
 		_, _ = m.ReplyText(c, "A broadcast is already in progress.", nil)
 		return td.EndGroups

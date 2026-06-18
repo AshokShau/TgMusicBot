@@ -9,6 +9,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/AshokShau/gotdbot"
@@ -80,5 +81,5 @@ func LoadModules(c *gotdbot.Client) {
 	c.OnUpdateChatMember(handleParticipant, nil)
 	c.OnUpdateNewMessage(handleVoiceChatMessage, nil)
 
-	c.Debug("Handlers loaded successfully")
+	slog.Debug("Handlers loaded successfully")
 }

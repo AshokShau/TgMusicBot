@@ -62,7 +62,7 @@ func (c *TelegramCalls) PlayNext(bot *td.Client, chatID int64) error {
 // handleNoSong manages the situation where there are no more songs in the queue by stopping the playback
 // and sending a notification to the chat.
 func (c *TelegramCalls) handleNoSong(bot *td.Client, chatID int64) error {
-	_ = c.Stop(chatID)
+	_ = c.Stop(chatID, false)
 	_, _ = bot.SendTextMessage(chatID, "🎵 Queue finished. Add more songs with /play.", nil)
 	return nil
 }

@@ -23,7 +23,6 @@ func muteHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	if args := Args(m); args != "" {
 		return td.EndGroups
 	}
@@ -48,7 +47,6 @@ func unmuteHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	if args := Args(m); args != "" {
 		return td.EndGroups
 	}

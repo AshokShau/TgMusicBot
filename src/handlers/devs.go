@@ -28,7 +28,6 @@ func activeVcHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	activeChats := cache.ChatCache.GetActiveChats()
 	if len(activeChats) == 0 {
 		_, err := m.ReplyText(c, "No active chats found.", nil)
@@ -81,8 +80,6 @@ func clearAssistantsHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
-
 	done, err := db.Instance.ClearAllAssistants()
 	if err != nil {
 		_, _ = m.ReplyText(c, fmt.Sprintf("failed to clear assistants: %s", err.Error()), nil)
@@ -99,7 +96,6 @@ func leaveAllHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	
 	reply, err := m.ReplyText(c, "Assistant is leaving all chats...", nil)
 	if err != nil {
 		return err
@@ -120,8 +116,6 @@ func loggerHandler(c *td.Client, m *td.Message) error {
 	if !isDev(c, m) {
 		return td.EndGroups
 	}
-
-	
 
 	if config.LoggerId == 0 {
 		_, _ = m.ReplyText(c, "Please set LOGGER_ID in .env first.", nil)

@@ -22,7 +22,7 @@ import (
 
 // pingHandler handles the /ping command.
 func pingHandler(c *td.Client, m *td.Message) error {
-	
+
 	start := time.Now()
 
 	msg, err := m.ReplyText(c, "Pinging… please wait…", nil)
@@ -48,7 +48,7 @@ func pingHandler(c *td.Client, m *td.Message) error {
 // startHandler handles the /start command.
 func startHandler(c *td.Client, m *td.Message) error {
 	chatID := m.ChatId
-	
+
 	if m.IsPrivate() {
 		go func(chatID int64) {
 			_ = db.Instance.AddUser(chatID)

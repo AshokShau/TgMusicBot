@@ -109,7 +109,7 @@ func (db *Database) GetBlacklistedUsers() []int64 {
 	var doc struct {
 		UserIDs []int64 `bson:"user_ids"`
 	}
-	
+
 	ctx, cancel := db.ctx()
 	defer cancel()
 

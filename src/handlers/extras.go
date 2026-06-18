@@ -59,7 +59,6 @@ var replyOpts = &gotdbot.SendTextMessageOpts{
 // isDev checks if the user is a developer.
 // It returns true if the user is a developer, otherwise false.
 func isDev(c *gotdbot.Client, m *gotdbot.Message) bool {
-	
 
 	for _, dev := range config.DEVS {
 		if dev == m.SenderID() {
