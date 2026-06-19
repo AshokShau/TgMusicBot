@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/AshokShau/gotdbot v0.9.4-0.20260615093546-68cb5390ddbb
-	github.com/amarnathcjd/gogram v1.7.6
+	github.com/amarnathcjd/gogram v1.7.3
 	github.com/joho/godotenv v1.5.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	go.mongodb.org/mongo-driver/v2 v2.7.0
