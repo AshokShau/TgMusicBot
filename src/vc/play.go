@@ -111,7 +111,7 @@ func (c *TelegramCalls) playMedia(bot *td.Client, chatID int64, filePath string,
 
 	logger.Debug("Playing media in chat", "id", chatID, "path", filePath, "index", index)
 
-	mediaDesc := getMediaDescription(filePath, video, ffmpegParameters)
+	mediaDesc := getMediaDescription(filePath, video, chatID, ffmpegParameters)
 	if err := call.Play(context.Background(), chatID, mediaDesc); err != nil {
 		cache.ChatCache.ClearChat(chatID)
 		return err

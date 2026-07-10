@@ -81,7 +81,7 @@ func ytPost(ctx context.Context, path string, extraFields map[string]any) (map[s
 	}
 
 	var out map[string]any
-	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+	if err := json.NewDecoder(io.LimitReader(res.Body, 10*1024*1024)).Decode(&out); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 	return out, nil
@@ -127,7 +127,7 @@ func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
 	}
 
 	var data map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10*1024*1024)).Decode(&data); err != nil {
 		return nil, fmt.Errorf("decode search response: %w", err)
 	}
 
@@ -145,45 +145,44 @@ func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
 }
 
 func parseResults(node any, tracks *[]utils.MusicTrack, limit int) {
-	if len(*tracks) >= limit {
-		return
-	}
+	stack := []any{node}
+	for len(stack) > 0 && len(*tracks) < limit {
+		curr := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
 
-	switch v := node.(type) {
-	case []any:
-		for _, item := range v {
-			if len(*tracks) >= limit {
-				return
+		switch v := curr.(type) {
+		case []any:
+			for i := len(v) - 1; i >= 0; i-- {
+				stack = append(stack, v[i])
 			}
-			parseResults(item, tracks, limit)
-		}
 
-	case map[string]any:
-		if vr, ok := dig(v, "videoRenderer").(map[string]any); ok {
-			if isLiveNow(vr) {
-				return
+		case map[string]any:
+			if vr, ok := dig(v, "videoRenderer").(map[string]any); ok {
+				if isLiveNow(vr) {
+					continue
+				}
+				id := safeString(vr["videoId"])
+				title := safeString(dig(vr, "title", "runs", 0, "text"))
+				durationText := safeString(dig(vr, "lengthText", "simpleText"))
+				if id == "" || title == "" || durationText == "" {
+					continue
+				}
+				*tracks = append(*tracks, utils.MusicTrack{
+					Id:        id,
+					Url:       ytWatchURL + id,
+					Title:     title,
+					Thumbnail: safeString(dig(vr, "thumbnail", "thumbnails", 0, "url")),
+					Duration:  parseDuration(durationText),
+					Views:     safeString(dig(vr, "viewCountText", "simpleText")),
+					Channel:   safeString(dig(vr, "ownerText", "runs", 0, "text")),
+					Platform:  utils.YouTube,
+				})
+				continue
 			}
-			id := safeString(vr["videoId"])
-			title := safeString(dig(vr, "title", "runs", 0, "text"))
-			durationText := safeString(dig(vr, "lengthText", "simpleText"))
-			if id == "" || title == "" || durationText == "" {
-				return
-			}
-			*tracks = append(*tracks, utils.MusicTrack{
-				Id:        id,
-				Url:       ytWatchURL + id,
-				Title:     title,
-				Thumbnail: safeString(dig(vr, "thumbnail", "thumbnails", 0, "url")),
-				Duration:  parseDuration(durationText),
-				Views:     safeString(dig(vr, "viewCountText", "simpleText")),
-				Channel:   safeString(dig(vr, "ownerText", "runs", 0, "text")),
-				Platform:  utils.YouTube,
-			})
-			return
-		}
 
-		for _, child := range v {
-			parseResults(child, tracks, limit)
+			for _, child := range v {
+				stack = append(stack, child)
+			}
 		}
 	}
 }
@@ -223,7 +222,7 @@ func getYouTubeTitleFromOEmbed(videoID string) (string, error) {
 	var data struct {
 		Title string `json:"title"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1*1024*1024)).Decode(&data); err != nil {
 		return "", fmt.Errorf("failed to decode oEmbed response: %w", err)
 	}
 
@@ -257,7 +256,7 @@ func getYouTubePlaylist(ctx context.Context, playlistID string) (utils.PlatformT
 	return buildTrackList(videos, mapYTVideo), nil
 }
 
-func getYouTubeMixPlaylist(ctx context.Context, playlistID string) (utils.PlatformTracks, error) {
+func GetYouTubeMixPlaylist(ctx context.Context, playlistID string) (utils.PlatformTracks, error) {
 	resp, err := ytPost(ctx, "/youtubei/v1/next", map[string]any{"playlistId": playlistID})
 	if err != nil {
 		return utils.PlatformTracks{}, err

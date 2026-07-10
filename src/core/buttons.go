@@ -16,40 +16,48 @@ import (
 	"github.com/AshokShau/gotdbot"
 )
 
-func cb(text, data string) gotdbot.InlineKeyboardButton {
+func cb(text, data string, style gotdbot.ButtonStyle) gotdbot.InlineKeyboardButton {
 	return gotdbot.InlineKeyboardButton{
 		Text: text,
 		Type: &gotdbot.InlineKeyboardButtonTypeCallback{
 			Data: []byte(data),
 		},
+		Style: style,
 	}
 }
 
-func url(text, link string) gotdbot.InlineKeyboardButton {
+func userId(text string, userId int64, style gotdbot.ButtonStyle) gotdbot.InlineKeyboardButton {
+	return gotdbot.InlineKeyboardButton{
+		Text:  text,
+		Type:  &gotdbot.InlineKeyboardButtonTypeUser{UserId: userId},
+		Style: style,
+	}
+}
+
+func url(text, link string, style gotdbot.ButtonStyle) gotdbot.InlineKeyboardButton {
 	return gotdbot.InlineKeyboardButton{
 		Text: text,
 		Type: &gotdbot.InlineKeyboardButtonTypeUrl{
 			Url: link,
 		},
+		Style: style,
 	}
 }
 
-var CloseBtn = cb("Close", "vcplay_close")
-var HomeBtn = cb("Home", "help_back")
-var HelpBtn = cb("Help", "help_all")
-var UserBtn = cb("Users", "help_user")
-var AdminBtn = cb("Admins", "help_admin")
-var OwnerBtn = cb("Owner", "help_owner")
-var DevsBtn = cb("Devs", "help_devs")
-var PlaylistBtn = cb("Playlist", "help_playlist")
+var CloseBtn = cb("Close", "vcplay_close", gotdbot.ButtonStyleDanger{})
+var HomeBtn = cb("Home", "help_back", gotdbot.ButtonStylePrimary{})
+var HelpBtn = cb("Help", "help_all", gotdbot.ButtonStyleDefault{})
+var UserBtn = cb("Users", "help_user", gotdbot.ButtonStyleDefault{})
+var AdminBtn = cb("Admins", "help_admin", gotdbot.ButtonStyleDefault{})
+var OwnerBtn = cb("Owner", "help_owner", gotdbot.ButtonStyleDefault{})
+var DevsBtn = cb("Devs", "help_devs", gotdbot.ButtonStyleDefault{})
+var PlaylistBtn = cb("Playlist", "help_playlist", gotdbot.ButtonStyleDefault{})
 
-var SourceCodeBtn = url("Source Code", "https://github.com/AshokShau/TgMusicBot")
+var SourceCodeBtn = url("Source Code", "https://github.com/AshokShau/TgMusicBot", gotdbot.ButtonStylePrimary{})
+var channelBtn = url("Updates", config.SupportChannel, gotdbot.ButtonStyleDefault{})
+var groupBtn = url("Group", config.SupportGroup, gotdbot.ButtonStyleDefault{})
 
 func SupportKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
-
-	channelBtn := url("Updates", config.SupportChannel)
-	groupBtn := url("Group", config.SupportGroup)
-
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
 			{channelBtn, groupBtn},
@@ -59,8 +67,6 @@ func SupportKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 }
 
 func SupportBtn() *gotdbot.ReplyMarkupInlineKeyboard {
-	channelBtn := url("Updates", config.SupportChannel)
-	groupBtn := url("Group", config.SupportGroup)
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
 			{channelBtn, groupBtn},
@@ -92,20 +98,20 @@ func SettingsKeyboard(playMode, adminMode string, cmdDelete bool, language strin
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
 			{
-				cb("Play Mode ➜", "settings_main"),
-				cb(playText, "settings_play"),
+				cb("Play Mode ➜", "settings_main", gotdbot.ButtonStyleDefault{}),
+				cb(playText, "settings_play", gotdbot.ButtonStyleDefault{}),
 			},
 			{
-				cb("Command Delete ➜", "settings_main"),
-				cb(deleteText, "settings_delete"),
+				cb("Command Delete ➜", "settings_main", gotdbot.ButtonStyleDefault{}),
+				cb(deleteText, "settings_delete", gotdbot.ButtonStyleDefault{}),
 			},
 			{
-				cb("Admin Mode ➜", "settings_main"),
-				cb(adminText, "settings_admin"),
+				cb("Admin Mode ➜", "settings_main", gotdbot.ButtonStyleDefault{}),
+				cb(adminText, "settings_admin", gotdbot.ButtonStyleDefault{}),
 			},
 			{
-				cb("Language ➜", "settings_main"),
-				cb(langText, "settings_lang"),
+				cb("Language ➜", "settings_main", gotdbot.ButtonStyleDefault{}),
+				cb(langText, "settings_lang", gotdbot.ButtonStyleDefault{}),
 			},
 			{CloseBtn},
 		},
@@ -113,7 +119,6 @@ func SettingsKeyboard(playMode, adminMode string, cmdDelete bool, language strin
 }
 
 func HelpMenuKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
-
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
 			{UserBtn, AdminBtn, OwnerBtn},
@@ -133,13 +138,13 @@ func BackHelpMenuKeyboard() *gotdbot.ReplyMarkupInlineKeyboard {
 }
 
 func ControlButtons(mode string) *gotdbot.ReplyMarkupInlineKeyboard {
-	skipBtn := cb("‣‣I", "play_skip")
-	stopBtn := cb("▢", "play_stop")
-	pauseBtn := cb("II", "play_pause")
-	resumeBtn := cb("▷", "play_resume")
-	muteBtn := cb("🔇", "play_mute")
-	unmuteBtn := cb("🔊", "play_unmute")
-	addToPlaylistBtn := cb("➕", "play_add_to_list")
+	skipBtn := cb("‣‣I", "play_skip", gotdbot.ButtonStyleDefault{})
+	stopBtn := cb("▢", "play_stop", gotdbot.ButtonStyleDefault{})
+	pauseBtn := cb("II", "play_pause", gotdbot.ButtonStyleDefault{})
+	resumeBtn := cb("▷", "play_resume", gotdbot.ButtonStyleDefault{})
+	muteBtn := cb("🔇", "play_mute", gotdbot.ButtonStyleDefault{})
+	unmuteBtn := cb("🔊", "play_unmute", gotdbot.ButtonStyleDefault{})
+	addToPlaylistBtn := cb("➕", "play_add_to_list", gotdbot.ButtonStylePrimary{})
 
 	switch mode {
 
@@ -197,10 +202,8 @@ func AddMeMarkup(username string) *gotdbot.ReplyMarkupInlineKeyboard {
 	addMeBtn := url(
 		"Aᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ",
 		fmt.Sprintf("https://t.me/%s?startgroup=true", username),
+		gotdbot.ButtonStylePrimary{},
 	)
-
-	channelBtn := url("Updates", config.SupportChannel)
-	groupBtn := url("Group", config.SupportGroup)
 
 	return &gotdbot.ReplyMarkupInlineKeyboard{
 		Rows: [][]gotdbot.InlineKeyboardButton{
@@ -208,6 +211,18 @@ func AddMeMarkup(username string) *gotdbot.ReplyMarkupInlineKeyboard {
 			{HelpBtn},
 			{channelBtn, groupBtn},
 			{SourceCodeBtn},
+		},
+	}
+}
+
+func PlayNowButton(trackID string) gotdbot.InlineKeyboardButton {
+	return cb("Play Now", fmt.Sprintf("play_now_%s", trackID), gotdbot.ButtonStyleDanger{})
+}
+
+func QueueMarkup(trackID string) *gotdbot.ReplyMarkupInlineKeyboard {
+	return &gotdbot.ReplyMarkupInlineKeyboard{
+		Rows: [][]gotdbot.InlineKeyboardButton{
+			{PlayNowButton(trackID), CloseBtn},
 		},
 	}
 }

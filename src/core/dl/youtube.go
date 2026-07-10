@@ -80,7 +80,7 @@ func (y *youTubeData) getInfo() (utils.PlatformTracks, error) {
 	switch {
 	case playlistID != "":
 		if strings.HasPrefix(playlistID, "RD") {
-			return getYouTubeMixPlaylist(ctx, playlistID)
+			return GetYouTubeMixPlaylist(ctx, playlistID)
 		}
 		return getYouTubePlaylist(ctx, playlistID)
 
@@ -164,6 +164,10 @@ func (y *youTubeData) getTrack() (utils.TrackInfo, error) {
 
 // downloadTrack handles the download of a track from YouTube.
 func (y *youTubeData) downloadTrack(info utils.TrackInfo, video bool) (string, error) {
+	if !video && info.CdnURL != "" {
+		return info.CdnURL, nil
+	}
+
 	if !video && y.ApiUrl != "" && y.APIKey != "" {
 		if filePath, err := y.downloadWithApi(info.Id, video); err == nil {
 			return filePath, nil

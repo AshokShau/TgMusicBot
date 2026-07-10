@@ -30,17 +30,34 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 	var errMu sync.Mutex
 
 	c.mu.RLock()
-	var ubContexts []*Assistant
-	for _, call := range c.assistants {
-		ubContexts = append(ubContexts, call)
+	type assistantInfo struct {
+		index int
+		call  *Assistant
+	}
+	var ubContexts []assistantInfo
+	for index, call := range c.assistants {
+		ubContexts = append(ubContexts, assistantInfo{index, call})
 	}
 	c.mu.RUnlock()
 
-	for _, call := range ubContexts {
+	for _, info := range ubContexts {
+		c.leavingMu.Lock()
+		if c.leaving[info.index] {
+			c.leavingMu.Unlock()
+			continue
+		}
+		c.leaving[info.index] = true
+		c.leavingMu.Unlock()
+
 		wg.Add(1)
-		go func(ctx *Assistant) {
+		go func(info assistantInfo) {
 			defer wg.Done()
-			count, err := c.leaveAssistantDialogs(ctx)
+			defer func() {
+				c.leavingMu.Lock()
+				delete(c.leaving, info.index)
+				c.leavingMu.Unlock()
+			}()
+			count, err := c.leaveAssistantDialogs(info.call)
 			if err != nil {
 				errMu.Lock()
 				if firstErr == nil {
@@ -50,7 +67,7 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 				return
 			}
 			totalLeft.Add(int64(count))
-		}(call)
+		}(info)
 	}
 
 	wg.Wait()
@@ -58,6 +75,20 @@ func (c *TelegramCalls) LeaveAll() (int, error) {
 }
 
 func (c *TelegramCalls) LeaveAllForClient(index int) (int, error) {
+	c.leavingMu.Lock()
+	if c.leaving[index] {
+		c.leavingMu.Unlock()
+		return 0, nil
+	}
+	c.leaving[index] = true
+	c.leavingMu.Unlock()
+
+	defer func() {
+		c.leavingMu.Lock()
+		delete(c.leaving, index)
+		c.leavingMu.Unlock()
+	}()
+
 	c.mu.RLock()
 	call, ok := c.assistants[index]
 	c.mu.RUnlock()

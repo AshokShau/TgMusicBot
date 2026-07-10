@@ -9,7 +9,6 @@
 package handlers
 
 import (
-	"log/slog"
 	"time"
 
 	"github.com/AshokShau/gotdbot"
@@ -39,6 +38,7 @@ func LoadModules(c *gotdbot.Client) {
 	c.OnCommand("leaveAll", leaveAllHandler)
 	c.OnCommand("logger", loggerHandler)
 	c.OnCommand("privacy", privacyHandler)
+	c.OnCommand("autoplay", autoplayHandler)
 	c.OnCommand("loop", loopHandler)
 	c.OnCommand("pause", pauseHandler)
 	c.OnCommand("resume", resumeHandler)
@@ -49,7 +49,6 @@ func LoadModules(c *gotdbot.Client) {
 	c.OnCommand("seek", seekHandler)
 	c.OnCommand("sh", shellCommand)
 	c.OnCommand("skip", skipHandler)
-	c.OnCommand("speed", speedHandler)
 	c.OnCommand("stop", stopHandler)
 	c.OnCommand("end", stopHandler)
 	c.OnCommand("start", startHandler)
@@ -57,8 +56,12 @@ func LoadModules(c *gotdbot.Client) {
 	c.OnCommand("ping", pingHandler)
 	c.OnCommand("play", playHandler)
 	c.OnCommand("p", playHandler)
+	c.OnCommand("fplay", fPlayHandler)
+	c.OnCommand("fp", fPlayHandler)
 	c.OnCommand("vplay", vPlayHandler)
 	c.OnCommand("v", vPlayHandler)
+	c.OnCommand("fvplay", fVPlayHandler)
+	c.OnCommand("fvp", fVPlayHandler)
 	c.OnCommand("remove", removeHandler)
 	c.OnCommand("mute", muteHandler)
 	c.OnCommand("unmute", unmuteHandler)
@@ -77,9 +80,10 @@ func LoadModules(c *gotdbot.Client) {
 	c.OnUpdateNewCallbackQuery(playCallbackHandler, callbackquery.Prefix("play_"))
 	c.OnUpdateNewCallbackQuery(vcPlayHandler, callbackquery.Prefix("vcplay_"))
 	c.OnUpdateNewCallbackQuery(settingsCallbackHandler, callbackquery.Prefix("settings_"))
+	c.OnUpdateNewCallbackQuery(autoplayCallbackHandler, callbackquery.Equal("autoplay_toggle"))
 
 	c.OnUpdateChatMember(handleParticipant, nil)
 	c.OnUpdateNewMessage(handleVoiceChatMessage, nil)
 
-	slog.Debug("Handlers loaded successfully")
+	c.Logger.Debug("Handlers loaded successfully")
 }

@@ -13,14 +13,14 @@ import (
 	"ashokshau/tgmusic/src"
 	"ashokshau/tgmusic/src/core/dl"
 	"ashokshau/tgmusic/src/handlers"
+	"ashokshau/tgmusic/src/vc"
 	"fmt"
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"path/filepath"
-
-	"ashokshau/tgmusic/src/vc"
+	"time"
 
 	"github.com/AshokShau/gotdbot"
 )
@@ -59,11 +59,13 @@ func main() {
 	tdDir := "database"
 	_ = os.Remove(tdDir)
 	libPath := "./libtdjson.so.1.8.65"
+
 	manager := gotdbot.NewClientManager(libPath)
 
 	clientConfig := gotdbot.DefaultClientConfig()
 	clientConfig.AutoRetry = &gotdbot.AutoRetry{
 		ChatNotFound: true,
+		MaxFloodWait: 5 * time.Second,
 	}
 
 	clientConfig.DatabaseDirectory = tdDir

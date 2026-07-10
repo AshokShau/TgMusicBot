@@ -38,6 +38,8 @@ func handleVoiceChatMessage(c *td.Client, update *td.UpdateNewMessage) error {
 		return nil
 	}
 
+	go storeChatToDB(chatID)
+
 	if m.Content == nil {
 		return nil
 	}

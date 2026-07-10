@@ -30,6 +30,9 @@ type TelegramCalls struct {
 	clients     map[int]*tg.Client
 	statusCache *cache.Cache[td.ChatMemberStatus]
 	inviteCache *cache.Cache[string]
+
+	leavingMu sync.Mutex
+	leaving   map[int]bool
 }
 
 var (
@@ -45,6 +48,7 @@ func getCalls() *TelegramCalls {
 			clients:     make(map[int]*tg.Client),
 			statusCache: cache.NewCache[td.ChatMemberStatus](2 * time.Hour),
 			inviteCache: cache.NewCache[string](2 * time.Hour),
+			leaving:     make(map[int]bool),
 		}
 	})
 	return instance

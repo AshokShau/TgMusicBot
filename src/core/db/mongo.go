@@ -19,6 +19,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
 
 // Database encapsulates the MongoDB connection, database, collections, and caches.
@@ -73,17 +74,17 @@ func InitDatabase() error {
 		langDB:      db.Collection("lang"),
 		cacheDB:     db.Collection("cache"),
 
-		chatCache:      cache.NewCache[*Chats](20 * time.Minute),
-		userCache:      cache.NewCache[*Users](20 * time.Minute),
-		assistantCache: cache.NewCache[int](20 * time.Minute),
+		chatCache:      cache.NewCache[*Chats](60 * time.Minute),
+		userCache:      cache.NewCache[*Users](60 * time.Minute),
+		assistantCache: cache.NewCache[int](2 * time.Hour),
 		authCache:      cache.NewCache[[]int64](20 * time.Minute),
 		langCache:      cache.NewCache[string](20 * time.Minute),
-		loggerCache:    cache.NewCache[bool](20 * time.Minute),
+		loggerCache:    cache.NewCache[bool](24 * time.Hour),
 		blChatsCache:   cache.NewCache[[]int64](20 * time.Minute),
 		blUsersCache:   cache.NewCache[[]int64](20 * time.Minute),
 	}
 
-	if err := client.Ping(ctx, nil); err != nil {
+	if err := client.Ping(ctx, readpref.Primary()); err != nil {
 		return errors.New("failed to ping database: " + err.Error())
 	}
 

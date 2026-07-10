@@ -15,7 +15,9 @@ import (
 
 // ChatData holds the state of a chat's music queue.
 type ChatData struct {
-	Queue []*utils.CachedTrack
+	Queue            []*utils.CachedTrack
+	Autoplay         bool
+	LastYouTubeTrack *utils.CachedTrack
 }
 
 // ChatCacher is a thread-safe cache that manages music queues for multiple chats.
@@ -62,6 +64,62 @@ func (c *ChatCacher) AddSongs(chatID int64, songs []*utils.CachedTrack) int {
 	return len(data.Queue)
 }
 
+// AddSongToFront inserts a song after the currently playing song (at index 1).
+// If the queue is empty, it's the same as AddSong.
+func (c *ChatCacher) AddSongToFront(chatID int64, song *utils.CachedTrack) int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data := c.getOrCreate(chatID)
+	if len(data.Queue) == 0 {
+		data.Queue = append(data.Queue, song)
+	} else {
+		newQueue := make([]*utils.CachedTrack, len(data.Queue)+1)
+		newQueue[0] = data.Queue[0]
+		newQueue[1] = song
+		copy(newQueue[2:], data.Queue[1:])
+		data.Queue = newQueue
+	}
+	return len(data.Queue)
+}
+
+// MoveTrackToFront moves a track with the given trackID to the front (after the current song).
+func (c *ChatCacher) MoveTrackToFront(chatID int64, trackID string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok || len(data.Queue) < 2 {
+		return false
+	}
+
+	index := -1
+	for i, t := range data.Queue {
+		if i == 0 {
+			continue
+		}
+		if t.TrackID == trackID {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		return false
+	}
+
+	track := data.Queue[index]
+	data.Queue = append(data.Queue[:index], data.Queue[index+1:]...)
+
+	newQueue := make([]*utils.CachedTrack, len(data.Queue)+1)
+	newQueue[0] = data.Queue[0]
+	newQueue[1] = track
+	copy(newQueue[2:], data.Queue[1:])
+	data.Queue = newQueue
+
+	return true
+}
+
 // GetPlayingTrack returns the first track in the queue, or nil if empty.
 func (c *ChatCacher) GetPlayingTrack(chatID int64) *utils.CachedTrack {
 	c.mu.RLock()
@@ -97,6 +155,9 @@ func (c *ChatCacher) RemoveCurrentSong(chatID int64) *utils.CachedTrack {
 	}
 
 	removed := data.Queue[0]
+	if removed.Platform == utils.YouTube {
+		data.LastYouTubeTrack = removed
+	}
 	data.Queue[0] = nil
 	data.Queue = data.Queue[1:]
 	return removed
@@ -126,6 +187,36 @@ func (c *ChatCacher) IsActive(chatID int64) bool {
 
 	data, ok := c.chatCache[chatID]
 	return ok && len(data.Queue) > 0
+}
+
+// GetAutoplay returns the autoplay status for a chat.
+func (c *ChatCacher) GetAutoplay(chatID int64) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	data, ok := c.chatCache[chatID]
+	return ok && data.Autoplay
+}
+
+// SetAutoplay sets the autoplay status for a chat.
+func (c *ChatCacher) SetAutoplay(chatID int64, state bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	data := c.getOrCreate(chatID)
+	data.Autoplay = state
+}
+
+// GetLastYouTubeTrack returns the last played YouTube track for a chat.
+func (c *ChatCacher) GetLastYouTubeTrack(chatID int64) *utils.CachedTrack {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	data, ok := c.chatCache[chatID]
+	if !ok {
+		return nil
+	}
+	return data.LastYouTubeTrack
 }
 
 // ClearChat deletes all queued tracks for a chat.

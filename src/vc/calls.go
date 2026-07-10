@@ -150,6 +150,7 @@ func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
 		return err
 	}
 
+	cache.ChatCache.SetAutoplay(chatId, false)
 	cache.ChatCache.ClearChat(chatId)
 	err = call.stopCall(chatId, banned)
 	if err != nil {
@@ -263,36 +264,6 @@ func (c *TelegramCalls) SeekStream(bot *td.Client, chatID int64, filePath string
 	return c.PlayMedia(bot, chatID, filePath, isVideo, ffmpegParams)
 }
 
-// ChangeSpeed modifies the playback speed of the current stream.
-func (c *TelegramCalls) ChangeSpeed(bot *td.Client, chatID int64, speed float64) error {
-	if speed < 0.5 || speed > 4.0 {
-		return errors.New("invalid speed. Value must be between 0.5 and 4.0")
-	}
-
-	playingSong := cache.ChatCache.GetPlayingTrack(chatID)
-	if playingSong == nil {
-		return errors.New("the bot isn't streaming in the video chat")
-	}
-
-	videoPTS := 1 / speed
-
-	var audioFilterBuilder strings.Builder
-	remaining := speed
-	for remaining > 2.0 {
-		audioFilterBuilder.WriteString("atempo=2.0,")
-		remaining /= 2.0
-	}
-	for remaining < 0.5 {
-		audioFilterBuilder.WriteString("atempo=0.5,")
-		remaining /= 0.5
-	}
-	audioFilterBuilder.WriteString(fmt.Sprintf("atempo=%f", remaining))
-	audioFilter := audioFilterBuilder.String()
-
-	ffmpegFilters := fmt.Sprintf("-filter:v setpts=%f*PTS -filter:a %s", videoPTS, audioFilter)
-	return c.PlayMedia(bot, chatID, playingSong.FilePath, playingSong.IsVideo, ffmpegFilters)
-}
-
 // RegisterHandlers sets up the event handlers for the voice call client.
 func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 	c.startAutoLeave(context.Background(), client)
@@ -308,14 +279,16 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 			}
 		})
 
-		_, err := call.App.SendMessage(client.Me.Usernames.EditableUsername, "/start")
-		if err != nil {
-			call.App.Logger.Warnf("failed to start bot: %v", err)
-		}
+		go func() {
+			_, err := call.App.SendMessage(client.Me.Usernames.EditableUsername, "/start")
+			if err != nil {
+				call.App.Logger.Warnf("failed to start bot: %v", err)
+			}
 
-		_, err = call.App.SendMessage(config.LoggerId, "Userbot started.")
-		if err != nil {
-			call.App.Logger.Warnf("Failed to send message: %v", err)
-		}
+			_, err = call.App.SendMessage(config.LoggerId, "Userbot started.")
+			if err != nil {
+				call.App.Logger.Warnf("Failed to send message: %v", err)
+			}
+		}()
 	}
 }

@@ -293,11 +293,22 @@ func sendJoinLog(client *gotdbot.Client, chatID int64, _ *gotdbot.Supergroup) {
 	}
 }
 
-// storeChatToDB persists the chat ID in the database; runs in a goroutine.
+// storeChatToDB persists the chat ID in the database
 func storeChatToDB(chatID int64) {
 	slog.Debug("Storing chat reference", "chat_id", chatID)
-	if err := db.Instance.AddChat(chatID); err != nil {
-		slog.Error("Failed to add chat to database", "chat_id", chatID, "error", err)
+	switch {
+	case chatID > 0:
+		if err := db.Instance.AddUser(chatID); err != nil {
+			slog.Error("Failed to store user reference", "chat_id", chatID, "error", err)
+		}
+
+	case chatID < 0:
+		if err := db.Instance.AddChat(chatID); err != nil {
+			slog.Error("Failed to add chat to database", "chat_id", chatID, "error", err)
+		}
+
+	default:
+		slog.Warn("Invalid chat ID", "chat_id", chatID)
 	}
 }
 

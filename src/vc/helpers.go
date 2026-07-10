@@ -13,7 +13,9 @@ import (
 	"ashokshau/tgmusic/src/core/dl"
 	"ashokshau/tgmusic/src/utils"
 	"context"
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -50,13 +52,56 @@ func (c *TelegramCalls) PlayNext(bot *td.Client, chatID int64) error {
 		}
 	}
 
-	if nextSong := cache.ChatCache.GetUpcomingTrack(chatID); nextSong != nil {
-		cache.ChatCache.RemoveCurrentSong(chatID)
+	cache.ChatCache.RemoveCurrentSong(chatID)
+	if nextSong := cache.ChatCache.GetPlayingTrack(chatID); nextSong != nil {
 		return c.playSong(bot, chatID, nextSong)
 	}
 
-	cache.ChatCache.RemoveCurrentSong(chatID)
+	lastSong := cache.ChatCache.GetLastYouTubeTrack(chatID)
+	if lastSong != nil && cache.ChatCache.GetAutoplay(chatID) {
+		return c.handleAutoplay(bot, chatID, lastSong)
+	}
+
 	return c.handleNoSong(bot, chatID)
+}
+
+func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastSong *utils.CachedTrack) error {
+	playlistID := "RD" + lastSong.TrackID
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tracks, err := dl.GetYouTubeMixPlaylist(ctx, playlistID)
+	if err != nil || len(tracks.Results) == 0 {
+		return c.handleNoSong(bot, chatID)
+	}
+
+	var candidates []utils.MusicTrack
+	for _, t := range tracks.Results {
+		if t.Id != lastSong.TrackID {
+			candidates = append(candidates, t)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return c.handleNoSong(bot, chatID)
+	}
+
+	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(candidates))))
+	var nextTrack utils.MusicTrack
+	if err != nil {
+		nextTrack = candidates[0]
+	} else {
+		nextTrack = candidates[n.Int64()]
+	}
+
+	saveCache := &utils.CachedTrack{
+		URL: nextTrack.Url, Name: nextTrack.Title, User: "Autoplay",
+		Thumbnail: nextTrack.Thumbnail, TrackID: nextTrack.Id, Duration: nextTrack.Duration,
+		Channel: nextTrack.Channel, Views: nextTrack.Views, IsVideo: lastSong.IsVideo, Platform: utils.YouTube,
+	}
+
+	cache.ChatCache.AddSong(chatID, saveCache)
+	return c.playSong(bot, chatID, saveCache)
 }
 
 // handleNoSong manages the situation where there are no more songs in the queue by stopping the playback
@@ -108,10 +153,8 @@ func getVideoDimensions(filePath string) (int, int) {
 // UpdateMembership updates the membership status of a user in a specific chat.
 func (c *TelegramCalls) UpdateMembership(chatId, userId int64, status td.ChatMemberStatus) {
 	cacheKey := fmt.Sprintf("%d:%d", chatId, userId)
-	if c.statusCache != nil {
-		c.statusCache.Set(cacheKey, status)
-		logger.Info("[UpdateMembership] The cache has been updated: chat= user= status=", "chat_id", chatId, "user_id", userId, "arg3", status)
-	}
+	c.statusCache.Set(cacheKey, status)
+	logger.Info("[UpdateMembership] The cache has been updated:", "chat_id", chatId, "user_id", userId, "status", status)
 }
 
 // UpdateInviteLink updates the invite link for a specific chat.
