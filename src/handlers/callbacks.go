@@ -25,10 +25,6 @@ import (
 
 func playCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	data := cb.DataString()
-	if strings.Contains(data, "play_verify") {
-		_ = cb.Answer(c, 0, false, "", fmt.Sprintf("https://t.me/%s?start=help", c.Me.Usernames.EditableUsername))
-		return nil
-	}
 	if !adminModeCB(c, cb) {
 		return td.EndGroups
 	}
