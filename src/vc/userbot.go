@@ -85,12 +85,11 @@ func (c *TelegramCalls) recoverBannedAssistant(bot *td.Client, chatID int64, cal
 	}
 
 	if isBanned {
-		if err := bot.SetChatMemberStatus(
-			chatID,
-			td.MessageSenderUser{UserId: ubID},
-			&td.ChatMemberStatusMember{},
-		); err != nil {
+		if err = bot.SetChatMemberStatus(chatID, td.MessageSenderUser{UserId: ubID}, &td.ChatMemberStatusMember{}); err != nil {
 			logger.Warn("failed to unban assistant", "ub_id", ubID, "error", err, "index", index)
+			if !strings.Contains(err.Error(), "Bots can't add new chat members") {
+				return err
+			}
 		}
 
 		return c.joinUb(bot, chatID, call, index)

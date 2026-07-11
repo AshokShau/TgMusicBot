@@ -55,14 +55,23 @@ func startHandler(c *td.Client, m *td.Message) error {
 		}(chatID)
 
 		response := fmt.Sprintf(
-			"Hey %s,\nThis is %s !\n\n<b>Supported Platforms:</b> YouTube, Spotify, Apple Music, SoundCloud, MXPlayer, Deezer, Twitch, Kick....\n\n<b><i>Click on the help button for more info.</i></b>",
+			"<img src=\"%s\"/>\n"+
+				"<h3>Welcome, %s!</h3>\n"+
+				"<p><b>%s</b> lets you stream high-quality music and video directly in Telegram voice and video chats.</p>\n\n"+
+				"<p><b>Supported platforms:</b> YouTube, Spotify, Apple Music, SoundCloud, Deezer, Twitch, and many more.</p>\n\n"+
+				"<p>Use the buttons below to add the bot to your group or explore the available commands.</p>",
+			config.StartImg,
 			firstName(c, m),
 			c.Me.FirstName,
 		)
 
-		_, err := m.ReplyPhoto(c, td.InputFileRemote{Id: config.StartImg}, &td.SendPhotoOpts{
-			ParseMode:   "HTML",
-			Caption:     response,
+		richMessage := &td.InputRichMessage{
+			Source: &td.RichMessageSourceHtml{
+				Text: response,
+			},
+		}
+
+		_, err := m.ReplyRichMessage(c, richMessage, &td.SendTextMessageOpts{
 			ReplyMarkup: core.AddMeMarkup(c.Me.Usernames.EditableUsername),
 		})
 
@@ -74,18 +83,22 @@ func startHandler(c *td.Client, m *td.Message) error {
 	}(chatID)
 
 	uptime := getFormattedDuration(time.Since(startTime))
-	response := fmt.Sprintf(
-		"<b>🎵 %s is ready</b>\n"+
-			"<b>Uptime:</b> <code>%s</code>\n\n"+
-			"<i>A music player bot with some awesome and useful features.</i>",
+	htmlText := fmt.Sprintf(
+		"<h3>%s is ready!</h3>\n"+
+			"<p><b>Uptime:</b> <code>%s</code></p>\n"+
+			"<p><i>A feature-rich music bot for your group video chats. Play your favorite tracks seamlessly.</i></p>",
 		c.Me.FirstName,
 		uptime,
 	)
 
-	_, err := m.ReplyText(c, response, &td.SendTextMessageOpts{
-		ParseMode:             "HTML",
-		DisableWebPagePreview: true,
-		ReplyMarkup:           core.SupportBtn(),
+	richMessage := &td.InputRichMessage{
+		Source: &td.RichMessageSourceHtml{
+			Text: htmlText,
+		},
+	}
+
+	_, err := m.ReplyRichMessage(c, richMessage, &td.SendTextMessageOpts{
+		ReplyMarkup: core.SupportBtn(),
 	})
 
 	return err

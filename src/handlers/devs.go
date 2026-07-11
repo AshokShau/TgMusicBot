@@ -11,10 +11,12 @@ package handlers
 import (
 	"ashokshau/tgmusic/config"
 	"fmt"
+	"html"
 	"strings"
 
 	"ashokshau/tgmusic/src/core/cache"
 	"ashokshau/tgmusic/src/core/db"
+	"ashokshau/tgmusic/src/utils"
 	"ashokshau/tgmusic/src/vc"
 
 	td "github.com/AshokShau/gotdbot"
@@ -29,49 +31,65 @@ func activeVcHandler(c *td.Client, m *td.Message) error {
 	}
 
 	activeChats := cache.ChatCache.GetActiveChats()
-	if len(activeChats) == 0 {
-		_, err := m.ReplyText(c, "No active chats found.", nil)
-		return err
-	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("🎵 <b>Active Voice Chats</b> (%d):\n\n", len(activeChats)))
+	sb.WriteString("<h3>🎵 Active Voice Chats</h3>")
 
-	for _, chatID := range activeChats {
-		queueLength := cache.ChatCache.GetQueueLength(chatID)
-		currentSong := cache.ChatCache.GetPlayingTrack(chatID)
+	if len(activeChats) == 0 {
+		sb.WriteString("<blockquote><b>🔇 No Active Chats:</b> There are currently no active voice or video chats.</blockquote>")
+	} else {
+		sb.WriteString(fmt.Sprintf("<p>There are currently <b>%d</b> active voice/video chat(s) running.</p>", len(activeChats)))
+		sb.WriteString("<details>")
+		sb.WriteString("<summary><b>📊 Click to Show Active Chats Table</b></summary>")
+		sb.WriteString("<br>")
+		sb.WriteString("<table bordered striped>")
+		sb.WriteString("<tr>")
+		sb.WriteString("<th align='center'><b>#</b></th>")
+		sb.WriteString("<th align='center'><b>Chat ID</b></th>")
+		sb.WriteString("<th align='center'><b>Queue</b></th>")
+		sb.WriteString("<th align='left'><b>Now Playing Track Info</b></th>")
+		sb.WriteString("<th align='center'><b>Type</b></th>")
+		sb.WriteString("</tr>")
 
-		var songInfo string
-		if currentSong != nil {
-			songInfo = fmt.Sprintf(
-				"🎶 <b>Now Playing:</b> <a href='%s'>%s</a> (%ds)",
-				currentSong.URL,
-				currentSong.Name,
-				currentSong.Duration,
-			)
-		} else {
-			songInfo = "🔇 No song playing."
+		for i, chatID := range activeChats {
+			queueLength := cache.ChatCache.GetQueueLength(chatID)
+			currentSong := cache.ChatCache.GetPlayingTrack(chatID)
+
+			var trackLink, trackType string
+			if currentSong != nil {
+				trackName := html.EscapeString(currentSong.Name)
+				trackURL := html.EscapeString(currentSong.URL)
+				if trackURL == "" {
+					trackURL = "https://t.me/FallenProjects"
+				}
+				durStr := utils.SecToMin(currentSong.Duration)
+				trackLink = fmt.Sprintf("<a href='%s'>%s</a> (%s)", trackURL, trackName, durStr)
+				if currentSong.IsVideo {
+					trackType = "<tg-emoji emoji-id='5368324170671202286'>🎥</tg-emoji> Video"
+				} else {
+					trackType = "<tg-emoji emoji-id='5368324170671202286'>🎵</tg-emoji> Audio"
+				}
+			} else {
+				trackLink = "<i>🔇 No song playing.</i>"
+				trackType = "<tg-emoji emoji-id='5368324170671202286'>🎵</tg-emoji> Audio"
+			}
+
+			sb.WriteString("<tr>")
+			sb.WriteString(fmt.Sprintf("<td align='center'>%d</td>", i+1))
+			sb.WriteString(fmt.Sprintf("<td align='center'><code>%d</code></td>", chatID))
+			sb.WriteString(fmt.Sprintf("<td align='center'>%d</td>", queueLength))
+			sb.WriteString(fmt.Sprintf("<td align='left'>%s</td>", trackLink))
+			sb.WriteString(fmt.Sprintf("<td align='center'>%s</td>", trackType))
+			sb.WriteString("</tr>")
 		}
-
-		sb.WriteString(fmt.Sprintf(
-			"➤ <b>Chat ID:</b> <code>%d</code>\n📌 <b>Queue Size:</b> %d\n%s\n\n",
-			chatID,
-			queueLength,
-			songInfo,
-		))
+		sb.WriteString("</table>")
+		sb.WriteString("</details>")
+		sb.WriteString("<br>")
 	}
 
-	text := sb.String()
-	if len(text) > 4096 {
-		text = fmt.Sprintf("🎵 <b>Active Voice Chats</b> (%d)", len(activeChats))
-	}
-
-	_, err := m.ReplyText(c, text, &td.SendTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	richMessage := &td.InputRichMessage{Source: &td.RichMessageSourceHtml{Text: sb.String()}}
+	_, err := m.ReplyRichMessage(c, richMessage, nil)
+	return err
 }
 
 // Handles the /clearass command to remove all assistant assignments
