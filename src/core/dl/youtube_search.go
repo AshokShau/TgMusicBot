@@ -23,10 +23,11 @@ import (
 )
 
 const (
-	ytBaseURL   = "https://www.youtube.com"
-	ytWatchURL  = ytBaseURL + "/watch?v="
-	ytAPIKey    = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
-	ytClientVer = "2.20240229.01.00"
+	ytBaseURL        = "https://www.youtube.com"
+	ytWatchURL       = ytBaseURL + "/watch?v="
+	ytAPIKey         = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"
+	ytClientVer      = "2.20250101.01.00"
+	defaultUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 )
 
 var (
@@ -37,6 +38,20 @@ var (
 	playlistIDRe2   = regexp.MustCompile(`list=([0-9A-Za-z_-]+)`)
 )
 
+func setYTHeaders(req *http.Request) {
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", defaultUserAgent)
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Origin", ytBaseURL)
+	req.Header.Set("Referer", ytBaseURL+"/")
+	req.Header.Set("X-YouTube-Client-Name", "1")
+	req.Header.Set("X-YouTube-Client-Version", ytClientVer)
+	req.Header.Set("Sec-Fetch-Mode", "cors")
+	req.Header.Set("Sec-Fetch-Site", "same-origin")
+	req.Header.Set("Sec-Fetch-Dest", "empty")
+}
+
 // ytContext returns the standard InnerTube context payload.
 func ytContext() map[string]any {
 	return map[string]any{
@@ -44,6 +59,8 @@ func ytContext() map[string]any {
 			"client": map[string]any{
 				"clientName":    "WEB",
 				"clientVersion": ytClientVer,
+				"hl":            "en",
+				"gl":            "US",
 			},
 		},
 	}
@@ -67,7 +84,7 @@ func ytPost(ctx context.Context, path string, extraFields map[string]any) (map[s
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
+	setYTHeaders(req)
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -88,17 +105,8 @@ func ytPost(ctx context.Context, path string, extraFields map[string]any) (map[s
 }
 
 func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
-	payload := map[string]any{
-		"context": map[string]any{
-			"client": map[string]any{
-				"clientName":    "WEB",
-				"clientVersion": "2.20250101.01.00",
-				"hl":            "en",
-				"gl":            "IN",
-			},
-		},
-		"query": query,
-	}
+	payload := ytContext()
+	payload["query"] = query
 
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -110,9 +118,7 @@ func searchYouTube(query string, limit int) ([]utils.MusicTrack, error) {
 	if err != nil {
 		return nil, fmt.Errorf("build search request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0")
-	req.Header.Set("Accept", "application/json")
+	setYTHeaders(req)
 
 	resp, err := client.Do(req)
 	if err != nil {
