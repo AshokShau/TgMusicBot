@@ -1,205 +1,445 @@
-# TgMusicBot
+<div align="center">
 
-TgMusicBot is a Telegram music and video bot written in Go. It streams audio and video into Telegram group voice chats using TDLib (`gotdbot`), `gogram`, and `ntgcalls` C bindings.
+<h1>🎵 TgMusicBot</h1>
 
-<h1 align="center">🎵 TGMusic Bot (Go)</h1>
+<p>
+  <b>A high-performance, low-latency Telegram audio and video streaming bot written in Go.</b>
+</p>
 
-<p align="center">
+<p>
   <a href="https://golang.org/">
-    <img src="https://img.shields.io/badge/Written%20in-Go-blue?style=for-the-badge&logo=go" alt="Written in Go">
+    <img src="https://img.shields.io/badge/Written%20in-Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Language">
   </a>
-  <a href="https://docs.docker.com/">
-    <img src="https://img.shields.io/badge/Docker-Enabled-blue?style=for-the-badge&logo=docker" alt="Docker">
+  <a href="https://www.docker.com/">
+    <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
   </a>
-  <a href="https://github.com/AshokShau/TgMusicBot/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-GPL%20v3-green?style=for-the-badge" alt="License">
+  <a href="https://github.com/AshokShau/TgMusicBot/blob/master/LICENSE">
+    <img src="https://img.shields.io/badge/License-GPL%20v3-4bc51d?style=for-the-badge" alt="License">
   </a>
   <a href="https://github.com/AshokShau/TgMusicBot/stargazers">
     <img src="https://img.shields.io/github/stars/AshokShau/TgMusicBot?style=for-the-badge&color=ffd700&logo=github" alt="Stars">
   </a>
-</p>
-
-<p align="center">
-  A high-performance, feature-rich Telegram Music Bot written in <b>Go</b>. <br>
-  Built with <code>gotdbot</code>, <code>ntgcalls</code>, and <code>mongo-driver</code>.
-</p>
-
-<p align="center">
-    <a href="https://heroku.com/deploy?template=https://github.com/AshokShau/TgMusicBot">
-        <img src="https://www.herokucdn.com/deploy/button.svg" alt="Heroku Deploy">
-    </a>
+  <a href="https://github.com/AshokShau/TgMusicBot/network/members">
+    <img src="https://img.shields.io/github/forks/AshokShau/TgMusicBot?style=for-the-badge&color=blue&logo=github" alt="Forks">
+  </a>
 </p>
 
 ---
 
+<p align="center">
+  TgMusicBot streams high-quality audio and up to 1080p video directly into Telegram group video chats.<br>
+  Engineered with <b>Go</b>, <code>gotdbot</code> (TDLib), <code>gogram</code>, and <code>ntgcalls</code> C bindings for efficient resource usage and minimal latency.
+</p>
 
-## Features
+</div>
 
-- High-performance audio and video streaming into Telegram voice chats.
-- Multiple streaming sources including YouTube, Spotify, direct HTTP audio links, and Telegram media files.
-- Media playback controls: play, force play, pause, resume, skip, stop, seek, loop, mute, and unmute.
-- Queue management and custom user playlists.
-- Admin access control and authorization system per chat.
-- Autoplay support for endless track playback.
-- Docker and Docker Compose deployment support.
+---
 
-## Supported Sources
+## 🔥 Key Features
 
-- YouTube (search queries, track links, playlist links)
-- Spotify (track and playlist links via external downloader API)
-- Direct audio and video URLs (HTTP/HTTPS streams)
-- Telegram audio and video files
+- **High-Performance Audio & Video**: Native Go core utilizing CGO bindings for efficient multi-track audio and video streaming in Telegram voice chats.
+- **Multiple Media Sources**: Search and play directly from YouTube, Spotify, SoundCloud, Apple Music, direct HTTP/HTTPS media streams, and Telegram audio/video files.
+- **Multi-Assistant Support**: Scale across up to 10 assistant userbot accounts (`STRING1` to `STRING10`) to serve multiple concurrent active voice chats.
+- **Queue & Custom Playlists**: Complete queue management with track ordering, skipping, seeking, looping, and personal user playlist support.
+- **Autoplay Recommendations**: Continuous music playback by automatically queuing recommended tracks when the current queue finishes.
+- **Chat Admin Controls**: Per-chat authorization list, admin-only playback permissions, customizable command deletion, and settings menu.
+- **Containerized Deployment**: Ready-to-use `Dockerfile` and `docker-compose.yml` preconfigured for single-command production deployment.
 
-## Requirements
+---
 
-- Go 1.26 or higher
-- C toolchain (GCC) with CGO enabled (`CGO_ENABLED=1`)
-- FFmpeg
-- yt-dlp
-- Deno
-- MongoDB instance (MongoDB Atlas or self-hosted)
-- Telegram API ID, API Hash, Bot Token, and Userbot Session String
+## 📋 Requirements
 
-## Quick Start
+Before deploying, ensure you have:
 
-1. Clone the repository:
+1. **Linux Server** (Ubuntu 22.04 LTS or Debian 12 recommended) or a **Docker environment**.
+2. **Go 1.26 or higher** (if installing manually without Docker).
+3. **MongoDB Database**: Free cluster on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) or a self-hosted instance.
+4. **Telegram API Credentials**: `API_ID` and `API_HASH` from [my.telegram.org](https://my.telegram.org).
+5. **Telegram Bot Token**: HTTP API token generated via [@BotFather](https://t.me/BotFather).
+6. **Assistant Session String**: Pyrogram or Telethon userbot session string for joining group voice chats.
 
-   ```bash
-   git clone https://github.com/AshokShau/TgMusicBot.git
-   cd TgMusicBot
-   ```
+---
 
-2. Copy the sample environment file and configure your credentials:
-
-   ```bash
-   cp sample.env .env
-   ```
-
-3. Download required TDLib binaries and `ntgcalls` C libraries:
-
-   ```bash
-   go run github.com/AshokShau/gotdbot/scripts/tools
-   go run setup_ntgcalls.go
-   ```
-
-4. Build and start the bot:
-
-   ```bash
-   CGO_ENABLED=1 go build -o tgmusic main.go
-   ./tgmusic
-   ```
-
-For detailed setup instructions on Linux, macOS, Windows, systemd, and Docker, refer to the [Installation Guide](installation.md).
-
-## Configuration Overview
-
-Key environment variables in `.env`:
-
-| Variable              | Required | Description                                                   |
-|-----------------------|----------|---------------------------------------------------------------|
-| `API_ID`              | Yes      | Telegram API ID from my.telegram.org                          |
-| `API_HASH`            | Yes      | Telegram API Hash from my.telegram.org                        |
-| `TOKEN`               | Yes      | Telegram Bot Token from @BotFather                            |
-| `STRING`              | Yes      | Pyrogram or Telethon session string for the assistant userbot |
-| `MONGO_URI`           | Yes      | MongoDB connection string                                     |
-| `OWNER_ID`            | Yes      | Telegram user ID of the bot owner                             |
-| `LOGGER_ID`           | No       | Telegram chat ID for logging startup and errors               |
-| `DEFAULT_SERVICE`     | No       | Default audio provider (`youtube` or `spotify`)               |
-| `SONG_DURATION_LIMIT` | No       | Maximum allowed playback duration in seconds (default: 3600)  |
-| `ENABLE_VPLAY`        | No       | Toggle video playback support (default: `true`)               |
-
-For a complete list of configuration options, see `sample.env` or the [Installation Guide](installation.md).
-
-## Commands
+## ⚙️ Environment Configuration
 
 <details>
-<summary>Playback Commands</summary>
+<summary><b>Click to view Environment Variables & Credentials Setup</b></summary>
 
-| Command                         | Description                                               |
-|---------------------------------|-----------------------------------------------------------|
-| `/play` or `/p [query/URL]`     | Play audio from YouTube, Spotify, URL, or Telegram file.  |
-| `/fplay` or `/fp [query/URL]`   | Force play audio immediately, interrupting current track. |
-| `/vplay` or `/v [query/URL]`    | Play video in the voice chat.                             |
-| `/fvplay` or `/fvp [query/URL]` | Force play video immediately.                             |
-| `/pause`                        | Pause current playback.                                   |
-| `/resume`                       | Resume paused playback.                                   |
-| `/skip`                         | Skip to the next track in queue.                          |
-| `/stop` or `/end`               | Stop playback and clear the queue.                        |
-| `/seek [seconds]`               | Seek to a specific timestamp in seconds.                  |
-| `/loop [enable/disable]`        | Loop the current track.                                   |
-| `/mute`                         | Mute the assistant in the voice chat.                     |
-| `/unmute`                       | Unmute the assistant in the voice chat.                   |
+<br>
 
-</details>
-
-<details>
-<summary>Queue & Playlist Commands</summary>
-
-| Command                  | Description                                      |
-|--------------------------|--------------------------------------------------|
-| `/queue`                 | Display the current playback queue.              |
-| `/remove [index]`        | Remove a specific track from the queue.          |
-| `/cplist [name]`         | Create a custom playlist.                        |
-| `/deleteplaylist [name]` | Delete a custom playlist.                        |
-| `/addtoplaylist`         | Add current or replied track to custom playlist. |
-| `/removefromplaylist`    | Remove track from custom playlist.               |
-| `/playlistinfo [name]`   | View tracks in a custom playlist.                |
-| `/myplaylists`           | List all your custom playlists.                  |
-
-</details>
-
-<details>
-<summary>Chat & Admin Commands</summary>
-
-| Command            | Description                                          |
-|--------------------|------------------------------------------------------|
-| `/join` or `/link` | Invite or join the assistant userbot to the chat.    |
-| `/auth`            | Grant bot admin rights in chat to a user.            |
-| `/removeAuth`      | Revoke bot admin rights from a user.                 |
-| `/authList`        | List authorized users in the chat.                   |
-| `/settings`        | Open interactive settings menu for chat preferences. |
-| `/autoplay`        | Toggle automatic recommendations when queue ends.    |
-| `/reload`          | Reload admin cache for the chat.                     |
-
-</details>
-
-<details>
-<summary>Owner & Developer Commands</summary>
-
-| Command               | Description                                   |
-|-----------------------|-----------------------------------------------|
-| `/active_vc` or `/av` | List active voice chats.                      |
-| `/broadcast`          | Broadcast message to all served chats.        |
-| `/stop_broadcast`     | Cancel ongoing broadcast.                     |
-| `/clearass`           | Reset assistant chat assignments.             |
-| `/leaveAll`           | Force assistant userbots to leave all chats.  |
-| `/logger`             | Toggle logging in log channel.                |
-| `/stats`              | View system performance and usage statistics. |
-| `/ping`               | Check bot latency and status.                 |
-
-</details>
-
-## Docker Usage
-
-Build and run using Docker Compose:
+Copy `sample.env` to create your configuration file:
 
 ```bash
-docker-compose up -d --build
+cp sample.env .env
 ```
 
-View logs:
+### Where to get credentials
+
+- **`API_ID` & `API_HASH`**: Log in to [my.telegram.org](https://my.telegram.org) with your Telegram phone number, select **API development tools**, and create an application.
+- **`TOKEN`**: Message [@BotFather](https://t.me/BotFather) on Telegram, send `/newbot`, follow the instructions, and copy the bot token provided.
+- **`STRING1` (or `STRING`)**: Generate a Pyrogram string session for your assistant account using a session generator bot or local script.
+- **`MONGO_URI`**: Register at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas), create a database cluster, go to **Database Access / Network Access** to permit connections, and copy the connection string (`mongodb+srv://...`).
+- **`OWNER_ID`**: Send `/id` to [@userinfobot](https://t.me/userinfobot) on Telegram to get your numeric user ID.
+
+### Environment Variables Reference
+
+| Variable              | Required | Default                       | Description                                                            |
+|-----------------------|:--------:|-------------------------------|------------------------------------------------------------------------|
+| `API_ID`              | **Yes**  | -                             | Telegram API ID from my.telegram.org.                                  |
+| `API_HASH`            | **Yes**  | -                             | Telegram API Hash from my.telegram.org.                                |
+| `TOKEN`               | **Yes**  | -                             | Telegram Bot Token from @BotFather.                                    |
+| `OWNER_ID`            | **Yes**  | -                             | Telegram User ID of the bot owner.                                     |
+| `MONGO_URI`           | **Yes**  | -                             | MongoDB connection URI string.                                         |
+| `STRING1`             | **Yes**  | -                             | Assistant session string (`STRING1` to `STRING10` or `STRING`).        |
+| `SESSION_TYPE`        |    No    | `pyrogram`                    | Session string format (`pyrogram` or `telethon`).                      |
+| `DB_NAME`             |    No    | `Anon`                        | Database name inside MongoDB.                                          |
+| `LOGGER_ID`           |    No    | `0`                           | Telegram chat/channel ID where bot startup logs and errors are sent.   |
+| `DEFAULT_SERVICE`     |    No    | `youtube`                     | Default search engine for track queries (`youtube` or `spotify`).      |
+| `SONG_DURATION_LIMIT` |    No    | `3600`                        | Maximum track duration allowed in seconds (default: 1 hour).           |
+| `MAX_FILE_SIZE`       |    No    | `524288000`                   | Maximum file download size limit in bytes (default: 500 MB).           |
+| `ENABLE_VPLAY`        |    No    | `true`                        | Enable or disable video streaming commands (`true` or `false`).        |
+| `AUTO_LEAVE`          |    No    | `false`                       | Automatically leave voice chat when idle or no members remain.         |
+| `COOKIES_URL`         |    No    | -                             | Comma-separated HTTP URLs pointing to raw YouTube `cookies.txt` files. |
+| `SUPPORT_GROUP`       |    No    | `https://t.me/FallenSupport`  | Support group URL shown in help menus.                                 |
+| `SUPPORT_CHANNEL`     |    No    | `https://t.me/FallenProjects` | Updates channel URL shown in help menus.                               |
+| `START_IMG`           |    No    | (default URL)                 | Direct image URL displayed in `/start` command response.               |
+| `DEVS`                |    No    | -                             | Space or comma separated list of additional developer user IDs.        |
+
+</details>
+
+---
+
+## 🚀 Deployment
+
+<details>
+<summary><b>Docker Deployment (Recommended)</b></summary>
+
+<br>
+
+Docker isolates all dependencies (Go 1.26, FFmpeg, yt-dlp, Deno, dynamic libraries) inside a container.
+
+#### 1. Install Docker & Docker Compose
+On Ubuntu / Debian:
 
 ```bash
-docker-compose logs -f
+sudo apt update
+sudo apt install -y docker.io docker-compose-v2
+sudo systemctl enable --now docker
 ```
 
-For more Docker options, see the [Installation Guide](installation.md#docker-deployment).
+#### 2. Clone Repository & Configure Environment
 
-## License
+```bash
+git clone https://github.com/AshokShau/TgMusicBot.git
+cd TgMusicBot
+cp sample.env .env
+nano .env
+```
 
-This project is licensed under the GNU General Public License v3.0. See the [LICENSE](../LICENSE) file for details.
+Fill in all required variables inside `.env` (`API_ID`, `API_HASH`, `TOKEN`, `OWNER_ID`, `MONGO_URI`, `STRING1`), then save and exit (`Ctrl + O`, `Enter`, `Ctrl + X`).
 
-## Support & Contact
+#### 3. Build & Run Container
 
-- Support Group: [Telegram Support](https://t.me/FallenSupport)
-- Channel: [Telegram Channel](https://t.me/FallenProjects)
+Using Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+Or using standard Docker CLI:
+
+```bash
+docker build -t tgmusic .
+docker run -d --name tgmusic --env-file .env --restart unless-stopped tgmusic
+```
+
+#### 4. Container Management
+
+- **View Logs**:
+  ```bash
+  docker compose logs -f
+  ```
+- **Stop Bot**:
+  ```bash
+  docker compose down
+  ```
+- **Restart Bot**:
+  ```bash
+  docker compose restart
+  ```
+
+</details>
+
+<details>
+<summary><b>Linux Setup (Ubuntu / Debian)</b></summary>
+
+<br>
+
+#### 1. Install System Dependencies
+
+```bash
+sudo apt update
+sudo apt install -y build-essential ffmpeg curl wget unzip git
+```
+
+Install **yt-dlp**:
+
+```bash
+sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+```
+
+Install **Deno** (required for YouTube download challenges):
+
+```bash
+curl -fsSL https://deno.land/install.sh | sh
+echo 'export DENO_INSTALL="$HOME/.deno"' >> ~/.bashrc
+echo 'export PATH="$DENO_INSTALL/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Install **Go** (1.26 or higher required):
+
+```bash
+wget https://go.dev/dl/go1.26.0.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.0.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
+```
+
+#### 2. Clone Repository & Prepare Configuration
+
+```bash
+git clone https://github.com/AshokShau/TgMusicBot.git
+cd TgMusicBot
+cp sample.env .env
+nano .env
+```
+
+Fill in your configuration settings in `.env`.
+
+#### 3. Fetch Required Dynamic Libraries & Build
+
+The bot uses precompiled C libraries for TDLib (`libtdjson`) and `ntgcalls`. Run the setup scripts before compiling:
+
+```bash
+# Download TDLib dynamic library
+go run github.com/AshokShau/gotdbot/scripts/tools
+
+# Download ntgcalls C libraries and headers
+go run setup_ntgcalls.go
+
+# Compile binary with CGO enabled
+CGO_ENABLED=1 go build -o tgmusic main.go
+```
+
+#### 4. Run the Bot
+
+Test run directly in terminal:
+
+```bash
+./tgmusic
+```
+
+#### 5. Background Execution
+
+To keep the bot running after disconnecting from SSH, use `tmux` or `screen`.
+
+##### Option A: Using `tmux`
+
+```bash
+# Start new session
+tmux new -s tgmusic
+
+# Run bot
+./tgmusic
+```
+Detach with `Ctrl + B`, then press `D`.  
+Reattach later: `tmux attach -t tgmusic`
+
+##### Option B: Using `screen`
+
+```bash
+# Start new screen session
+screen -S tgmusic
+
+# Run bot
+./tgmusic
+```
+Detach with `Ctrl + A`, then press `D`.  
+Reattach later: `screen -r tgmusic`
+
+</details>
+
+---
+
+## 🛠️ Bot Commands
+
+<details>
+<summary><b>Click to view Playback Commands</b></summary>
+
+<br>
+
+| Command               | Aliases | Access   | Description                                                                  |
+|-----------------------|---------|----------|------------------------------------------------------------------------------|
+| `/play <query/URL>`   | `/p`    | Everyone | Play audio from YouTube, Spotify, SoundCloud, direct link, or Telegram file. |
+| `/vplay <query/URL>`  | `/v`    | Everyone | Stream video in group video chat.                                            |
+| `/fplay <query/URL>`  | `/fp`   | Everyone | Force play audio immediately, interrupting current playback.                 |
+| `/fvplay <query/URL>` | `/fvp`  | Everyone | Force play video immediately.                                                |
+| `/pause`              | -       | Admin    | Pause current playback.                                                      |
+| `/resume`             | -       | Admin    | Resume paused playback.                                                      |
+| `/skip`               | -       | Admin    | Skip current track and play next in queue.                                   |
+| `/stop`               | `/end`  | Admin    | Stop playback and clear queue.                                               |
+| `/seek <seconds>`     | -       | Admin    | Jump to a timestamp in seconds.                                              |
+| `/loop <0-10>`        | -       | Admin    | Repeat the current track specified number of times.                          |
+| `/mute`               | -       | Admin    | Mute assistant in voice chat.                                                |
+| `/unmute`             | -       | Admin    | Unmute assistant in voice chat.                                              |
+
+</details>
+
+<details>
+<summary><b>Click to view Queue & Playlist Commands</b></summary>
+
+<br>
+
+| Command                  | Aliases           | Access   | Description                                   |
+|--------------------------|-------------------|----------|-----------------------------------------------|
+| `/queue`                 | -                 | Everyone | View current playback queue.                  |
+| `/remove <index>`        | -                 | Admin    | Remove specific track from queue by position. |
+| `/cplist <name>`         | `/createplaylist` | Everyone | Create a custom personal playlist.            |
+| `/deleteplaylist <name>` | -                 | Everyone | Delete a personal playlist.                   |
+| `/addtoplaylist`         | `/addtoplist`     | Everyone | Add track/reply message to personal playlist. |
+| `/removefromplaylist`    | `/rmplist`        | Everyone | Remove track from personal playlist.          |
+| `/playlistinfo <name>`   | `/plistinfo`      | Everyone | View tracks in a playlist.                    |
+| `/myplaylists`           | `/myplist`        | Everyone | List all your custom playlists.               |
+
+</details>
+
+<details>
+<summary><b>Click to view Admin & Group Setup Commands</b></summary>
+
+<br>
+
+| Command              | Aliases    | Access   | Description                                          |
+|----------------------|------------|----------|------------------------------------------------------|
+| `/join`              | `/link`    | Admin    | Invite assistant userbot to the group voice chat.    |
+| `/auth <user>`       | `/addAuth` | Admin    | Grant bot admin rights in chat to a user.            |
+| `/removeAuth <user>` | `/rmAuth`  | Admin    | Revoke bot admin rights from a user.                 |
+| `/authList`          | `/auths`   | Everyone | List authorized users in current chat.               |
+| `/settings`          | -          | Owner    | Open interactive settings menu for chat preferences. |
+| `/autoplay`          | -          | Admin    | Toggle autoplay for track recommendations.           |
+| `/reload`            | -          | Admin    | Refresh chat admin cache and invite links.           |
+
+</details>
+
+<details>
+<summary><b>Click to view Owner & Developer Commands</b></summary>
+
+<br>
+
+| Command            | Aliases            | Access   | Description                                       |
+|--------------------|--------------------|----------|---------------------------------------------------|
+| `/stats`           | -                  | Devs     | Display system resource usage and bot statistics. |
+| `/active_vc`       | `/av`              | Devs     | List all active voice chats across groups.        |
+| `/broadcast <msg>` | `/gCast`           | Owner    | Broadcast message to served chats.                |
+| `/stop_broadcast`  | `/stop_gcast`      | Owner    | Cancel active broadcast execution.                |
+| `/clearass`        | `/clearAssistants` | Devs     | Reset assistant assignments.                      |
+| `/leaveAll`        | -                  | Devs     | Make assistants leave all chats.                  |
+| `/logger`          | -                  | Devs     | View logging channel status.                      |
+| `/ping`            | -                  | Everyone | Check bot latency and uptime status.              |
+
+</details>
+
+---
+
+## 🔄 Updating the Bot
+
+When new updates are released, update your deployment using the steps below:
+
+### Docker Deployment Update
+
+```bash
+cd TgMusicBot
+git pull origin master
+docker compose down
+docker compose up -d --build
+```
+
+### Linux Deployment Update
+
+```bash
+cd TgMusicBot
+# Stop running instance (e.g. exit tmux/screen session)
+
+# Pull latest commits
+git pull origin master
+
+# Update Go dependencies and dynamic libraries
+go mod download
+go run github.com/AshokShau/gotdbot/scripts/tools
+go run setup_ntgcalls.go
+
+# Recompile binary
+CGO_ENABLED=1 go build -o tgmusic main.go
+
+# Restart process inside tmux or screen
+```
+
+---
+
+## ❓ Troubleshooting
+
+<details>
+<summary><b>Assistant account fails to join voice chat</b></summary>
+
+<br>
+
+- Ensure the assistant account is not banned or restricted in the group.
+- Start the Voice Chat in the Telegram group **before** running `/join` or `/play`.
+- Verify that your userbot session string (`STRING1`) is active and generated from the same `API_ID` / `API_HASH`.
+</details>
+
+<details>
+<summary><b>YouTube playback fails with 403 Forbidden or Sign-in errors</b></summary>
+
+<br>
+
+- YouTube frequently updates bot detection mechanisms.
+- Export raw cookies from your browser (using extensions like *Get cookies.txt LOCALLY*).
+- Upload the `cookies.txt` file to a URL or GitHub Gist (raw link) and set `COOKIES_URL` in your `.env`.
+</details>
+
+<details>
+<summary><b>Build error: missing C dependencies or CGO disabled</b></summary>
+
+<br>
+
+- Ensure `build-essential` and `gcc` are installed on your Linux host.
+- Always include `CGO_ENABLED=1` when running `go build`.
+- Make sure you executed `go run github.com/AshokShau/gotdbot/scripts/tools` and `go run setup_ntgcalls.go` prior to building.
+</details>
+
+---
+
+## 🤝 Contributing
+
+Contributions, issues, and feature suggestions are welcome!
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/amazing-feature`.
+3. Commit your changes: `git commit -m 'Add amazing feature'`.
+4. Push to the branch: `git push origin feature/amazing-feature`.
+5. Open a Pull Request.
+
+---
+
+## 📄 License
+
+This project is licensed under the **GNU General Public License v3.0**. See the [LICENSE](../LICENSE) file for full details.
+
+---
+
+## 💬 Support & Updates
+
+- **Support Group**: [Telegram Support](https://t.me/FallenSupport)
+- **Updates Channel**: [Telegram Channel](https://t.me/FallenProjects)

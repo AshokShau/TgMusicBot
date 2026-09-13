@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/AshokShau/gotdbot v0.9.5
-	github.com/amarnathcjd/gogram v1.7.72-0.20260723160818-e2b6186b57c2
+	github.com/amarnathcjd/gogram v1.7.10
 	github.com/joho/godotenv v1.5.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	go.mongodb.org/mongo-driver/v2 v2.9.1
