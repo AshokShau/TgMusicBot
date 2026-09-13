@@ -2,10 +2,10 @@
 
 /*
  * TgMusicBot - Telegram Music Bot
- *  Copyright (c) 2025-2026 Ashok Shau
+ * Copyright (c) 2025-2026 Ashok Shau
  *
- *  Licensed under GNU GPL v3
- *  See https://github.com/AshokShau/TgMusicBot
+ * Licensed under GNU GPL v3
+ * See https://github.com/AshokShau/TgMusicBot
  */
 
 package main
@@ -24,301 +24,319 @@ import (
 )
 
 const (
-	destHeader = "src/vc/ntgcalls"
-	destLib    = "src/vc"
-	releaseUrl = "https://api.github.com/repos/pytgcalls/ntgcalls/releases/tags/v2.2.4"
+	destHeader = "ntgcalls"
+	destLib    = ""
+	releaseURL = "https://api.github.com/repos/pytgcalls/ntgcalls/releases/tags/v2.2.5"
 )
 
 type Release struct {
 	TagName string `json:"tag_name"`
 	Assets  []struct {
-		Name               string `json:"name"`
-		BrowserDownloadURL string `json:"browser_download_url"`
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
 	} `json:"assets"`
+}
+
+type progressWriter struct {
+	total   int64
+	written int64
+	lastPct int
 }
 
 func main() {
 	start := time.Now()
-	defer func() {
-		fmt.Printf("\nTime elapsed: %v\n", time.Since(start))
-	}()
 
-	if err := run(); err != nil {
+	err := setup()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "\nError: %v\n", err)
 		os.Exit(1)
 	}
 
 	fmt.Println("\nSetup completed successfully!")
+	fmt.Printf("Time elapsed: %v\n", time.Since(start))
 }
 
-func run() error {
+func setup() error {
 	fmt.Printf("Looking for %s/%s static build...\n", runtime.GOOS, runtime.GOARCH)
+	var release Release
 
-	release, err := getLatestRelease()
+	response, err := http.Get(releaseURL)
 	if err != nil {
-		return fmt.Errorf("failed to get latest release: %w", err)
+		return fmt.Errorf("failed to contact GitHub: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("GitHub returned %s", response.Status)
+	}
+
+	if err = json.NewDecoder(response.Body).Decode(&release); err != nil {
+		return fmt.Errorf("failed to read release information: %w", err)
 	}
 
 	fmt.Printf("Latest release: %s\n", release.TagName)
 
-	targetAsset := pickStaticAsset(release)
-	if targetAsset == "" {
-		return fmt.Errorf("no matching static asset found for your platform")
-	}
-
-	fmt.Printf("Downloading: %s\n", filepath.Base(targetAsset))
-
-	tmpZip := "ntgcalls.zip"
-	if err := downloadFile(tmpZip, targetAsset); err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-	defer os.Remove(tmpZip)
-
-	tmpDir := "ntgcalls_tmp"
-	fmt.Println("Extracting...")
-	if err := unzip(tmpZip, tmpDir); err != nil {
-		return fmt.Errorf("extraction failed: %w", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	return organizeFiles(tmpDir)
-}
-
-func getLatestRelease() (Release, error) {
-	var r Release
-
-	resp, err := http.Get(releaseUrl)
-	if err != nil {
-		return r, fmt.Errorf("HTTP request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return r, fmt.Errorf("GitHub API returned: %s", resp.Status)
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		return r, fmt.Errorf("failed to decode JSON: %w", err)
-	}
-
-	return r, nil
-}
-
-func pickStaticAsset(r Release) string {
 	goos := runtime.GOOS
-	arch := runtime.GOARCH
+	goarch := runtime.GOARCH
 
-	archMap := map[string]string{
-		"amd64": "x86_64",
-		"arm64": "arm64",
+	switch goos {
+	case "darwin":
+		goos = "macos"
+	case "windows":
+		goos = "windows"
 	}
 
-	if v, ok := archMap[arch]; ok {
-		arch = v
+	switch goarch {
+	case "amd64":
+		goarch = "x86_64"
+	case "arm64":
+		goarch = "arm64"
 	}
 
-	osMap := map[string]string{
-		"darwin":  "macos",
-		"windows": "windows",
-	}
+	expectedName := fmt.Sprintf("ntgcalls.%s-%s-static_libs.zip", goos, goarch)
+	var downloadURL string
 
-	if v, ok := osMap[goos]; ok {
-		goos = v
-	}
-
-	pattern := fmt.Sprintf("ntgcalls.%s-%s-static_libs.zip", goos, arch)
-
-	for _, asset := range r.Assets {
-		if strings.EqualFold(asset.Name, pattern) {
+	for _, asset := range release.Assets {
+		if strings.EqualFold(asset.Name, expectedName) {
+			downloadURL = asset.URL
 			fmt.Printf("Found: %s\n", asset.Name)
-			return asset.BrowserDownloadURL
+			break
 		}
 	}
 
-	return ""
-}
+	if downloadURL == "" {
+		return fmt.Errorf("could not find a static build for %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
 
-func downloadFile(filename, url string) error {
-	resp, err := http.Get(url)
+	zipFile := "ntgcalls.zip"
+	tempDir := "ntgcalls_tmp"
+
+	fmt.Printf("Downloading: %s\n", expectedName)
+
+	response, err = http.Get(downloadURL)
 	if err != nil {
-		return fmt.Errorf("HTTP request failed: %w", err)
+		return fmt.Errorf("failed to download file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer response.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed with status: %s", resp.Status)
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed: %s", response.Status)
 	}
 
-	out, err := os.Create(filename)
+	file, err := os.Create(zipFile)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		return fmt.Errorf("failed to create %s: %w", zipFile, err)
 	}
-	defer out.Close()
 
-	totalSize := resp.ContentLength
 	writer := &progressWriter{
-		total:   totalSize,
-		prefix:  "   Progress: ",
+		total:   response.ContentLength,
 		lastPct: -1,
 	}
 
-	_, err = io.Copy(io.MultiWriter(out, writer), resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+	_, copyErr := io.Copy(
+		io.MultiWriter(file, writer),
+		response.Body,
+	)
+
+	closeErr := file.Close()
+
+	if copyErr != nil {
+		os.Remove(zipFile)
+		return fmt.Errorf("failed to download file: %w", copyErr)
+	}
+
+	if closeErr != nil {
+		os.Remove(zipFile)
+		return fmt.Errorf("failed to close downloaded file: %w", closeErr)
 	}
 
 	if writer.lastPct >= 0 {
 		fmt.Println()
 	}
 
-	return nil
-}
+	defer os.Remove(zipFile)
 
-type progressWriter struct {
-	total   int64
-	written int64
-	prefix  string
-	lastPct int
-}
+	fmt.Println("Extracting...")
 
-func (pw *progressWriter) Write(p []byte) (int, error) {
-	n := len(p)
-	pw.written += int64(n)
-
-	if pw.total > 0 {
-		pct := int(float64(pw.written) / float64(pw.total) * 100)
-		if pct != pw.lastPct && pct%10 == 0 {
-			fmt.Printf("\r%s%d%%", pw.prefix, pct)
-			pw.lastPct = pct
-		}
-	}
-
-	return n, nil
-}
-
-func unzip(src, dest string) error {
-	r, err := zip.OpenReader(src)
+	reader, err := zip.OpenReader(zipFile)
 	if err != nil {
-		return fmt.Errorf("failed to open zip: %w", err)
+		return fmt.Errorf("failed to open zip file: %w", err)
 	}
-	defer r.Close()
+	defer reader.Close()
 
-	os.MkdirAll(dest, 0755)
+	if err = os.MkdirAll(tempDir, 0755); err != nil {
+		return fmt.Errorf("failed to create temporary directory: %w", err)
+	}
+	defer os.RemoveAll(tempDir)
 
-	for _, f := range r.File {
-		fp := filepath.Join(dest, f.Name)
-		if !strings.HasPrefix(fp, filepath.Clean(dest)+string(os.PathSeparator)) {
-			return fmt.Errorf("invalid file path: %s", f.Name)
+	for _, file := range reader.File {
+		target := filepath.Join(tempDir, file.Name)
+		cleanTarget := filepath.Clean(target)
+		cleanTempDir := filepath.Clean(tempDir) + string(os.PathSeparator)
+
+		if !strings.HasPrefix(cleanTarget, cleanTempDir) {
+			return fmt.Errorf("invalid file path in archive: %s", file.Name)
 		}
 
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(fp, f.Mode())
+		if file.FileInfo().IsDir() {
+			if err := os.MkdirAll(cleanTarget, file.Mode()); err != nil {
+				return fmt.Errorf(
+					"failed to create directory %s: %w",
+					file.Name,
+					err,
+				)
+			}
 			continue
 		}
 
-		if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(cleanTarget), 0755); err != nil {
 			return fmt.Errorf("failed to create directory: %w", err)
 		}
 
-		rc, err := f.Open()
+		input, err := file.Open()
 		if err != nil {
-			return fmt.Errorf("failed to open file in zip: %w", err)
+			return fmt.Errorf(
+				"failed to open %s from archive: %w",
+				file.Name,
+				err,
+			)
 		}
 
-		out, err := os.OpenFile(fp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		output, err := os.OpenFile(
+			cleanTarget,
+			os.O_WRONLY|os.O_CREATE|os.O_TRUNC,
+			file.Mode(),
+		)
 		if err != nil {
-			rc.Close()
-			return fmt.Errorf("failed to create file: %w", err)
+			input.Close()
+			return fmt.Errorf(
+				"failed to create %s: %w",
+				file.Name,
+				err,
+			)
 		}
 
-		_, err = io.Copy(out, rc)
-		rc.Close()
-		out.Close()
+		_, err = io.Copy(output, input)
+
+		input.Close()
+		output.Close()
 
 		if err != nil {
-			return fmt.Errorf("failed to extract file: %w", err)
+			return fmt.Errorf(
+				"failed to extract %s: %w",
+				file.Name,
+				err,
+			)
 		}
 	}
 
-	return nil
-}
+	var copiedFiles []string
 
-func organizeFiles(tmpDir string) error {
-	var filesCopied []string
-
-	err := filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+	err = filepath.Walk(tempDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
 		}
 
 		if info.IsDir() {
 			return nil
 		}
 
-		name := filepath.Base(path)
-		var dest string
+		filename := filepath.Base(path)
 
-		switch {
-		case name == "ntgcalls.h":
-			dest = filepath.Join(destHeader, name)
+		var destination string
 
-		case strings.HasPrefix(name, "libntgcalls.") ||
-			strings.HasPrefix(name, "ntgcalls."):
-			dest = filepath.Join(destLib, name)
-
-		default:
+		if filename == "ntgcalls.h" {
+			destination = filepath.Join(destHeader, filename)
+		} else if strings.HasPrefix(filename, "libntgcalls.") ||
+			strings.HasPrefix(filename, "ntgcalls.") {
+			destination = filepath.Join(destLib, filename)
+		} else {
 			return nil
 		}
 
-		if err := copyFile(path, dest); err != nil {
-			return err
+		if err = os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+			return fmt.Errorf(
+				"failed to create destination directory: %w",
+				err,
+			)
 		}
 
-		filesCopied = append(filesCopied, dest)
+		input, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("failed to open %s: %w", path, err)
+		}
+		defer input.Close()
+
+		output, err := os.Create(destination)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to create %s: %w",
+				destination,
+				err,
+			)
+		}
+
+		_, err = io.Copy(output, input)
+
+		if closeErr := output.Close(); err == nil {
+			err = closeErr
+		}
+
+		if err != nil {
+			return fmt.Errorf(
+				"failed to copy %s: %w",
+				filename,
+				err,
+			)
+		}
+
+		if info, err := os.Stat(path); err == nil {
+			_ = os.Chmod(destination, info.Mode())
+		}
+
+		copiedFiles = append(copiedFiles, destination)
+
 		return nil
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to organize files: %w", err)
 	}
 
-	if len(filesCopied) == 0 {
-		return fmt.Errorf("no files were copied - check the zip contents")
+	if len(copiedFiles) == 0 {
+		return fmt.Errorf("no ntgcalls files were found in the archive")
 	}
 
 	fmt.Println("Files copied:")
-	for _, file := range filesCopied {
-		rel, _ := filepath.Rel(".", file)
-		fmt.Printf("   ✓ %s\n", rel)
+
+	for _, file := range copiedFiles {
+		relativePath, err := filepath.Rel(".", file)
+		if err != nil {
+			relativePath = file
+		}
+
+		fmt.Printf("  ✓ %s\n", relativePath)
 	}
 
 	return nil
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
+func (pw *progressWriter) Write(data []byte) (int, error) {
+	n := len(data)
+	pw.written += int64(n)
 
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return err
+	if pw.total <= 0 {
+		return n, nil
 	}
 
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
+	percentage := int(
+		float64(pw.written) / float64(pw.total) * 100,
+	)
 
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-
-	if info, err := in.Stat(); err == nil {
-		_ = os.Chmod(dst, info.Mode())
+	if percentage != pw.lastPct && percentage%10 == 0 {
+		fmt.Printf("\r Progress: %d%%", percentage)
+		pw.lastPct = percentage
 	}
 
-	return nil
+	return n, nil
 }

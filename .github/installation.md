@@ -1,280 +1,334 @@
-# 🚀 TgMusicBot Installation Guide
+# Installation and Deployment Guide
 
-Welcome to the TgMusicBot installation guide! This document provides detailed, step-by-step instructions to help you deploy the bot on your preferred platform.
+This guide provides detailed instructions for installing, configuring, deploying, updating, and troubleshooting TgMusicBot.
 
-## Table of Contents
-- [Prerequisites](#-prerequisites)
-- [Configuration](#-configuration)
-- [Deployment Methods](#-deployment-methods)
-    - [🐳 Docker (Recommended)](#-docker-recommended)
-    - [🔧 Manual Installation](#-manual-installation)
-        - [Linux / macOS](#-linux--macos)
-        - [Windows](#-windows)
+## Requirements
+
+Ensure your system meets the following prerequisites before proceeding with manual installation:
+
+- **Operating System**: Linux (Ubuntu 22.04+ recommended), macOS, or Windows
+- **Go**: Version 1.26 or higher
+- **C Compiler**: GCC / Clang (required for CGO bindings to `ntgcalls`)
+- **FFmpeg**: Installed and available in your system `PATH`
+- **yt-dlp**: Installed and available in your system `PATH`
+- **Deno**: Installed and available in system `PATH` (used for JavaScript challenges during downloads)
+- **MongoDB**: Active connection string (MongoDB Atlas or local MongoDB server)
+- **Git**: Installed for cloning the repository
+
+## Telegram API Credentials & Database
+
+### Telegram API Keys
+
+1. Visit [my.telegram.org](https://my.telegram.org) and log in with your Telegram phone number.
+2. Go to **API development tools**.
+3. Create a new application to obtain your `API_ID` and `API_HASH`.
+
+### Bot Token
+
+1. Open Telegram and start a chat with [@BotFather](https://t.me/BotFather).
+2. Send `/newbot` and follow the prompts to create your bot.
+3. Save the HTTP API bot token (`TOKEN`).
+
+### Assistant Session String
+
+TgMusicBot requires an assistant Telegram user account (userbot) to join group voice chats and stream audio/video.
+
+Generate a session string using a Pyrogram or Telethon session string generator. Save this string as `STRING` (or `STRING1` through `STRING10` if using multiple assistant accounts).
+
+### MongoDB Database Setup
+
+1. Create a cluster on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) or set up a local MongoDB instance.
+2. Obtain your connection URI (e.g., `mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority`).
+3. Ensure network access rules allow your server IP to connect to the database.
+
+## Environment Configuration
+
+Clone the repository and prepare the configuration file:
+
+```bash
+git clone https://github.com/AshokShau/TgMusicBot.git
+cd TgMusicBot
+cp sample.env .env
+```
+
+Open `.env` in a text editor and fill in your values.
+
+### Environment Variables Reference
+
+| Variable              | Required | Default                       | Description                                                             |
+|-----------------------|----------|-------------------------------|-------------------------------------------------------------------------|
+| `API_ID`              | Yes      | -                             | Telegram API ID from my.telegram.org.                                   |
+| `API_HASH`            | Yes      | -                             | Telegram API Hash from my.telegram.org.                                 |
+| `TOKEN`               | Yes      | -                             | Telegram Bot Token from @BotFather.                                     |
+| `MONGO_URI`           | Yes      | -                             | MongoDB connection URI.                                                 |
+| `OWNER_ID`            | Yes      | -                             | Telegram user ID of the bot owner.                                      |
+| `STRING`              | Yes*     | -                             | Userbot session string (`STRING`, or `STRING1` to `STRING10`).          |
+| `SESSION_TYPE`        | No       | `pyrogram`                    | Session string format: `pyrogram` or `telethon`.                        |
+| `DL_BOT_TOKEN`        | No       | -                             | Optional separate Telegram Bot Token for downloader client operations.  |
+| `DB_NAME`             | No       | `Anon`                        | Database name in MongoDB.                                               |
+| `LOGGER_ID`           | No       | `0`                           | Chat ID of the log group for status messages and errors.                |
+| `API_URL`             | No       | `https://api.onegrab.fun`     | API endpoint for external download resolvers.                           |
+| `API_KEY`             | No       | -                             | Optional API key for external downloader service.                       |
+| `DEFAULT_SERVICE`     | No       | `youtube`                     | Default search and playback provider (`youtube` or `spotify`).          |
+| `SONG_DURATION_LIMIT` | No       | `3600`                        | Maximum song duration in seconds allowed for playback.                  |
+| `MAX_FILE_SIZE`       | No       | `524288000`                   | Maximum allowed file size for downloads in bytes (500 MB).              |
+| `DOWNLOADS_DIR`       | No       | `database`                    | Local directory for storing temporary downloaded files.                 |
+| `COOKIES_URL`         | No       | -                             | Comma-separated list of URLs pointing to YouTube cookies files.         |
+| `SUPPORT_GROUP`       | No       | `https://t.me/FallenSupport`  | Telegram link for support group.                                        |
+| `SUPPORT_CHANNEL`     | No       | `https://t.me/FallenProjects` | Telegram link for updates channel.                                      |
+| `START_IMG`           | No       | `https://i.pinimg.com/...`    | Image URL displayed in the `/start` command response.                   |
+| `PORT`                | No       | `6060`                        | HTTP server port for health checks and pprof profiling.                 |
+| `AUTO_LEAVE`          | No       | `false`                       | Automatically leave voice chat when alone or idle.                      |
+| `ENABLE_VPLAY`        | No       | `true`                        | Enable or disable video playback commands.                              |
+| `DEVS`                | No       | -                             | Space-separated or comma-separated list of developer Telegram user IDs. |
 
 ---
 
-## 📋 Prerequisites
+## Local Installation
 
-Before you begin, ensure you have the following:
+### System Dependencies
 
-- **Telegram API Credentials**:
-    - `API_ID` and `API_HASH`: Get these from [my.telegram.org](https://my.telegram.org).
-    - `BOT_TOKEN`: Get this from [@BotFather](https://t.me/BotFather) on Telegram.
-- **MongoDB URI**: A connection string for your MongoDB database. You can get a free cluster from [MongoDB Atlas](https://www.mongodb.com/cloud/atlas).
+#### Ubuntu / Debian
 
----
+```bash
+sudo apt update
+sudo apt install -y build-essential ffmpeg curl wget unzip git
+```
 
-## ⚙️ Configuration
+Install yt-dlp:
 
-The bot is configured using a `.env` file. You'll need to create this file and fill it with your credentials.
+```bash
+sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
+sudo chmod a+rx /usr/local/bin/yt-dlp
+```
 
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/AshokShau/TgMusicBot.git
-    cd TgMusicBot
-    ```
+Install Deno:
 
-2.  **Create the `.env` file:**
-    ```sh
-    cp sample.env .env
-    ```
+```bash
+curl -fsSL https://deno.land/install.sh | sh
+echo 'export DENO_INSTALL="$HOME/.deno"' >> ~/.bashrc
+echo 'export PATH="$DENO_INSTALL/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
 
-3.  **Edit the `.env` file:**
-    Choose one of the following methods to edit the `.env` file and add your credentials.
+#### macOS
 
-    - **For beginners (using `nano`):**
-        1.  Open the file:
-            ```sh
-            nano .env
-            ```
-        2.  Edit the values for `API_ID`, `API_HASH`, `TOKEN`, `MONGO_URI`, etc.
-        3.  Save the file by pressing `Ctrl+O`, then `Enter`.
-        4.  Exit nano by pressing `Ctrl+X`.
+```bash
+brew install go ffmpeg yt-dlp deno
+```
 
-    - **For advanced users (using `vim`):**
-        1.  Open the file:
-            ```sh
-            vi .env
-            ```
-        2.  Press `i` to enter insert mode.
-        3.  Edit the values for `API_ID`, `API_HASH`, `TOKEN`, `MONGO_URI`, etc.
-        4.  Press `Esc` to exit insert mode.
-        5.  Type `:wq` and press `Enter` to save and quit.
+#### Windows
+
+1. Install Go 1.26+ from [go.dev](https://go.dev/dl/).
+2. Install GCC (via MinGW-w64 or w64devkit) and add it to your System PATH.
+3. Install FFmpeg, yt-dlp, and Deno, ensuring all executables are added to your System PATH.
 
 ---
 
-## 🚀 Deployment Methods
+### Fetch Required Libraries
 
-### 🐳 Docker (Recommended)
+TgMusicBot relies on TDLib C headers (`libtdjson`) and prebuilt static `ntgcalls` C libraries. Run the provided helper scripts before building:
 
-Deploying with Docker is the easiest and recommended method.
+```bash
+go run github.com/AshokShau/gotdbot/scripts/tools
+go run setup_ntgcalls.go
+```
 
-#### Prerequisites
-- [Docker](https://docs.docker.com/get-docker/) installed on your system.
+The scripts will download and place `libtdjson` in the project directory and `ntgcalls` C libraries into `internal/calls/` and `ntgcalls/`.
 
-#### Steps
-1.  **Clone the repository and create the `.env` file** as described in the [Configuration](#-configuration) section.
-
-2.  **Build the Docker image:**
-    ```sh
-    docker build -t tgmusicbot .
-    ```
-
-3.  **Run the Docker container:**
-    ```sh
-    docker run -d --name tgmusicbot --env-file .env --restart unless-stopped tgmusicbot
-    ```
-
-#### 🔍 Monitoring
-1. Check logs:
-   ```sh
-   docker logs -f tgmusicbot
-   ```
-   (Exit with `Ctrl+C`)
-
-### ⚙️ Management Commands
-- **Stop container**:
-  ```sh
-  docker stop tgmusicbot
-  ```
-
-- **Start container**:
-  ```sh
-  docker start tgmusicbot
-  ```
-
-- **Update the bot**:
-  ```sh
-  docker stop tgmusicbot
-  docker rm tgmusicbot
-  git pull origin master
-  docker build -t tgmusicbot .
-  docker run -d --name tgmusicbot --env-file .env --restart unless-stopped tgmusicbot
-  ```
-
-### 🔧 Manual Installation
-
-#### 🐧 Linux / macOS
-
-##### Prerequisites
-- [Go](https://golang.org/doc/install) (version 1.24.4 or higher)
-- [FFmpeg](https://ffmpeg.org/download.html)
-- [Deno](https://deno.com/)
-
-##### Steps
-1.  **Install prerequisites:**
-    - **On Debian/Ubuntu:**
-      ```sh
-      sudo apt-get update && sudo apt-get install -y golang ffmpeg unzip
-      curl -fsSL https://deno.land/install.sh | sh
-      ```
-    - **On macOS (using Homebrew):**
-      ```sh
-      brew install go ffmpeg deno
-      ```
-
-2.  **Clone the repository and create the `.env` file** as described in the [Configuration](#-configuration) section.
-
-3.  **Generate necessary files:**
-    ```sh
-    go run setup_ntgcalls.go
-    ```
-
-    ```bash
-    go run github.com/AshokShau/gotdbot/scripts/tools@latest
-    ```
-
-4.  **Install dependencies and run the bot:**
-    ```sh
-    go mod tidy
-    go run main.go
-    ```
-
-##### 🏃 Running in Background
-
-###### Quick Start (Screen/Tmux)
-You can use `screen` or `tmux` to keep the bot running even after you close the terminal.
-
-**Using Screen:**
-1. Create a new session:
-   ```sh
-   screen -S tgmusicbot
-   ```
-2. Run the bot:
-   ```sh
-   go run main.go
-   ```
-3. Detach from the session by pressing `Ctrl+A`, then `d`.
-4. To resume the session later:
-   ```sh
-   screen -r tgmusicbot
-   ```
-
-**Using Tmux:**
-1. Create a new session:
-   ```sh
-   tmux new -s tgmusicbot
-   ```
-2. Run the bot:
-   ```sh
-   go run main.go
-   ```
-3. Detach from the session by pressing `Ctrl+B`, then `d`.
-4. To resume the session later:
-   ```sh
-   tmux attach -t tgmusicbot
-   ```
-
-###### Production Setup (Systemd)
-For a more robust setup, use `systemd` to manage the bot as a service. This ensures the bot restarts automatically if it crashes or the server reboots.
-
-1.  **Build the bot binary:**
-    ```sh
-    go build -o tgmusicbot main.go
-    ```
-
-2.  **Create a service file:**
-    ```sh
-    sudo nano /etc/systemd/system/tgmusicbot.service
-    ```
-
-3.  **Add the following content:**
-    Replace `/path/to/TgMusicBot` with the actual path to your bot directory.
-
-    ```ini
-    [Unit]
-    Description=TgMusicBot Service
-    After=network.target
-
-    [Service]
-    User=root
-    WorkingDirectory=/path/to/TgMusicBot
-    ExecStart=/path/to/TgMusicBot/tgmusicbot
-    Restart=always
-    RestartSec=10
-
-    [Install]
-    WantedBy=multi-user.target
-    ```
-
-4.  **Reload systemd and start the service:**
-    ```sh
-    sudo systemctl daemon-reload
-    sudo systemctl start tgmusicbot
-    sudo systemctl enable tgmusicbot
-    ```
-
-5.  **Check status and logs:**
-    ```sh
-    sudo systemctl status tgmusicbot
-    journalctl -u tgmusicbot -f
-    ```
-
-#### 🪟 Windows
-
-##### Prerequisites
-- [Go](https://golang.org/doc/install) (version 1.24.4 or higher)
-- [FFmpeg](https://ffmpeg.org/download.html)
-- [Deno](https://deno.com/)
-
-##### Steps
-1.  **Install prerequisites:**
-    - Download and install Go from the [official website](https://golang.org/doc/install).
-    - Download FFmpeg from the [official website](https://ffmpeg.org/download.html) and add it to your system's PATH.
-    - Install Deno using PowerShell:
-      ```powershell
-      irm https://deno.land/install.ps1 | iex
-      ```
-
-2.  **Clone the repository** as described in the [Configuration](#-configuration) section.
-
-3.  **Create and edit the `.env` file:**
-    - Open Command Prompt or PowerShell.
-    - Navigate to the `TgMusicBot` directory.
-    - Create the `.env` file:
-      ```sh
-      copy sample.env .env
-      ```
-    - Open the `.env` file with Notepad:
-      ```sh
-      notepad .env
-      ```
-    - Add your credentials and save the file.
-
-4.  **Generate necessary files:**
-    ```sh
-    go run setup_ntgcalls.go
-    ```
-
-    ```bash
-    go run github.com/AshokShau/gotdbot/scripts/tools@latest
-    ```
-
-5.  **Install dependencies and run the bot:**
-    ```sh
-    go mod tidy
-    go run main.go
-    ```
 ---
 
-That's it! Your TgMusicBot bot should now be running. If you have any questions, feel free to open an issue or join our support group.
+### Build and Run
+
+Build the application with CGO enabled:
+
+```bash
+CGO_ENABLED=1 go build -o tgmusic main.go
+```
+
+Run the compiled executable:
+
+```bash
+./tgmusic
+```
+
+---
+
+## Background Execution
+
+To keep the bot running after closing your SSH session, use `screen` or `tmux`.
+
+### Using `screen`
+
+Start a new screen session:
+
+```bash
+screen -S tgmusic
+```
+
+Run the bot:
+
+```bash
+./tgmusic
+```
+
+Detach from the screen session by pressing `Ctrl + A`, then `D`.
+
+Reattach to the session later:
+
+```bash
+screen -r tgmusic
+```
+
+### Using `tmux`
+
+Start a new tmux session:
+
+```bash
+tmux new -s tgmusic
+```
+
+Run the bot:
+
+```bash
+./tgmusic
+```
+
+Detach from tmux by pressing `Ctrl + B`, then `D`.
+
+Reattach to the session:
+
+```bash
+tmux attach -t tgmusic
+```
+
+---
+
+## Production Deployment with systemd
+
+For Linux servers, configuring a systemd service ensures automatic restarts upon system reboots or unexpected crashes.
+
+1. Create a systemd service file:
+
+   ```bash
+   sudo nano /etc/systemd/system/tgmusic.service
+   ```
+
+2. Add the following configuration (update paths and user to match your environment):
+
+   ```ini
+   [Unit]
+   Description=TgMusicBot Service
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=ubuntu
+   WorkingDirectory=/home/ubuntu/TgMusicBot
+   ExecStart=/home/ubuntu/TgMusicBot/tgmusic
+   Restart=always
+   RestartSec=5
+   EnvironmentFile=/home/ubuntu/TgMusicBot/.env
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+3. Reload systemd, enable, and start the service:
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable tgmusic
+   sudo systemctl start tgmusic
+   ```
+
+4. Manage the service:
+
+    - Check status: `sudo systemctl status tgmusic`
+    - View logs: `journalctl -u tgmusic -f`
+    - Restart service: `sudo systemctl restart tgmusic`
+    - Stop service: `sudo systemctl stop tgmusic`
+
+---
+
+## Docker Deployment
+
+TgMusicBot includes a Dockerfile and `docker-compose.yml` preconfigured with Cloudflare WARP routing for bypass performance.
+
+### Using Docker Compose (Recommended)
+
+1. Ensure Docker and Docker Compose are installed on your system.
+2. Prepare your `.env` file in the project root directory.
+3. Start the container in detached mode:
+
+   ```bash
+   docker-compose up -d --build
+   ```
+
+4. View logs:
+
+   ```bash
+   docker-compose logs -f
+   ```
+
+5. Stop the container:
+
+   ```bash
+   docker-compose down
+   ```
+
+### Using Docker CLI
+
+Build the Docker image:
+
+```bash
+docker build -t tgmusic .
+```
+
+Run the container:
+
+```bash
+docker run -d --name docker build -t tgmusic . --env-file .env --restart unless-stopped tgmusic
+```
+
+---
+
+## Updating the Bot
+
+To update your deployment to the latest commit:
+
+1. Stop the running bot process or service:
+
+   ```bash
+   sudo systemctl stop tgmusic
+   # or: docker-compose down
+   ```
+
+2. Pull the latest code changes:
+
+   ```bash
+   git pull origin master
+   ```
+
+3. Update dependencies and dynamic libraries:
+
+   ```bash
+   go mod download
+   go run github.com/AshokShau/gotdbot/scripts/tools
+   go run setup_ntgcalls.go
+   ```
+
+4. Rebuild the executable:
+
+   ```bash
+   CGO_ENABLED=1 go build -o tgmusic main.go
+   ```
+
+5. Restart the bot process or service:
+
+   ```bash
+   sudo systemctl start tgmusic
+   # or: docker-compose up -d --build
+   ```
+
+---
