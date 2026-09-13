@@ -457,3 +457,7 @@ If you find this project useful, consider supporting its development with a dona
 Thank you for supporting the project!
 
 ---
+
+<p align="center">
+  Made with 🖤 by <a href="https://github.com/ashokshau">Ashok Shau</a>
+</p>
