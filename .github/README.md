@@ -443,3 +443,17 @@ This project is licensed under the **GNU General Public License v3.0**. See the 
 
 - **Support Group**: [Telegram Support](https://t.me/FallenSupport)
 - **Updates Channel**: [Telegram Channel](https://t.me/FallenProjects)
+
+---
+
+## ❤️ Donate
+
+If you find this project useful, consider supporting its development with a donation:
+
+- **GRAM (TON) / USDT-GRAM:** `UQD8rsWDh3VD9pXVNuEbM_rIAKzV07xDhx-gzdDe0tTWGXan`
+- **USDT (TRC20):** `TJWZqPK5haSE8ZdSQeWBPR5uxPSUnS8Hcq`
+- **Telegram Wallet:** [@Ashokshau](https://t.me/Ashokshau)
+
+Thank you for supporting the project!
+
+---
