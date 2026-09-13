@@ -129,9 +129,5 @@ func shellCommand(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	if m.SenderID() != 5938660179 {
-		return td.EndGroups
-	}
-
 	return shellRunner(c, m)
 }
