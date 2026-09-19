@@ -41,11 +41,16 @@ func classifyError(err error) errorKind {
 		return errFatal
 	case strings.Contains(msg, "GROUPCALL_INVALID"):
 		return errFatal
-	case strings.Contains(msg, "GROUPCALL_ADD_PARTICIPANTS_FAILED"), strings.Contains(msg, "INTERDC_X_CALL_ERROR"):
+	case strings.Contains(msg, "GROUPCALL_ADD_PARTICIPANTS_FAILED"),
+		strings.Contains(msg, "INTERDC_X_CALL_ERROR"),
+		strings.Contains(msg, "PhoneJoinGroupCall"),
+		strings.Contains(msg, "Timeout while fetching data"),
+		strings.Contains(msg, "code -503"):
 		return errRetryOnce
 	case strings.Contains(msg, "CHANNELS_TOO_MUCH"),
 		strings.Contains(msg, "FROZEN_METHOD_INVALID"),
 		strings.Contains(msg, "FLOOD_WAIT_X"),
+		strings.Contains(msg, "limiting join attempts"),
 		strings.Contains(msg, "USER_DEACTIVATED"):
 		return errRotate
 	default:
