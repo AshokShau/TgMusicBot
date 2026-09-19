@@ -1,14 +1,8 @@
-/.idea
+.idea
+database
 *.db
 *.dat
 .env
-/downloads
-/cache
-app
-/src/cookies
-
-ntgcalls.h
 libntgcalls.a
 libntgcalls.so
 libtdjson.so.*
-libtdjson.so

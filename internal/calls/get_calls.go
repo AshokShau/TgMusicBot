@@ -1,0 +1,87 @@
+/*
+ * TgMusicBot - Telegram Music Bot
+ *  Copyright (c) 2025-2026 Ashok Shau
+ *
+ *  Licensed under GNU GPL v3
+ *  See https://github.com/AshokShau/TgMusicBot
+ */
+
+package calls
+
+import (
+	"ashokshau/tgmusic/internal/cache"
+	"ashokshau/tgmusic/internal/config"
+	"ashokshau/tgmusic/ntgcalls"
+	"context"
+	"sync"
+	"time"
+
+	td "github.com/AshokShau/gotdbot"
+	l "github.com/AshokShau/gotdbot/logger"
+)
+
+var logger *l.Logger
+
+const connectWaitTimeout = 20 * time.Second
+
+type TelegramCalls struct {
+	mu                 sync.RWMutex
+	accounts           []*AssistantAccount
+	statusCache        *cache.Cache[td.ChatMemberStatus]
+	inviteCache        *cache.Cache[string]
+	streamEndCallbacks []func(chatID int64, t ntgcalls.StreamType, d ntgcalls.StreamDevice)
+}
+
+var (
+	instance *TelegramCalls
+	once     sync.Once
+)
+
+func getCalls() *TelegramCalls {
+	once.Do(func() {
+		instance = &TelegramCalls{
+			accounts:    make([]*AssistantAccount, 0),
+			statusCache: cache.NewCache[td.ChatMemberStatus](2 * time.Hour),
+			inviteCache: cache.NewCache[string](2 * time.Hour),
+		}
+	})
+	return instance
+}
+
+var Calls = getCalls()
+
+func (c *TelegramCalls) OnStreamEnd(callback func(chatID int64, t ntgcalls.StreamType, d ntgcalls.StreamDevice)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.streamEndCallbacks = append(c.streamEndCallbacks, callback)
+}
+
+func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
+	logger = client.Logger
+	c.startAutoLeave(context.Background(), client)
+
+	c.mu.RLock()
+	accounts := c.accounts
+	c.mu.RUnlock()
+
+	c.OnStreamEnd(func(chatID int64, t ntgcalls.StreamType, d ntgcalls.StreamDevice) {
+		logger.Info("[OnStreamEnd] Stream ended", "chat_id", chatID, "type", t, "device", d)
+		if t == ntgcalls.VideoStream {
+			return
+		}
+		if err := c.PlayNext(client, chatID); err != nil {
+			logger.Warn("[OnStreamEnd] Failed to play the song", "error", err)
+		}
+	})
+
+	for _, acc := range accounts {
+		if _, err := acc.App.SendMessage(client.Me.Usernames.EditableUsername, "/start"); err != nil {
+			acc.App.Log.Warnf("failed to start bot: %v", err)
+		}
+		if config.LoggerId != 0 {
+			if _, err := acc.App.SendMessage(config.LoggerId, "Userbot started."); err != nil {
+				acc.App.Log.Warnf("Failed to send message: %v", err)
+			}
+		}
+	}
+}

@@ -8,18 +8,26 @@
 
 package main
 
+/*
+#cgo linux LDFLAGS: -L . -lntgcalls -lm -lz
+#cgo darwin LDFLAGS: -L . -lntgcalls -lc++ -lz -lbz2 -liconv -framework AVFoundation -framework AudioToolbox -framework CoreAudio -framework QuartzCore -framework CoreMedia -framework VideoToolbox -framework AppKit -framework Metal -framework MetalKit -framework OpenGL -framework IOSurface -framework ScreenCaptureKit
+
+// Currently is supported only dynamically linked library on Windows due to
+// https://github.com/golang/go/issues/63903
+#cgo windows LDFLAGS: -L. -lntgcalls
+#include "ntgcalls/ntgcalls.h"
+#include "glibc_compatibility.h"
+*/
+import "C"
 import (
-	"ashokshau/tgmusic/config"
-	"ashokshau/tgmusic/src"
-	"ashokshau/tgmusic/src/core/dl"
-	"ashokshau/tgmusic/src/handlers"
-	"ashokshau/tgmusic/src/vc"
+	"ashokshau/tgmusic/internal/bot"
+	"ashokshau/tgmusic/internal/calls"
+	"ashokshau/tgmusic/internal/config"
+	"ashokshau/tgmusic/internal/db"
+	"ashokshau/tgmusic/internal/downloader"
 	"fmt"
-	"log/slog"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/AshokShau/gotdbot"
@@ -27,41 +35,19 @@ import (
 
 //go:generate go run github.com/AshokShau/gotdbot/scripts/tools
 
-// main serves as the entry point for the application.
 func main() {
-	go func() {
-		if err := http.ListenAndServe("0.0.0.0:"+config.Port, nil); err != nil {
-			slog.Info("pprof server error", "error", err)
-		}
-	}()
+	if err := config.LoadEnv(); err != nil {
+		panic(err)
+	}
 
-	logger := slog.New(
-		slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			Level:     slog.LevelInfo,
-			AddSource: true,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				if a.Key == slog.TimeKey {
-					t := a.Value.Time()
-					a.Value = slog.StringValue(t.Format("2006-01-02 15:04:05"))
-				}
+	if err := db.InitDatabase(); err != nil {
+		panic("failed to connect database: " + err.Error())
+	}
 
-				if a.Key == slog.SourceKey {
-					source := a.Value.Any().(*slog.Source)
-					a.Value = slog.StringValue(fmt.Sprintf("%s:%d", filepath.Base(source.File), source.Line))
-				}
-
-				return a
-			},
-		}),
-	)
-
-	slog.SetDefault(logger)
 	tdDir := "database"
 	_ = os.Remove(tdDir)
 	libPath := "./libtdjson.so.1.8.67"
-
 	manager := gotdbot.NewClientManager(libPath)
-
 	clientConfig := gotdbot.DefaultClientConfig()
 	clientConfig.AutoRetry = &gotdbot.AutoRetry{
 		ChatNotFound: true,
@@ -69,10 +55,10 @@ func main() {
 	}
 
 	clientConfig.DatabaseDirectory = tdDir
+	clientConfig.ParseMode = gotdbot.ParseModeHTML
 	client, err := manager.RegisterClient(config.ApiId, config.ApiHash, config.Token, clientConfig)
 	if err != nil {
-		slog.Error("manager.RegisterClient error", "error", err)
-		os.Exit(1)
+		panic("failed to register client: " + err.Error())
 	}
 
 	if config.DlBotToken != "" {
@@ -80,27 +66,31 @@ func main() {
 		dlClientConfig.AutoRetry = &gotdbot.AutoRetry{
 			ChatNotFound: true,
 		}
+
 		dlClientConfig.DatabaseDirectory = tdDir + "_dl"
 		_ = os.Remove(dlClientConfig.DatabaseDirectory)
 
 		dlClient, err := manager.RegisterClient(config.ApiId, config.ApiHash, config.DlBotToken, dlClientConfig)
 		if err != nil {
-			slog.Error("manager.RegisterClient (DL) error", "error", err)
-			dl.DlBot = client
+			client.Logger.Warnf("failed to register dl client: %s", err.Error())
+			downloader.DlBot = client
 		} else {
-			dl.DlBot = dlClient
-			dlClient.Logger.Info("Download bot registered successfully")
+			downloader.DlBot = dlClient
+			dlClient.Logger.Infof("dl client registered")
 		}
 	}
 
-	err = src.Init(client)
-	if err != nil {
-		panic(err)
+	for i, session := range config.SessionStrings {
+		err = calls.Calls.StartClient(config.ApiId, config.ApiHash, session, fmt.Sprintf("_%d", i))
+		if err != nil {
+			panic("failed to start client: " + err.Error())
+		}
 	}
 
-	handlers.LoadModules(client)
+	calls.Calls.RegisterHandlers(client)
+	bot.LoadModules(client)
 	_, _ = client.SendTextMessage(config.LoggerId, "The bot has started!", nil)
 	manager.Idle()
 	client.Logger.Info("The bot is shutting down...")
-	vc.Calls.StopAllClients()
+	calls.Calls.StopAllClients()
 }
