@@ -28,7 +28,7 @@ func mixHandler(c *td.Client, m *td.Message) error {
 
 	chatID := m.ChatId
 
-	if queueLen := cache.ChatCache.GetQueueLength(chatID); queueLen > 10 {
+	if queueLen := cache.ChatCache.GetQueueLength(chatID); queueLen >= 10 {
 		_, _ = m.ReplyText(c, "Queue is full (max 10 tracks). Use /end to clear.", nil)
 		return td.EndGroups
 	}
@@ -62,7 +62,7 @@ func mixHandler(c *td.Client, m *td.Message) error {
 		return td.EndGroups
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	limit := int(config.AutoPlayLimit)
