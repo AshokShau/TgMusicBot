@@ -1,5 +1,7 @@
 package ntgcalls
 
+// CallInfo contains the playback and capture status of a call.
 type CallInfo struct {
-	Playback, Capture StreamStatus
+	Playback StreamStatus
+	Capture  StreamStatus
 }

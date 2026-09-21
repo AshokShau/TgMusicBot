@@ -8,61 +8,83 @@ import (
 	"unsafe"
 )
 
-func parseConnectionState(state C.ntg_connection_state_enum) ConnectionState {
+func parseConnectionState(state C.ntg_connection_state) ConnectionState {
 	switch state {
-	case C.NTG_STATE_CONNECTING:
+	case C.NTG_CONNECTION_STATE_CONNECTING:
 		return Connecting
-	case C.NTG_STATE_CONNECTED:
+	case C.NTG_CONNECTION_STATE_CONNECTED:
 		return Connected
-	case C.NTG_STATE_FAILED:
+	case C.NTG_CONNECTION_STATE_FAILED:
 		return Failed
-	case C.NTG_STATE_TIMEOUT:
+	case C.NTG_CONNECTION_STATE_TIMEOUT:
 		return Timeout
-	case C.NTG_STATE_CLOSED:
+	case C.NTG_CONNECTION_STATE_CLOSED:
 		return Closed
 	}
 	return Connecting
 }
 
-func parseStreamDevice(device C.ntg_stream_device_enum) StreamDevice {
+func parseStreamDevice(device C.ntg_stream_device) StreamDevice {
 	var goDevice StreamDevice
 	switch device {
-	case C.NTG_STREAM_MICROPHONE:
+	case C.NTG_STREAM_DEVICE_MICROPHONE:
 		goDevice = MicrophoneStream
-	case C.NTG_STREAM_SPEAKER:
+	case C.NTG_STREAM_DEVICE_SPEAKER:
 		goDevice = SpeakerStream
-	case C.NTG_STREAM_CAMERA:
+	case C.NTG_STREAM_DEVICE_CAMERA:
 		goDevice = CameraStream
-	case C.NTG_STREAM_SCREEN:
+	case C.NTG_STREAM_DEVICE_SCREEN:
 		goDevice = ScreenStream
 	}
 	return goDevice
 }
 
-func parseBool(futureResult *Future) (bool, error) {
-	return *futureResult.errCode == 0, parseErrorCode(futureResult)
+func parseStreamStatus(status C.ntg_stream_status) StreamStatus {
+	switch status {
+	case C.NTG_STREAM_STATUS_ACTIVE:
+		return ActiveStream
+	case C.NTG_STREAM_STATUS_PAUSED:
+		return PausedStream
+	case C.NTG_STREAM_STATUS_IDLING:
+		return IdlingStream
+	}
+	return ActiveStream
 }
 
-func parseBytes(data []byte) (*C.uint8_t, C.int) {
-	if data != nil {
+func parseResult(res C.ntg_result) error {
+	if res != C.NTG_OK {
+		lastErr := C.ntg_last_error()
+		if lastErr != nil {
+			return fmt.Errorf("%s", C.GoString(lastErr))
+		}
+		return fmt.Errorf("ntgcalls error code: %d", int(res))
+	}
+	return nil
+}
+
+func parseBytes(data []byte) (*C.uint8_t, C.size_t) {
+	if len(data) > 0 {
 		rawBytes := C.CBytes(data)
-		return (*C.uint8_t)(rawBytes), C.int(len(data))
+		return (*C.uint8_t)(rawBytes), C.size_t(len(data))
 	}
 	return nil, 0
 }
 
-func parseStringVector(data unsafe.Pointer, size C.int) []string {
+func parseStringVector(data **C.char, size C.size_t) []string {
+	if data == nil || size == 0 {
+		return nil
+	}
 	result := make([]string, size)
 	for i := 0; i < int(size); i++ {
-		pointer := *(**C.char)(unsafe.Pointer(uintptr(data) + uintptr(i)*unsafe.Sizeof(uintptr(0))))
-		result[i] = C.GoString(pointer)
-		C.free(unsafe.Pointer(pointer))
+		pointer := *(**C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(data)) + uintptr(i)*unsafe.Sizeof(uintptr(0))))
+		if pointer != nil {
+			result[i] = C.GoString(pointer)
+		}
 	}
-	defer C.free(data)
 	return result
 }
 
-func parseUint32VectorC(data []uint32) (*C.uint32_t, C.int) {
+func parseUint32VectorC(data []uint32) (*C.uint32_t, C.size_t) {
 	if len(data) > 0 {
 		cData := C.malloc(C.size_t(len(data)) * C.size_t(unsafe.Sizeof(C.uint32_t(0))))
 		if cData == nil {
@@ -72,76 +94,57 @@ func parseUint32VectorC(data []uint32) (*C.uint32_t, C.int) {
 		for i, v := range data {
 			*(*C.uint32_t)(unsafe.Pointer(uintptr(unsafe.Pointer(ssrcs)) + uintptr(i)*unsafe.Sizeof(C.uint32_t(0)))) = C.uint32_t(v)
 		}
-		return ssrcs, C.int(len(data))
+		return ssrcs, C.size_t(len(data))
 	}
 	return nil, 0
 }
 
-func parseStringVectorC(data []string) (**C.char, C.int) {
-	if len(data) > 0 {
-		rawData := make([]*C.char, len(data))
-		for i, v := range data {
-			rawData[i] = C.CString(v)
-		}
-		return &rawData[0], C.int(len(data))
-	}
-	return nil, 0
-}
-
-func parseErrorCode(futureResult *Future) error {
-	errorCode := int32(*futureResult.errCode)
-	if errorCode < 0 {
-		var message string
-		if *futureResult.errMessage != nil {
-			message = C.GoString(*futureResult.errMessage)
-		}
-		if len(message) == 0 {
-			message = fmt.Sprintf("Error code: %d", errorCode)
-		}
-		return fmt.Errorf("%s", message)
-	}
-	return nil
-}
-
-func parseStreamStatus(status C.ntg_stream_status_enum) StreamStatus {
-	switch status {
-	case C.NTG_ACTIVE:
-		return ActiveStream
-	case C.NTG_PAUSED:
-		return PausedStream
-	case C.NTG_IDLING:
-		return IdlingStream
-	}
-	return ActiveStream
-}
-
-func parseSsrcGroups(ssrcGroups []SsrcGroup) *C.ntg_ssrc_group_struct {
+func parseSsrcGroups(ssrcGroups []SsrcGroup) (*C.ntg_ssrc_group, C.size_t) {
 	if len(ssrcGroups) > 0 {
-		rawGroups := make([]C.ntg_ssrc_group_struct, len(ssrcGroups))
+		cData := C.malloc(C.size_t(len(ssrcGroups)) * C.size_t(unsafe.Sizeof(C.ntg_ssrc_group{})))
+		if cData == nil {
+			return nil, 0
+		}
+		rawGroups := (*C.ntg_ssrc_group)(cData)
 		for i, group := range ssrcGroups {
 			ssrcsC, sizeSsrcs := parseUint32VectorC(group.Ssrcs)
-			rawGroups[i] = C.ntg_ssrc_group_struct{
-				semantics: C.CString(group.Semantics),
-				ssrcs:     ssrcsC,
-				sizeSsrcs: sizeSsrcs,
-			}
+			groupPtr := (*C.ntg_ssrc_group)(unsafe.Pointer(uintptr(unsafe.Pointer(rawGroups)) + uintptr(i)*unsafe.Sizeof(C.ntg_ssrc_group{})))
+			groupPtr.semantics = C.CString(group.Semantics)
+			groupPtr.ssrcs = ssrcsC
+			groupPtr.ssrcs_len = sizeSsrcs
 		}
-		return (*C.ntg_ssrc_group_struct)(unsafe.Pointer(&rawGroups[0]))
+		return rawGroups, C.size_t(len(ssrcGroups))
 	}
-	return nil
+	return nil, 0
 }
 
-func parseDeviceInfoVector(devices unsafe.Pointer, size C.int) []DeviceInfo {
+func freeSsrcGroups(groups *C.ntg_ssrc_group, size C.size_t) {
+	if groups == nil {
+		return
+	}
+	for i := 0; i < int(size); i++ {
+		groupPtr := (*C.ntg_ssrc_group)(unsafe.Pointer(uintptr(unsafe.Pointer(groups)) + uintptr(i)*unsafe.Sizeof(C.ntg_ssrc_group{})))
+		if groupPtr.semantics != nil {
+			C.free(unsafe.Pointer(groupPtr.semantics))
+		}
+		if groupPtr.ssrcs != nil {
+			C.free(unsafe.Pointer(groupPtr.ssrcs))
+		}
+	}
+	C.free(unsafe.Pointer(groups))
+}
+
+func parseDeviceInfoVector(devices *C.ntg_device_info, size C.size_t) []DeviceInfo {
+	if devices == nil || size == 0 {
+		return nil
+	}
 	rawDevices := make([]DeviceInfo, size)
 	for i := 0; i < int(size); i++ {
-		device := *(*C.ntg_device_info_struct)(unsafe.Pointer(uintptr(devices) + uintptr(i)*unsafe.Sizeof(C.ntg_device_info_struct{})))
+		device := *(*C.ntg_device_info)(unsafe.Pointer(uintptr(unsafe.Pointer(devices)) + uintptr(i)*unsafe.Sizeof(C.ntg_device_info{})))
 		rawDevices[i] = DeviceInfo{
 			Name:     C.GoString(device.name),
 			Metadata: C.GoString(device.metadata),
 		}
-		C.free(unsafe.Pointer(device.name))
-		C.free(unsafe.Pointer(device.metadata))
 	}
-	defer C.free(devices)
 	return rawDevices
 }

@@ -3,6 +3,7 @@ package ntgcalls
 //#include "ntgcalls.h"
 import "C"
 
+// MediaDescription holds the audio and video descriptions for different stream targets.
 type MediaDescription struct {
 	Microphone *AudioDescription
 	Speaker    *AudioDescription
@@ -10,8 +11,9 @@ type MediaDescription struct {
 	Screen     *VideoDescription
 }
 
-func (ctx *MediaDescription) ParseToC() C.ntg_media_description_struct {
-	var x C.ntg_media_description_struct
+// ParseToC converts MediaDescription to the C ntg_media_description structure.
+func (ctx *MediaDescription) ParseToC() C.ntg_media_description {
+	var x C.ntg_media_description
 	if ctx.Microphone != nil {
 		microphone := ctx.Microphone.ParseToC()
 		x.microphone = &microphone
