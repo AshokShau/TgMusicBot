@@ -54,6 +54,7 @@ func LoadModules(c *gotdbot.Client) {
 	c.OnCommand("start", startHandler)
 	c.OnCommand("help", startHandler)
 	c.OnCommand("ping", pingHandler)
+	c.OnCommand("mix", mixHandler)
 	c.OnCommand("play", playHandler)
 	c.OnCommand("p", playHandler)
 	c.OnCommand("fplay", fPlayHandler)

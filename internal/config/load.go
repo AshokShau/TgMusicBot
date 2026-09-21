@@ -150,6 +150,10 @@ func validate() error {
 		DefaultService = defaultService
 	}
 
+	if AutoPlayLimit < 0 {
+		AutoPlayLimit = 5
+	}
+
 	return nil
 }
 

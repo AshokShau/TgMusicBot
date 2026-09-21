@@ -283,6 +283,7 @@ Reattach later: `screen -r tgmusic`
 | Command               | Aliases | Access   | Description                                                                  |
 |-----------------------|---------|----------|------------------------------------------------------------------------------|
 | `/play <query/URL>`   | `/p`    | Everyone | Play audio from YouTube, Spotify, SoundCloud, direct link, or Telegram file. |
+| `/mix <query/URL>`    | -       | Everyone | Create a mix of related YouTube tracks based on query or currently playing song. |
 | `/vplay <query/URL>`  | `/v`    | Everyone | Stream video in group video chat.                                            |
 | `/fplay <query/URL>`  | `/fp`   | Everyone | Force play audio immediately, interrupting current playback.                 |
 | `/fvplay <query/URL>` | `/fvp`  | Everyone | Force play video immediately.                                                |

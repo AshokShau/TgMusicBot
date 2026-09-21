@@ -30,6 +30,7 @@ type TelegramCalls struct {
 	statusCache        *cache.Cache[td.ChatMemberStatus]
 	inviteCache        *cache.Cache[string]
 	streamEndCallbacks []func(chatID int64, t ntgcalls.StreamType, d ntgcalls.StreamDevice)
+	timeOffsets        map[int64]uint64
 }
 
 var (
@@ -43,6 +44,7 @@ func getCalls() *TelegramCalls {
 			accounts:    make([]*AssistantAccount, 0),
 			statusCache: cache.NewCache[td.ChatMemberStatus](2 * time.Hour),
 			inviteCache: cache.NewCache[string](2 * time.Hour),
+			timeOffsets: make(map[int64]uint64),
 		}
 	})
 	return instance

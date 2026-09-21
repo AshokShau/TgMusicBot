@@ -24,7 +24,7 @@ func init() {
 }
 
 var (
-	loggerNTGCalls = NewLogger("ntgcalls", LevelDebug)
+	loggerNTGCalls = NewLogger("ntgcalls", LevelInfo)
 	loggerWebRTC   = NewLogger("webrtc", LevelFatal)
 )
 
@@ -411,7 +411,7 @@ func (ctx *Client) Stop(chatId int64) error {
 	return parseResult(res)
 }
 
-// Time returns the playback or capture stream time in milliseconds.
+// Time returns the playback or capture stream time in seconds.
 func (ctx *Client) Time(chatId int64, streamMode StreamMode) (uint64, error) {
 	var out C.uint64_t
 	res := C.ntg_time(ctx.handle, C.int64_t(chatId), streamMode.ParseToC(), &out)

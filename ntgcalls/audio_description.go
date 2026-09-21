@@ -6,8 +6,8 @@ import "C"
 
 // AudioDescription represents the audio configuration for a media stream.
 type AudioDescription struct {
-	MediaSource MediaSource
-	Input       string
+	MediaSource  MediaSource
+	Input        string
 	SampleRate   uint32
 	ChannelCount uint8
 	KeepOpen     bool

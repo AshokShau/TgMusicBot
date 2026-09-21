@@ -6,8 +6,8 @@ import "C"
 
 // VideoDescription represents the video configuration for a media stream.
 type VideoDescription struct {
-	MediaSource MediaSource
-	Input       string
+	MediaSource   MediaSource
+	Input         string
 	Width, Height int16
 	Fps           uint8
 	KeepOpen      bool

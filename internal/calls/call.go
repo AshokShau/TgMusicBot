@@ -41,6 +41,7 @@ func (c *TelegramCalls) stopAssistantCall(acc *AssistantAccount, chatId int64, b
 	acc.mu.Lock()
 	acc.presentations = stdRemove(acc.presentations, chatId)
 	delete(acc.pendingConnections, chatId)
+	delete(acc.inputGroupCalls, chatId)
 	inputGroupCall := acc.inputGroupCalls[chatId]
 	acc.mu.Unlock()
 
@@ -545,10 +546,12 @@ func (c *TelegramCalls) onGroupCallParticipants(acc *AssistantAccount, m tg.Upda
 				acc.App.Log.Warnf("failed to get call state: %v", stateErr)
 				break
 			}
+
 			if statusErr := c.setCallStatus(acc, participantsUpdate.Call, state); statusErr != nil {
 				acc.App.Log.Warnf("failed to update call status: %v", statusErr)
 				break
 			}
+
 			acc.mu.Lock()
 			acc.mutedByAdmin = stdRemove(acc.mutedByAdmin, chatId)
 			acc.mu.Unlock()
@@ -651,6 +654,8 @@ func (c *TelegramCalls) onUpgrade(acc *AssistantAccount, chatId int64, state ntg
 	if inputGroupCall == nil {
 		return
 	}
+
+	acc.App.Logger.Infof("chatId %d , state %+v", chatId, state)
 	if err := c.setCallStatus(acc, inputGroupCall, state); err != nil {
 		acc.App.Log.Warnf("failed to update call status: %v", err)
 	}
@@ -690,6 +695,7 @@ func stdRemove[T comparable](slice []T, val T) []T {
 
 // Stop halts media playback in a voice chat and clears the chat's cache.
 func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
+	c.ClearPlayedTimeOffset(chatId)
 	cache.ChatCache.SetAutoplay(chatId, false)
 	cache.ChatCache.ClearChat(chatId)
 
@@ -773,22 +779,6 @@ func (c *TelegramCalls) Unmute(chatId int64) (bool, error) {
 	return res, err
 }
 
-// PlayedTime retrieves the elapsed playback time in seconds.
-func (c *TelegramCalls) PlayedTime(chatId int64) (uint64, error) {
-	acc, index, err := c.GetAccount(chatId)
-	if err != nil {
-		return 0, err
-	}
-
-	_time, err := acc.binding.Time(chatId, ntgcalls.CaptureStream)
-	if err != nil {
-		logger.Warn("Failed to get played time", "error", err, "index", index)
-		return 0, fmt.Errorf("failed to get played time: %w", err)
-	}
-
-	return _time, nil
-}
-
 func (c *TelegramCalls) SeekStream(bot *gotdbot.Client, chatId int64, seekSec int) error {
 	if seekSec < 0 {
 		return errors.New("seek position must be >= 0")
@@ -809,6 +799,8 @@ func (c *TelegramCalls) SeekStream(bot *gotdbot.Client, chatId int64, seekSec in
 	if toSeek < 0 || track.Duration <= 0 {
 		return errors.New("invalid seek position or duration. The position must be positive and the duration must be greater than 0")
 	}
+
+	c.SetPlayedTimeOffset(chatId, uint64(toSeek))
 
 	ffmpegParams := fmt.Sprintf("-ss %d -to %d", toSeek, track.Duration)
 
