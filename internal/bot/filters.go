@@ -45,6 +45,15 @@ func checkBotAdmin(c *td.Client, chatID int64, replyErr func(msg string)) bool {
 	}
 }
 
+func deleteCmd(c *td.Client, m *td.Message) {
+	if m == nil || m.IsPrivate() {
+		return
+	}
+	if db.Instance.GetCmdDelete(m.ChatId) {
+		_ = m.Delete(c, true)
+	}
+}
+
 func adminMode(c *td.Client, m *td.Message) bool {
 
 	if m.IsPrivate() {
@@ -56,6 +65,8 @@ func adminMode(c *td.Client, m *td.Message) bool {
 	if !checkBotAdmin(c, chatID, func(msg string) { _, _ = m.ReplyText(c, msg, nil) }) {
 		return false
 	}
+
+	deleteCmd(c, m)
 
 	userID := m.SenderID()
 	switch db.Instance.GetAdminMode(chatID) {
@@ -110,6 +121,8 @@ func playMode(c *td.Client, m *td.Message) bool {
 	if !checkBotAdmin(c, chatID, func(msg string) { _, _ = m.ReplyText(c, msg, nil) }) {
 		return false
 	}
+
+	deleteCmd(c, m)
 
 	if db.Instance.GetPlayMode(chatID) {
 		admins, err := cache.GetAdmins(c, chatID, false)

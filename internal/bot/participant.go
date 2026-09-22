@@ -76,6 +76,20 @@ func handleParticipant(client *gotdbot.Client, update *gotdbot.UpdateChatMember)
 		cache.UpdateAdminCache(chatID, update.NewChatMember)
 	}
 
+	if userID == client.Me.Id {
+		hasDeleteRights := false
+		if s, ok := newStatus.(*gotdbot.ChatMemberStatusAdministrator); ok {
+			if s.Rights != nil && s.Rights.CanDeleteMessages {
+				hasDeleteRights = true
+			}
+		}
+
+		if !hasDeleteRights && db.Instance.GetCmdDelete(chatID) {
+			_ = db.Instance.SetCmdDelete(chatID, false)
+			client.Logger.Info("Bot lost delete message rights; disabled cmd_delete", "chat_id", chatID)
+		}
+	}
+
 	client.Logger.Debug("Member status changed",
 		"user_id", userID,
 		"old_status", oldStatus,
