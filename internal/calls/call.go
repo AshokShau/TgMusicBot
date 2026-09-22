@@ -41,7 +41,6 @@ func (c *TelegramCalls) stopAssistantCall(acc *AssistantAccount, chatId int64, b
 	acc.mu.Lock()
 	acc.presentations = stdRemove(acc.presentations, chatId)
 	delete(acc.pendingConnections, chatId)
-	delete(acc.inputGroupCalls, chatId)
 	inputGroupCall := acc.inputGroupCalls[chatId]
 	acc.mu.Unlock()
 
@@ -655,7 +654,7 @@ func (c *TelegramCalls) onUpgrade(acc *AssistantAccount, chatId int64, state ntg
 		return
 	}
 
-	acc.App.Logger.Infof("chatId %d , state %+v", chatId, state)
+	acc.App.Logger.Debugf("chatId %d , state %+v", chatId, state)
 	if err := c.setCallStatus(acc, inputGroupCall, state); err != nil {
 		acc.App.Log.Warnf("failed to update call status: %v", err)
 	}

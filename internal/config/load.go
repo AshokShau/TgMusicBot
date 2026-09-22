@@ -23,7 +23,7 @@ const (
 	defaultDBName         = "Anon"
 	defaultAPIURL         = "https://api.onegrab.fun"
 	defaultService        = "youtube"
-	defaultDownloadsDir   = "database"
+	defaultDownloadsDir   = "downloads"
 	defaultSupportGroup   = "https://t.me/FallenSupport"
 	defaultSupportChannel = "https://t.me/FallenProjects"
 	defaultStartImage     = "https://i.pinimg.com/736x/0d/f4/65/0df465d1e98239ecb6283400605fc813.jpg"

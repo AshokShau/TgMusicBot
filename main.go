@@ -44,7 +44,7 @@ func main() {
 		panic("failed to connect database: " + err.Error())
 	}
 
-	tdDir := "database"
+	tdDir := "td"
 	_ = os.Remove(tdDir)
 	libPath := "./libtdjson.so.1.8.67"
 	manager := gotdbot.NewClientManager(libPath)

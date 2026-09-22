@@ -67,7 +67,7 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 	c.mu.RUnlock()
 
 	c.OnStreamEnd(func(chatID int64, t ntgcalls.StreamType, d ntgcalls.StreamDevice) {
-		logger.Info("[OnStreamEnd] Stream ended", "chat_id", chatID, "type", t, "device", d)
+		logger.Debug("[OnStreamEnd] Stream ended", "chat_id", chatID, "type", t, "device", d)
 		if t == ntgcalls.VideoStream {
 			return
 		}
