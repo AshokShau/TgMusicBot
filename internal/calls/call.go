@@ -14,7 +14,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -321,13 +320,6 @@ func (c *TelegramCalls) getInputGroupCall(acc *AssistantAccount, chatId int64) (
 }
 
 func (c *TelegramCalls) setCallStatus(acc *AssistantAccount, call tg.InputGroupCall, state ntgcalls.MediaState) error {
-	if call == nil {
-		return errors.New("missing input group call")
-	}
-	if acc.self == nil {
-		return errors.New("assistant is not ready")
-	}
-
 	_, err := acc.App.PhoneEditGroupCallParticipant(
 		&tg.PhoneEditGroupCallParticipantParams{
 			Call: call,
@@ -652,21 +644,26 @@ func (c *TelegramCalls) onConnectionChange(acc *AssistantAccount, chatId int64, 
 	default:
 	}
 }
-
 func (c *TelegramCalls) onUpgrade(acc *AssistantAccount, chatId int64, state ntgcalls.MediaState) {
+	acc.App.Logger.Infof("chatId %d, state %+v", chatId, state)
+
 	acc.mu.RLock()
 	inputGroupCall := acc.inputGroupCalls[chatId]
 	acc.mu.RUnlock()
+
 	if inputGroupCall == nil {
 		return
 	}
 
-	acc.App.Logger.Infof("chatId %d , state %+v", chatId, state)
+	// TODO: Find a better way to handle this ;
+	if state.Muted == false && state.VideoPaused == false && state.VideoStopped == true && state.PresentationPaused == false && state.PresentationStopped == true {
+		return
+	}
+
 	if err := c.setCallStatus(acc, inputGroupCall, state); err != nil {
 		acc.App.Log.Warnf("failed to update call status: %v", err)
 	}
 }
-
 func (c *TelegramCalls) convertGroupCallId(acc *AssistantAccount, callId int64) (int64, error) {
 	acc.mu.RLock()
 	defer acc.mu.RUnlock()
@@ -716,7 +713,7 @@ func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
 			return nil
 		}
 
-		slog.Info("[Stop] Failed to stop the call", "error", err, "index", index)
+		acc.App.Logger.Info("[Stop] Failed to stop the call", "error", err, "index", index)
 		return fmt.Errorf("failed to stop call: %w", err)
 	}
 	return nil
@@ -731,7 +728,7 @@ func (c *TelegramCalls) Pause(chatId int64) (bool, error) {
 
 	res, err := acc.binding.Pause(chatId)
 	if err != nil {
-		slog.Warn("[Pause] Failed to pause the call", "error", err, "index", index)
+		acc.App.Logger.Warn("[Pause] Failed to pause the call", "error", err, "index", index)
 		return res, fmt.Errorf("failed to pause: %w", err)
 	}
 	return res, err
