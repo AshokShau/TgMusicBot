@@ -192,7 +192,7 @@ func onLeave(client *gotdbot.Client, chatID, userID, assistantID int64) error {
 
 	calls.Calls.UpdateMembership(chatID, userID, &gotdbot.ChatMemberStatusLeft{})
 	if userID == client.Me.Id {
-		if err := calls.Calls.Stop(chatID, true); err != nil {
+		if err := calls.Calls.Stop(chatID, false); err != nil {
 			client.Logger.Error("Failed to stop VC after leave", "error", err)
 		}
 	}

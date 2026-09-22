@@ -24,16 +24,23 @@ import (
 )
 
 func (c *TelegramCalls) startCallStream(ctx context.Context, acc *AssistantAccount, chatId int64, mediaDesc ntgcalls.MediaDescription) error {
-	if acc.binding.Calls()[chatId] != nil {
+	calls, err := acc.binding.Calls()
+	if err != nil {
+		return err
+	}
+
+	if _, ok := calls[chatId]; ok {
 		return acc.binding.SetStreamSources(chatId, ntgcalls.CaptureStream, mediaDesc)
 	}
 
-	if err := c.connectCall(ctx, acc, chatId, mediaDesc, ""); err != nil {
+	if err = c.connectCall(ctx, acc, chatId, mediaDesc, ""); err != nil {
 		return err
 	}
+
 	if chatId < 0 {
 		return c.joinPresentation(ctx, acc, chatId, mediaDesc.Screen != nil)
 	}
+
 	return nil
 }
 
@@ -654,7 +661,7 @@ func (c *TelegramCalls) onUpgrade(acc *AssistantAccount, chatId int64, state ntg
 		return
 	}
 
-	acc.App.Logger.Debugf("chatId %d , state %+v", chatId, state)
+	acc.App.Logger.Infof("chatId %d , state %+v", chatId, state)
 	if err := c.setCallStatus(acc, inputGroupCall, state); err != nil {
 		acc.App.Log.Warnf("failed to update call status: %v", err)
 	}

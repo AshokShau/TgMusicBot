@@ -67,10 +67,11 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 	c.mu.RUnlock()
 
 	c.OnStreamEnd(func(chatID int64, t ntgcalls.StreamType, d ntgcalls.StreamDevice) {
-		logger.Debug("[OnStreamEnd] Stream ended", "chat_id", chatID, "type", t, "device", d)
+		logger.Info("[OnStreamEnd] Stream ended", "chat_id", chatID, "type", t, "device", d)
 		if t == ntgcalls.VideoStream {
 			return
 		}
+
 		if err := c.PlayNext(client, chatID); err != nil {
 			logger.Warn("[OnStreamEnd] Failed to play the song", "error", err)
 		}
@@ -80,10 +81,9 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 		if _, err := acc.App.SendMessage(client.Me.Usernames.EditableUsername, "/start"); err != nil {
 			acc.App.Log.Warnf("failed to start bot: %v", err)
 		}
-		if config.LoggerId != 0 {
-			if _, err := acc.App.SendMessage(config.LoggerId, "Userbot started."); err != nil {
-				acc.App.Log.Warnf("Failed to send message: %v", err)
-			}
+
+		if _, err := acc.App.SendMessage(config.LoggerId, "Userbot started."); err != nil {
+			acc.App.Log.Warnf("Failed to send message: (%d) %v", config.LoggerId, err)
 		}
 	}
 }
