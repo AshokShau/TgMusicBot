@@ -4,5 +4,4 @@ database
 *.dat
 .env
 libntgcalls.a
-libntgcalls.so
 libtdjson.so.*
