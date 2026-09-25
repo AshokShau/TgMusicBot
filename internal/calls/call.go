@@ -655,11 +655,6 @@ func (c *TelegramCalls) onUpgrade(acc *AssistantAccount, chatId int64, state ntg
 		return
 	}
 
-	// TODO: Find a better way to handle this ;
-	if state.Muted == false && state.VideoPaused == false && state.VideoStopped == true && state.PresentationPaused == false && state.PresentationStopped == true {
-		return
-	}
-
 	if err := c.setCallStatus(acc, inputGroupCall, state); err != nil {
 		acc.App.Log.Warnf("failed to update call status: %v", err)
 	}
