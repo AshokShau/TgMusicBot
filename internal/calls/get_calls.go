@@ -30,6 +30,7 @@ type TelegramCalls struct {
 	statusCache        *cache.Cache[td.ChatMemberStatus]
 	inviteCache        *cache.Cache[string]
 	streamEndCallbacks []func(chatID int64, t ntgcalls.StreamType, d ntgcalls.StreamDevice)
+	timeOffsets        map[int64]uint64
 }
 
 var (
@@ -43,6 +44,7 @@ func getCalls() *TelegramCalls {
 			accounts:    make([]*AssistantAccount, 0),
 			statusCache: cache.NewCache[td.ChatMemberStatus](2 * time.Hour),
 			inviteCache: cache.NewCache[string](2 * time.Hour),
+			timeOffsets: make(map[int64]uint64),
 		}
 	})
 	return instance
@@ -69,6 +71,7 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 		if t == ntgcalls.VideoStream {
 			return
 		}
+
 		if err := c.PlayNext(client, chatID); err != nil {
 			logger.Warn("[OnStreamEnd] Failed to play the song", "error", err)
 		}
@@ -78,10 +81,9 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 		if _, err := acc.App.SendMessage(client.Me.Usernames.EditableUsername, "/start"); err != nil {
 			acc.App.Log.Warnf("failed to start bot: %v", err)
 		}
-		if config.LoggerId != 0 {
-			if _, err := acc.App.SendMessage(config.LoggerId, "Userbot started."); err != nil {
-				acc.App.Log.Warnf("Failed to send message: %v", err)
-			}
+
+		if _, err := acc.App.SendMessage(config.LoggerId, "Userbot started."); err != nil {
+			acc.App.Log.Warnf("Failed to send message: (%d) %v", config.LoggerId, err)
 		}
 	}
 }

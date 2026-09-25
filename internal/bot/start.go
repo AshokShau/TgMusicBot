@@ -10,7 +10,6 @@ package bot
 
 import (
 	"ashokshau/tgmusic/internal/config"
-	"ashokshau/tgmusic/internal/db"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 	"runtime"
@@ -20,6 +19,7 @@ import (
 )
 
 func pingHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
 
 	start := time.Now()
 
@@ -45,12 +45,11 @@ func pingHandler(c *td.Client, m *td.Message) error {
 
 func startHandler(c *td.Client, m *td.Message) error {
 	chatID := m.ChatId
+	go storeChatToDB(chatID)
+
+	deleteCmd(c, m)
 
 	if m.IsPrivate() {
-		go func(chatID int64) {
-			_ = db.Instance.AddUser(chatID)
-		}(chatID)
-
 		response := fmt.Sprintf(
 			"<img src=\"%s\"/>\n"+
 				"<h3>Welcome, %s!</h3>\n"+
@@ -74,10 +73,6 @@ func startHandler(c *td.Client, m *td.Message) error {
 
 		return err
 	}
-
-	go func(chatID int64) {
-		_ = db.Instance.AddChat(chatID)
-	}(chatID)
 
 	uptime := getFormattedDuration(time.Since(startTime))
 	htmlText := fmt.Sprintf(

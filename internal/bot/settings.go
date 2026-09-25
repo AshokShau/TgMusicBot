@@ -74,16 +74,17 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 	}
 
 	chatID := cb.ChatId
+
 	admins, err := cache.GetAdmins(c, chatID, false)
 	if err != nil {
 		return err
 	}
 
 	var hasPerms bool
-	for _, admin := range admins {
-		if SenderID(admin.MemberId) == cb.SenderUserId {
+	for _, a := range admins {
+		if SenderID(a.MemberId) == cb.SenderUserId {
 			rights, _ := cache.GetRights(c, chatID, cb.SenderUserId, false)
-			hasPerms = (rights != nil && rights.CanManageVideoChats) || admin.Status == td.ChatMemberStatusCreator{}
+			hasPerms = (rights != nil && rights.CanManageVideoChats) || a.Status == td.ChatMemberStatusCreator{}
 			break
 		}
 	}
@@ -108,7 +109,16 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 	switch settingType {
 	case "delete":
 		cmdDelete := db.Instance.GetCmdDelete(chatID)
-		_ = db.Instance.SetCmdDelete(chatID, !cmdDelete)
+		if !cmdDelete {
+			rights, err := cache.GetRights(c, chatID, c.Me.Id, false)
+			if err != nil || rights == nil || !rights.CanDeleteMessages {
+				_ = cb.Answer(c, 0, true, "I don't have permission to delete messages in this chat.", "")
+				return nil
+			}
+			_ = db.Instance.SetCmdDelete(chatID, true)
+		} else {
+			_ = db.Instance.SetCmdDelete(chatID, false)
+		}
 	case "play":
 		getPlayMode := db.Instance.GetPlayMode(chatID)
 		_ = db.Instance.SetPlayMode(chatID, !getPlayMode)

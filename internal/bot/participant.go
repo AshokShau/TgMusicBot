@@ -76,6 +76,20 @@ func handleParticipant(client *gotdbot.Client, update *gotdbot.UpdateChatMember)
 		cache.UpdateAdminCache(chatID, update.NewChatMember)
 	}
 
+	if userID == client.Me.Id {
+		hasDeleteRights := false
+		if s, ok := newStatus.(*gotdbot.ChatMemberStatusAdministrator); ok {
+			if s.Rights != nil && s.Rights.CanDeleteMessages {
+				hasDeleteRights = true
+			}
+		}
+
+		if !hasDeleteRights && db.Instance.GetCmdDelete(chatID) {
+			_ = db.Instance.SetCmdDelete(chatID, false)
+			client.Logger.Info("Bot lost delete message rights; disabled cmd_delete", "chat_id", chatID)
+		}
+	}
+
 	client.Logger.Debug("Member status changed",
 		"user_id", userID,
 		"old_status", oldStatus,
@@ -178,7 +192,7 @@ func onLeave(client *gotdbot.Client, chatID, userID, assistantID int64) error {
 
 	calls.Calls.UpdateMembership(chatID, userID, &gotdbot.ChatMemberStatusLeft{})
 	if userID == client.Me.Id {
-		if err := calls.Calls.Stop(chatID, true); err != nil {
+		if err := calls.Calls.Stop(chatID, false); err != nil {
 			client.Logger.Error("Failed to stop VC after leave", "error", err)
 		}
 	}

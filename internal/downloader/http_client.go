@@ -126,7 +126,7 @@ func sendRequest(method, fullURL string, body io.Reader, headers map[string]stri
 
 func isTemporaryError(err error) bool {
 	if netErr, ok := errors.AsType[net.Error](err); ok {
-		return netErr.Timeout() || netErr.Temporary()
+		return netErr.Timeout()
 	}
 	return false
 }

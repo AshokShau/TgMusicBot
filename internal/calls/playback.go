@@ -42,10 +42,8 @@ func classifyError(err error) errorKind {
 	case strings.Contains(msg, "GROUPCALL_INVALID"):
 		return errFatal
 	case strings.Contains(msg, "GROUPCALL_ADD_PARTICIPANTS_FAILED"),
-		strings.Contains(msg, "INTERDC_X_CALL_ERROR"),
-		strings.Contains(msg, "PhoneJoinGroupCall"),
 		strings.Contains(msg, "Timeout while fetching data"),
-		strings.Contains(msg, "code -503"):
+		strings.Contains(msg, "INTERDC_X_CALL_ERROR"):
 		return errRetryOnce
 	case strings.Contains(msg, "CHANNELS_TOO_MUCH"),
 		strings.Contains(msg, "FROZEN_METHOD_INVALID"),
@@ -81,6 +79,10 @@ func (c *TelegramCalls) playMediaWithAssistant(bot *td.Client, chatID int64, fil
 	}
 
 	logger.Debug("Playing media in chat", "id", chatID, "path", filePath, "index", index)
+
+	if ffmpegParameters == "" {
+		c.clearPlayedTimeOffset(chatID)
+	}
 
 	mediaDesc := getMediaDescription(filePath, video, chatID, ffmpegParameters)
 	if err := c.startCallStream(context.Background(), call, chatID, mediaDesc); err != nil {

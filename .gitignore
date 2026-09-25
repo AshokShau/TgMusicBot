@@ -1,8 +1,8 @@
 .idea
-database
+td
+td_*
 *.db
 *.dat
 .env
 libntgcalls.a
-libntgcalls.so
 libtdjson.so.*

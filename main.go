@@ -9,7 +9,7 @@
 package main
 
 /*
-#cgo linux LDFLAGS: -L . -lntgcalls -lm -lz
+#cgo linux LDFLAGS: -L . -lntgcalls -lm -lz -lresolv
 #cgo darwin LDFLAGS: -L . -lntgcalls -lc++ -lz -lbz2 -liconv -framework AVFoundation -framework AudioToolbox -framework CoreAudio -framework QuartzCore -framework CoreMedia -framework VideoToolbox -framework AppKit -framework Metal -framework MetalKit -framework OpenGL -framework IOSurface -framework ScreenCaptureKit
 
 // Currently is supported only dynamically linked library on Windows due to
@@ -25,6 +25,7 @@ import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/db"
 	"ashokshau/tgmusic/internal/downloader"
+	"ashokshau/tgmusic/ntgcalls"
 	"fmt"
 	_ "net/http/pprof"
 	"os"
@@ -44,7 +45,7 @@ func main() {
 		panic("failed to connect database: " + err.Error())
 	}
 
-	tdDir := "database"
+	tdDir := "td"
 	_ = os.Remove(tdDir)
 	libPath := "./libtdjson.so.1.8.67"
 	manager := gotdbot.NewClientManager(libPath)
@@ -89,8 +90,11 @@ func main() {
 
 	calls.Calls.RegisterHandlers(client)
 	bot.LoadModules(client)
-	_, _ = client.SendTextMessage(config.LoggerId, "The bot has started!", nil)
+	msg := fmt.Sprintf("Bot started\nNtgCalls %s", ntgcalls.Version())
+	client.Logger.Info(msg)
+	_, _ = client.SendTextMessage(config.LoggerId, msg, nil)
 	manager.Idle()
 	client.Logger.Info("The bot is shutting down...")
 	calls.Calls.StopAllClients()
+	_ = os.Remove(config.DownloadsDir)
 }

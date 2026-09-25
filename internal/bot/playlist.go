@@ -20,6 +20,7 @@ import (
 )
 
 func createPlaylistHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
 
 	userID := m.SenderID()
 
@@ -64,6 +65,7 @@ func createPlaylistHandler(c *td.Client, m *td.Message) error {
 }
 
 func deletePlaylistHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
 
 	userID := m.SenderID()
 
@@ -115,6 +117,7 @@ func deletePlaylistHandler(c *td.Client, m *td.Message) error {
 	return err
 }
 func addToPlaylistHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
 
 	userID := m.SenderID()
 
@@ -211,6 +214,7 @@ func addToPlaylistHandler(c *td.Client, m *td.Message) error {
 }
 
 func removeFromPlaylistHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
 
 	userID := m.SenderID()
 
@@ -272,6 +276,7 @@ func removeFromPlaylistHandler(c *td.Client, m *td.Message) error {
 }
 
 func playlistInfoHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
 
 	args := Args(m)
 	if args == "" {
@@ -348,6 +353,7 @@ func playlistInfoHandler(c *td.Client, m *td.Message) error {
 }
 
 func myPlaylistsHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
 
 	userID := m.SenderID()
 

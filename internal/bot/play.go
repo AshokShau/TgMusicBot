@@ -436,7 +436,7 @@ func enqueueTrack(c *td.Client, updater *td.Message, chatId int64, saveCache *ut
 			"<u><b>Added to queue: %d</b></u>\n\n<b>Title:</b> <a href='%s'>%s</a>\n\n<b>Duration:</b> %s min\n<b>Requested by:</b> %s",
 			qLen, escURL, escName, utils.SecToMin(saveCache.Duration), escUser,
 		)
-		
+
 		_, err := updater.EditText(c, queueInfo, &td.EditTextMessageOpts{
 			ReplyMarkup:           utils.QueueMarkup(saveCache.TrackID),
 			ParseMode:             "HTML",

@@ -168,6 +168,8 @@ func gatherAppStats() *AppStats {
 	return stats
 }
 func statsHandler(c *td.Client, m *td.Message) error {
+	deleteCmd(c, m)
+
 	if !isDev(c, m) {
 		return td.EndGroups
 	}

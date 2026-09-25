@@ -6,6 +6,6 @@ type SegmentPartRequest struct {
 	Limit         int32
 	Timestamp     int64
 	QualityUpdate bool
-	ChannelID int32
-	Quality   MediaSegmentQuality
+	ChannelID     int32
+	Quality       MediaSegmentQuality
 }

@@ -413,6 +413,46 @@ func GetYouTubeMixPlaylist(ctx context.Context, playlistID string) (*utils.Platf
 	return buildTrackList(videos, mapMixVideo), nil
 }
 
+func GetYouTubeMix(ctx context.Context, query string, seedTrackID string, limit int) ([]utils.GetUrlTrack, error) {
+	startTrackID := seedTrackID
+	if startTrackID == "" && query != "" {
+		tracks, err := searchYouTube(query, 1)
+		if err != nil {
+			return nil, err
+		}
+		if len(tracks) == 0 {
+			return nil, errors.New("no tracks found for query")
+		}
+		startTrackID = tracks[0].Id
+	}
+
+	if startTrackID == "" {
+		return nil, errors.New("no query or seed track ID provided")
+	}
+
+	playlistID := "RD" + startTrackID
+	mix, err := GetYouTubeMixPlaylist(ctx, playlistID)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]bool)
+	var uniqueTracks []utils.GetUrlTrack
+
+	for _, track := range mix.Results {
+		if track.Id == "" || seen[track.Id] {
+			continue
+		}
+		seen[track.Id] = true
+		uniqueTracks = append(uniqueTracks, track)
+		if limit > 0 && len(uniqueTracks) >= limit {
+			break
+		}
+	}
+
+	return uniqueTracks, nil
+}
+
 func buildTrackList(videos []map[string]any, mapper func(map[string]any) utils.GetUrlTrack) *utils.PlatformTracks {
 	out := make([]utils.GetUrlTrack, 0, len(videos))
 	for _, v := range videos {

@@ -14,7 +14,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"slices"
 	"strings"
 	"time"
@@ -24,16 +23,23 @@ import (
 )
 
 func (c *TelegramCalls) startCallStream(ctx context.Context, acc *AssistantAccount, chatId int64, mediaDesc ntgcalls.MediaDescription) error {
-	if acc.binding.Calls()[chatId] != nil {
+	calls, err := acc.binding.Calls()
+	if err != nil {
+		return err
+	}
+
+	if _, ok := calls[chatId]; ok {
 		return acc.binding.SetStreamSources(chatId, ntgcalls.CaptureStream, mediaDesc)
 	}
 
-	if err := c.connectCall(ctx, acc, chatId, mediaDesc, ""); err != nil {
+	if err = c.connectCall(ctx, acc, chatId, mediaDesc, ""); err != nil {
 		return err
 	}
+
 	if chatId < 0 {
 		return c.joinPresentation(ctx, acc, chatId, mediaDesc.Screen != nil)
 	}
+
 	return nil
 }
 
@@ -314,13 +320,6 @@ func (c *TelegramCalls) getInputGroupCall(acc *AssistantAccount, chatId int64) (
 }
 
 func (c *TelegramCalls) setCallStatus(acc *AssistantAccount, call tg.InputGroupCall, state ntgcalls.MediaState) error {
-	if call == nil {
-		return errors.New("missing input group call")
-	}
-	if acc.self == nil {
-		return errors.New("assistant is not ready")
-	}
-
 	_, err := acc.App.PhoneEditGroupCallParticipant(
 		&tg.PhoneEditGroupCallParticipantParams{
 			Call: call,
@@ -545,10 +544,12 @@ func (c *TelegramCalls) onGroupCallParticipants(acc *AssistantAccount, m tg.Upda
 				acc.App.Log.Warnf("failed to get call state: %v", stateErr)
 				break
 			}
+
 			if statusErr := c.setCallStatus(acc, participantsUpdate.Call, state); statusErr != nil {
 				acc.App.Log.Warnf("failed to update call status: %v", statusErr)
 				break
 			}
+
 			acc.mu.Lock()
 			acc.mutedByAdmin = stdRemove(acc.mutedByAdmin, chatId)
 			acc.mu.Unlock()
@@ -643,19 +644,21 @@ func (c *TelegramCalls) onConnectionChange(acc *AssistantAccount, chatId int64, 
 	default:
 	}
 }
-
 func (c *TelegramCalls) onUpgrade(acc *AssistantAccount, chatId int64, state ntgcalls.MediaState) {
+	acc.App.Logger.Infof("chatId %d, state %+v", chatId, state)
+
 	acc.mu.RLock()
 	inputGroupCall := acc.inputGroupCalls[chatId]
 	acc.mu.RUnlock()
+
 	if inputGroupCall == nil {
 		return
 	}
+
 	if err := c.setCallStatus(acc, inputGroupCall, state); err != nil {
 		acc.App.Log.Warnf("failed to update call status: %v", err)
 	}
 }
-
 func (c *TelegramCalls) convertGroupCallId(acc *AssistantAccount, callId int64) (int64, error) {
 	acc.mu.RLock()
 	defer acc.mu.RUnlock()
@@ -690,6 +693,7 @@ func stdRemove[T comparable](slice []T, val T) []T {
 
 // Stop halts media playback in a voice chat and clears the chat's cache.
 func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
+	c.clearPlayedTimeOffset(chatId)
 	cache.ChatCache.SetAutoplay(chatId, false)
 	cache.ChatCache.ClearChat(chatId)
 
@@ -704,7 +708,7 @@ func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
 			return nil
 		}
 
-		slog.Info("[Stop] Failed to stop the call", "error", err, "index", index)
+		acc.App.Logger.Info("[Stop] Failed to stop the call", "error", err, "index", index)
 		return fmt.Errorf("failed to stop call: %w", err)
 	}
 	return nil
@@ -719,7 +723,7 @@ func (c *TelegramCalls) Pause(chatId int64) (bool, error) {
 
 	res, err := acc.binding.Pause(chatId)
 	if err != nil {
-		slog.Warn("[Pause] Failed to pause the call", "error", err, "index", index)
+		acc.App.Logger.Warn("[Pause] Failed to pause the call", "error", err, "index", index)
 		return res, fmt.Errorf("failed to pause: %w", err)
 	}
 	return res, err
@@ -773,22 +777,6 @@ func (c *TelegramCalls) Unmute(chatId int64) (bool, error) {
 	return res, err
 }
 
-// PlayedTime retrieves the elapsed playback time in seconds.
-func (c *TelegramCalls) PlayedTime(chatId int64) (uint64, error) {
-	acc, index, err := c.GetAccount(chatId)
-	if err != nil {
-		return 0, err
-	}
-
-	_time, err := acc.binding.Time(chatId, ntgcalls.CaptureStream)
-	if err != nil {
-		logger.Warn("Failed to get played time", "error", err, "index", index)
-		return 0, fmt.Errorf("failed to get played time: %w", err)
-	}
-
-	return _time, nil
-}
-
 func (c *TelegramCalls) SeekStream(bot *gotdbot.Client, chatId int64, seekSec int) error {
 	if seekSec < 0 {
 		return errors.New("seek position must be >= 0")
@@ -809,6 +797,8 @@ func (c *TelegramCalls) SeekStream(bot *gotdbot.Client, chatId int64, seekSec in
 	if toSeek < 0 || track.Duration <= 0 {
 		return errors.New("invalid seek position or duration. The position must be positive and the duration must be greater than 0")
 	}
+
+	c.setPlayedTimeOffset(chatId, uint64(toSeek))
 
 	ffmpegParams := fmt.Sprintf("-ss %d -to %d", toSeek, track.Duration)
 
