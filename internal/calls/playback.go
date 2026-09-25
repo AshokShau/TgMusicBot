@@ -81,7 +81,7 @@ func (c *TelegramCalls) playMediaWithAssistant(bot *td.Client, chatID int64, fil
 	logger.Debug("Playing media in chat", "id", chatID, "path", filePath, "index", index)
 
 	if ffmpegParameters == "" {
-		c.ClearPlayedTimeOffset(chatID)
+		c.clearPlayedTimeOffset(chatID)
 	}
 
 	mediaDesc := getMediaDescription(filePath, video, chatID, ffmpegParameters)

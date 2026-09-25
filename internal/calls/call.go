@@ -698,7 +698,7 @@ func stdRemove[T comparable](slice []T, val T) []T {
 
 // Stop halts media playback in a voice chat and clears the chat's cache.
 func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
-	c.ClearPlayedTimeOffset(chatId)
+	c.clearPlayedTimeOffset(chatId)
 	cache.ChatCache.SetAutoplay(chatId, false)
 	cache.ChatCache.ClearChat(chatId)
 
@@ -803,7 +803,7 @@ func (c *TelegramCalls) SeekStream(bot *gotdbot.Client, chatId int64, seekSec in
 		return errors.New("invalid seek position or duration. The position must be positive and the duration must be greater than 0")
 	}
 
-	c.SetPlayedTimeOffset(chatId, uint64(toSeek))
+	c.setPlayedTimeOffset(chatId, uint64(toSeek))
 
 	ffmpegParams := fmt.Sprintf("-ss %d -to %d", toSeek, track.Duration)
 
