@@ -3,3 +3,4 @@
 !*.go
 !internal
 !ntgcalls
+!glibc_compatibility.h
