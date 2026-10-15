@@ -132,7 +132,7 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 	}
 
 	if url == "" && args == "" && (!isReply || !isValidMedia(rMsg)) {
-		_, _ = m.ReplyText(c, "<b>Usage:</b>\n/play [song or URL]\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.SendTextMessageOpts{ReplyMarkup: utils.SupportKeyboard(), ParseMode: "HTML"})
+		_, _ = m.ReplyText(c, "<b>Usage:</b>\n/play [song or URL]\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.SendMessageOpts{ReplyMarkup: utils.SupportKeyboard(), ParseMode: "HTML"})
 		return td.EndGroups
 	}
 
@@ -149,7 +149,7 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 	wrapper := downloader.NewDlWrapper(input)
 	if url != "" {
 		if !wrapper.IsValid() {
-			_, _ = updater.EditText(c, "Invalid URL or unsupported platform.\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.EditTextMessageOpts{ReplyMarkup: utils.SupportKeyboard(), ParseMode: "HTML"})
+			_, _ = updater.EditText(c, "Invalid URL or unsupported platform.\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.EditMessageTextOpts{ReplyMarkup: utils.SupportKeyboard(), ParseMode: "HTML"})
 			return td.EndGroups
 		}
 
@@ -208,7 +208,7 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 		return err
 	}
 
-	file, err = dlMsg.Download(c, 1, 0, 0, true)
+	file, err = dlMsg.Download(c, 1, &td.DownloadFileOpts{Synchronous: true})
 	if err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
 		_, err = updater.EditText(c, fmt.Sprintf("Download failed: %s", err.Error()), nil)
@@ -225,7 +225,7 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 
 	if err = calls.Calls.PlayMedia(c, chatId, saveCache.FilePath, saveCache.IsVideo); err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
-		_, err = updater.EditText(c, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
+		_, err = updater.EditText(c, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return err
 	}
 
@@ -298,7 +298,7 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 
 	if err := calls.Calls.PlayMedia(c, chatId, saveCache.FilePath, saveCache.IsVideo); err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
-		_, err = updater.EditText(c, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
+		_, err = updater.EditText(c, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return err
 	}
 
@@ -406,7 +406,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 		_ = calls.Calls.PlayNext(c, chatId)
 	}
 
-	_, err := updater.EditText(c, fullMessage, &td.EditTextMessageOpts{
+	_, err := updater.EditText(c, fullMessage, &td.EditMessageTextOpts{
 		ParseMode:             "HTML",
 		ReplyMarkup:           utils.QueueMarkup(tracksToAdd[0].TrackID),
 		DisableWebPagePreview: true,
@@ -437,7 +437,7 @@ func enqueueTrack(c *td.Client, updater *td.Message, chatId int64, saveCache *ut
 			qLen, escURL, escName, utils.SecToMin(saveCache.Duration), escUser,
 		)
 
-		_, err := updater.EditText(c, queueInfo, &td.EditTextMessageOpts{
+		_, err := updater.EditText(c, queueInfo, &td.EditMessageTextOpts{
 			ReplyMarkup:           utils.QueueMarkup(saveCache.TrackID),
 			ParseMode:             "HTML",
 			DisableWebPagePreview: true,
@@ -458,7 +458,7 @@ func sendStartedStreaming(c *td.Client, updater *td.Message, saveCache *utils.Pl
 		escURL, escName, utils.SecToMin(saveCache.Duration), escUser,
 	)
 
-	_, err := updater.EditText(c, nowPlaying, &td.EditTextMessageOpts{
+	_, err := updater.EditText(c, nowPlaying, &td.EditMessageTextOpts{
 		ParseMode:             "HTML",
 		ReplyMarkup:           utils.ControlButtons("play"),
 		DisableWebPagePreview: true,

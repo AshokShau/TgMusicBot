@@ -160,7 +160,7 @@ Examples:
 
 			var errSend error
 			if copyMode {
-				_, errSend = reply.Copy(c, chatID, &td.SendCopyOpts{
+				_, errSend = reply.Copy(c, chatID, &td.CopyMessageOpts{
 					ReplyMarkup: reply.ReplyMarkup,
 				})
 			} else {

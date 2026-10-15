@@ -163,7 +163,7 @@ func helpCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 	helpCategories := getHelpCategories()
 
 	if strings.Contains(data, "help_all") {
-		_ = cb.Answer(c, 0, false, "Opening help menu...", "")
+		_ = cb.Answer(c, "Opening help menu...", nil)
 		response := fmt.Sprintf(
 			"<h3>Welcome, %s!</h3>\n"+
 				"<p><b>%s</b> is a fast, reliable, and feature-rich music bot for Telegram voice and video chats.</p>\n\n"+
@@ -178,12 +178,12 @@ func helpCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 				Text: response,
 			},
 		}
-		_, _ = c.EditMessageText(cb.ChatId, &td.InputMessageRichMessage{Message: richMessage}, cb.MessageId, &td.EditMessageTextOpts{ReplyMarkup: utils.HelpMenuKeyboard()})
+		_, _ = c.EditRichMessage(cb.ChatId, cb.MessageId, richMessage, &td.EditRichMessageOpts{ReplyMarkup: utils.HelpMenuKeyboard()})
 		return nil
 	}
 
 	if strings.Contains(data, "help_back") {
-		_ = cb.Answer(c, 0, false, "Returning to main menu...", "")
+		_ = cb.Answer(c, "Returning to main menu...", nil)
 
 		response := fmt.Sprintf(
 			"<img src=\"%s\"/>\n"+
@@ -201,22 +201,22 @@ func helpCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 				Text: response,
 			},
 		}
-		_, _ = c.EditMessageText(cb.ChatId, &td.InputMessageRichMessage{Message: richMessage}, cb.MessageId, &td.EditMessageTextOpts{ReplyMarkup: utils.AddMeMarkup(c.Me.Usernames.EditableUsername)})
+		_, _ = c.EditRichMessage(cb.ChatId, cb.MessageId, richMessage, &td.EditRichMessageOpts{ReplyMarkup: utils.AddMeMarkup(c.Me.Usernames.EditableUsername)})
 		return nil
 	}
 
 	if category, ok := helpCategories[data]; ok {
-		_ = cb.Answer(c, 0, false, category.Title, "")
+		_ = cb.Answer(c, category.Title, nil)
 		response := fmt.Sprintf("<h3>%s</h3>\n\n%s\n\n<i>Use the buttons below to go back.</i>", category.Title, category.Content)
 		richMessage := &td.InputRichMessage{
 			Source: &td.RichMessageSourceHtml{
 				Text: response,
 			},
 		}
-		_, _ = c.EditMessageText(cb.ChatId, &td.InputMessageRichMessage{Message: richMessage}, cb.MessageId, &td.EditMessageTextOpts{ReplyMarkup: category.Markup})
+		_, _ = c.EditRichMessage(cb.ChatId, cb.MessageId, richMessage, &td.EditRichMessageOpts{ReplyMarkup: category.Markup})
 		return nil
 	}
 
-	_ = cb.Answer(c, 0, true, "Unknown help category.", "")
+	_ = cb.Answer(c, "Unknown help category.", &td.CallbackAnswerOpts{ShowAlert: true})
 	return nil
 }

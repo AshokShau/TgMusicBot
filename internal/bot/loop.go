@@ -30,7 +30,7 @@ func loopHandler(c *td.Client, m *td.Message) error {
 
 	args := Args(m)
 	if args == "" {
-		_, err := m.ReplyText(c, "<b>Loop Control</b>\n\n<b>Usage:</b> <code>/loop [count]</code>\n0 to disable looping\n1-10 to set the number of repeats", &td.SendTextMessageOpts{ParseMode: "HTML"})
+		_, err := m.ReplyText(c, "<b>Loop Control</b>\n\n<b>Usage:</b> <code>/loop [count]</code>\n0 to disable looping\n1-10 to set the number of repeats", &td.SendMessageOpts{ParseMode: "HTML"})
 		return err
 	}
 

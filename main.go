@@ -47,7 +47,7 @@ func main() {
 
 	tdDir := "td"
 	_ = os.Remove(tdDir)
-	libPath := "./libtdjson.so.1.8.67"
+	libPath := "./libtdjson.so.1.8.68"
 	manager := gotdbot.NewClientManager(libPath)
 	clientConfig := gotdbot.DefaultClientConfig()
 	clientConfig.AutoRetry = &gotdbot.AutoRetry{
@@ -92,7 +92,7 @@ func main() {
 	bot.LoadModules(client)
 	msg := fmt.Sprintf("Bot started\nNtgCalls %s", ntgcalls.Version())
 	client.Logger.Info(msg)
-	_, _ = client.SendTextMessage(config.LoggerId, msg, nil)
+	_, _ = client.SendMessage(config.LoggerId, msg, nil)
 	manager.Idle()
 	client.Logger.Info("The bot is shutting down...")
 	calls.Calls.StopAllClients()

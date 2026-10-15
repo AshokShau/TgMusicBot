@@ -51,7 +51,7 @@ func firstName(c *gotdbot.Client, m *gotdbot.Message) string {
 	return "Unknown"
 }
 
-var replyOpts = &gotdbot.SendTextMessageOpts{
+var replyOpts = &gotdbot.SendMessageOpts{
 	ParseMode:             "HTML",
 	DisableWebPagePreview: true,
 }

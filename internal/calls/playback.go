@@ -227,12 +227,12 @@ func (c *TelegramCalls) PlayNext(bot *td.Client, chatID int64) error {
 
 func (c *TelegramCalls) handleNoSong(bot *td.Client, chatID int64) error {
 	_ = c.Stop(chatID, false)
-	_, _ = bot.SendTextMessage(chatID, "🎵 Queue finished. Add more songs with /play.", nil)
+	_, _ = bot.SendMessage(chatID, "🎵 Queue finished. Add more songs with /play.", nil)
 	return nil
 }
 
 func (c *TelegramCalls) playTrack(bot *td.Client, chatID int64, song *utils.PlayerCache) error {
-	reply, err := bot.SendTextMessage(chatID, fmt.Sprintf("Downloading %s...", song.Name), nil)
+	reply, err := bot.SendMessage(chatID, fmt.Sprintf("Downloading %s...", song.Name), nil)
 	if err != nil {
 		slog.Info("[playTrack] Failed to send message", "error", err)
 		return err
@@ -243,7 +243,7 @@ func (c *TelegramCalls) playTrack(bot *td.Client, chatID int64, song *utils.Play
 	}
 
 	if err = c.PlayMedia(bot, chatID, song.FilePath, song.IsVideo); err != nil {
-		_, _ = reply.EditText(bot, err.Error(), &td.EditTextMessageOpts{ParseMode: "HTML", DisableWebPagePreview: true})
+		_, _ = reply.EditText(bot, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return nil
 	}
 
@@ -259,7 +259,7 @@ func (c *TelegramCalls) playTrack(bot *td.Client, chatID int64, song *utils.Play
 		html.EscapeString(song.User),
 	)
 
-	_, err = reply.EditText(bot, text, &td.EditTextMessageOpts{
+	_, err = reply.EditText(bot, text, &td.EditMessageTextOpts{
 		ReplyMarkup:           utils.ControlButtons("play"),
 		ParseMode:             "HTML",
 		DisableWebPagePreview: true,

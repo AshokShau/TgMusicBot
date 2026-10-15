@@ -50,7 +50,7 @@ func deleteCmd(c *td.Client, m *td.Message) {
 		return
 	}
 	if db.Instance.GetCmdDelete(m.ChatId) {
-		_ = m.Delete(c, true)
+		_ = m.Delete(c, &td.DeleteMessagesOpts{Revoke: true})
 	}
 }
 
@@ -91,7 +91,7 @@ func adminModeCB(c *td.Client, cb *td.UpdateNewCallbackQuery) bool {
 
 	chatID := cb.ChatId
 
-	if !checkBotAdmin(c, chatID, func(msg string) { _ = cb.Answer(c, 0, true, msg, "") }) {
+	if !checkBotAdmin(c, chatID, func(msg string) { _ = cb.Answer(c, msg, &td.CallbackAnswerOpts{ShowAlert: true}) }) {
 		return false
 	}
 
@@ -103,10 +103,10 @@ func adminModeCB(c *td.Client, cb *td.UpdateNewCallbackQuery) bool {
 		if db.Instance.IsAdmin(chatID, userID) || db.Instance.IsAuthUser(chatID, userID) {
 			return true
 		}
-		_ = cb.Answer(c, 0, true, "You must be an administrator to use this action.", "")
+		_ = cb.Answer(c, "You must be an administrator to use this action.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return false
 	default:
-		_ = cb.Answer(c, 0, true, "You are not authorized to use this action.", "")
+		_ = cb.Answer(c, "You are not authorized to use this action.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return false
 	}
 }

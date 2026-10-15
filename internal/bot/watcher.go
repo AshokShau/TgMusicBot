@@ -28,7 +28,7 @@ func handleVoiceChatMessage(c *td.Client, update *td.UpdateNewMessage) error {
 			chatID,
 		)
 
-		_, _ = c.SendTextMessage(chatID, text, &td.SendTextMessageOpts{
+		_, _ = c.SendMessage(chatID, text, &td.SendMessageOpts{
 			ReplyMarkup:           utils.AddMeMarkup(c.Me.Usernames.EditableUsername),
 			DisableWebPagePreview: true,
 			ParseMode:             "HTML",
@@ -56,6 +56,6 @@ func handleVoiceChatMessage(c *td.Client, update *td.UpdateNewMessage) error {
 		return nil
 	}
 
-	_, _ = c.SendTextMessage(chatID, message, nil)
+	_, _ = c.SendMessage(chatID, message, nil)
 	return td.EndGroups
 }

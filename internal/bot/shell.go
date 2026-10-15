@@ -101,7 +101,7 @@ func shellRunner(c *td.Client, m *td.Message) error {
 	}
 
 	if len(finalOutput) <= 3500 {
-		_, _ = msg.EditText(c, finalOutput, &td.EditTextMessageOpts{ParseMode: "HTML"})
+		_, _ = msg.EditText(c, finalOutput, &td.EditMessageTextOpts{ParseMode: "HTML"})
 		return td.EndGroups
 	}
 

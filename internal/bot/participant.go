@@ -154,7 +154,7 @@ func onRestriction(client *gotdbot.Client, chatID, userID, assistantID int64, ol
 					"If this was a mistake, please unrestrict <code>%d</code>.",
 				assistantID,
 			)
-			if _, err := client.SendTextMessage(chatID, msg, &gotdbot.SendTextMessageOpts{
+			if _, err := client.SendMessage(chatID, msg, &gotdbot.SendMessageOpts{
 				ParseMode: "HTML",
 			}); err != nil {
 				return err
@@ -211,7 +211,7 @@ func onBan(client *gotdbot.Client, chatID, userID, assistantID int64) error {
 				"If this was a mistake, please unban <code>%d</code>.",
 			assistantID,
 		)
-		if _, err := client.SendTextMessage(chatID, msg, &gotdbot.SendTextMessageOpts{
+		if _, err := client.SendMessage(chatID, msg, &gotdbot.SendMessageOpts{
 			ParseMode: "HTML",
 		}); err != nil {
 			return err
@@ -274,7 +274,7 @@ func getSupergroup(client *gotdbot.Client, chatID int64) (*gotdbot.Supergroup, e
 
 func sendJoinLog(client *gotdbot.Client, chatID int64, _ *gotdbot.Supergroup) {
 	text := fmt.Sprintf("<b>🤖 Bot Joined a New Chat</b>\n📌 <b>Chat ID:</b> <code>%d</code>", chatID)
-	if _, err := client.SendTextMessage(config.LoggerId, text, &gotdbot.SendTextMessageOpts{
+	if _, err := client.SendMessage(config.LoggerId, text, &gotdbot.SendMessageOpts{
 		ParseMode: "HTML",
 	}); err != nil {
 		client.Logger.Warn("Failed to send join log", "error", err)

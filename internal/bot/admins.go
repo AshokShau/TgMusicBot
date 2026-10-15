@@ -106,13 +106,13 @@ func joinHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 
 	acc, err := calls.Calls.JoinAssistant(c, m.ChatId, link)
 	if err != nil {
-		_, _ = reply.EditText(c, fmt.Sprintf("Failed to join assistant:\n\n%s", err.Error()), &gotdbot.EditTextMessageOpts{
+		_, _ = reply.EditText(c, fmt.Sprintf("Failed to join assistant:\n\n%s", err.Error()), &gotdbot.EditMessageTextOpts{
 			ParseMode: "HTML",
 		})
 		return gotdbot.EndGroups
 	}
 
-	_, _ = reply.EditText(c, fmt.Sprintf("Assistant (<b>%s</b> | ID: <code>%d</code>) joined successfully!", html.EscapeString(acc.App.Me().FirstName), acc.App.Me().ID), &gotdbot.EditTextMessageOpts{
+	_, _ = reply.EditText(c, fmt.Sprintf("Assistant (<b>%s</b> | ID: <code>%d</code>) joined successfully!", html.EscapeString(acc.App.Me().FirstName), acc.App.Me().ID), &gotdbot.EditMessageTextOpts{
 		ParseMode: "HTML",
 	})
 
@@ -162,7 +162,7 @@ Questions? Contact our <a href="https://t.me/GuardxSupport">Support Group</a>.
 		botName,
 	)
 
-	_, err := m.ReplyText(c, text, &gotdbot.SendTextMessageOpts{
+	_, err := m.ReplyText(c, text, &gotdbot.SendMessageOpts{
 		ParseMode:             "html",
 		DisableWebPagePreview: true,
 	})

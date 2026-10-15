@@ -31,7 +31,7 @@ func autoplayHandler(c *td.Client, m *td.Message) error {
 	text := "<b>Autoplay Control</b>\n\nWhen autoplay is enabled, the bot will automatically play recommended songs from YouTube when the queue is empty."
 	button := autoplayButton(state)
 
-	_, err := m.ReplyText(c, text, &td.SendTextMessageOpts{
+	_, err := m.ReplyText(c, text, &td.SendMessageOpts{
 		ParseMode:   "HTML",
 		ReplyMarkup: button,
 	})
@@ -45,7 +45,7 @@ func autoplayCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 
 	chatID := cb.ChatId
 	if cache.ChatCache.GetPlayingTrack(chatID) == nil {
-		_ = cb.Answer(c, 0, true, "Bot is not streaming in the video chat.", "")
+		_ = cb.Answer(c, "Bot is not streaming in the video chat.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return nil
 	}
 
@@ -56,7 +56,7 @@ func autoplayCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 	text := "<b>Autoplay Control</b>\n\nWhen autoplay is enabled, the bot will automatically play recommended songs from YouTube when the queue is empty."
 	button := autoplayButton(newState)
 
-	_, err := cb.EditMessageText(c, text, &td.EditTextMessageOpts{
+	_, err := cb.EditMessageText(c, text, &td.EditMessageTextOpts{
 		ParseMode:   "HTML",
 		ReplyMarkup: button,
 	})
@@ -70,7 +70,7 @@ func autoplayCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 	} else {
 		status = "disabled"
 	}
-	_ = cb.Answer(c, 0, false, fmt.Sprintf("Autoplay has been %s.", status), "")
+	_ = cb.Answer(c, fmt.Sprintf("Autoplay has been %s.", status), nil)
 
 	return nil
 }

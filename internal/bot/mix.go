@@ -50,7 +50,7 @@ func mixHandler(c *td.Client, m *td.Message) error {
 	if input == "" {
 		playing := cache.ChatCache.GetPlayingTrack(chatID)
 		if playing == nil {
-			_, _ = m.ReplyText(c, "<b>Usage:</b>\n/mix [song or URL]\n\nOr run /mix while a song is currently playing to create a mix based on it.", &td.SendTextMessageOpts{ParseMode: "HTML"})
+			_, _ = m.ReplyText(c, "<b>Usage:</b>\n/mix [song or URL]\n\nOr run /mix while a song is currently playing to create a mix based on it.", &td.SendMessageOpts{ParseMode: "HTML"})
 			return td.EndGroups
 		}
 		seedTrackID = playing.TrackID

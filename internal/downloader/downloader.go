@@ -75,7 +75,7 @@ func downloadTelegramFile(cached *utils.PlayerCache, bot *td.Client) (string, er
 		return "", err
 	}
 
-	d, err := file.Download(bot, 0, 0, 1, &td.DownloadFileOpts{Synchronous: true})
+	d, err := file.Download(bot, 1, &td.DownloadFileOpts{Synchronous: true})
 	if err != nil {
 		return "", err
 	}
@@ -89,7 +89,7 @@ func downloadFromTelegramMessage(bot *td.Client, msgURL string) (string, error) 
 		return "", fmt.Errorf("get telegram message: %w", err)
 	}
 
-	file, err := msg.Download(bot, 1, 0, 0, true)
+	file, err := msg.Download(bot, 1, &td.DownloadFileOpts{Synchronous: true})
 	if err != nil {
 		return "", err
 	}

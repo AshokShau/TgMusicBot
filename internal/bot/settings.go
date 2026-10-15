@@ -64,7 +64,7 @@ func settingsHandler(c *td.Client, m *td.Message) error {
 	text := fmt.Sprintf("<u><b>%s settings</b></u>\n\nClick the buttons below to change this chat's current settings.",
 		chat.Title)
 
-	_, err = m.ReplyText(c, text, &td.SendTextMessageOpts{ReplyMarkup: utils.SettingsKeyboard(playModeStr, getAdminMode, cmdDelete, language, autoplay), ParseMode: td.ParseModeHTML})
+	_, err = m.ReplyText(c, text, &td.SendMessageOpts{ReplyMarkup: utils.SettingsKeyboard(playModeStr, getAdminMode, cmdDelete, language, autoplay), ParseMode: td.ParseModeHTML})
 	return err
 }
 
@@ -90,13 +90,13 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 	}
 
 	if !hasPerms {
-		err = cb.Answer(c, 0, true, "You don't have permission to change settings.", "")
+		err = cb.Answer(c, "You don't have permission to change settings.", &td.CallbackAnswerOpts{ShowAlert: true})
 		return err
 	}
 
 	data := cb.DataString()
 	if data == "settings_main" {
-		return cb.Answer(c, 0, false, "Update your chat settings", "")
+		return cb.Answer(c, "Update your chat settings", nil)
 	}
 
 	parts := strings.Split(data, "_")
@@ -112,7 +112,7 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 		if !cmdDelete {
 			rights, err := cache.GetRights(c, chatID, c.Me.Id, false)
 			if err != nil || rights == nil || !rights.CanDeleteMessages {
-				_ = cb.Answer(c, 0, true, "I don't have permission to delete messages in this chat.", "")
+				_ = cb.Answer(c, "I don't have permission to delete messages in this chat.", &td.CallbackAnswerOpts{ShowAlert: true})
 				return nil
 			}
 			_ = db.Instance.SetCmdDelete(chatID, true)
@@ -131,15 +131,15 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 		_ = db.Instance.SetAdminMode(chatID, newMode)
 	case "autoplay":
 		if cache.ChatCache.GetPlayingTrack(chatID) == nil {
-			_ = cb.Answer(c, 0, true, "Bot is not streaming in the video chat.", "")
+			_ = cb.Answer(c, "Bot is not streaming in the video chat.", &td.CallbackAnswerOpts{ShowAlert: true})
 			return nil
 		}
 		autoplay := cache.ChatCache.GetAutoplay(chatID)
 		cache.ChatCache.SetAutoplay(chatID, !autoplay)
 	case "lang":
-		return cb.Answer(c, 0, true, "Language selection is not yet implemented via this menu.", "")
+		return cb.Answer(c, "Language selection is not yet implemented via this menu.", &td.CallbackAnswerOpts{ShowAlert: true})
 	default:
-		return cb.Answer(c, 0, true, "Unknown setting", "")
+		return cb.Answer(c, "Unknown setting", &td.CallbackAnswerOpts{ShowAlert: true})
 	}
 
 	getPlayMode := db.Instance.GetPlayMode(chatID)
@@ -161,11 +161,11 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 	text := fmt.Sprintf("<u><b>%s settings</b></u>\n\nClick the buttons below to change this chat's current settings.",
 		chat.Title)
 
-	_, err = cb.EditMessageText(c, text, &td.EditTextMessageOpts{ReplyMarkup: utils.SettingsKeyboard(playModeStr, getAdminMode, cmdDelete, language, autoplay), ParseMode: td.ParseModeHTML})
+	_, err = cb.EditMessageText(c, text, &td.EditMessageTextOpts{ReplyMarkup: utils.SettingsKeyboard(playModeStr, getAdminMode, cmdDelete, language, autoplay), ParseMode: td.ParseModeHTML})
 	if err != nil {
 		return err
 	}
 
-	_ = cb.Answer(c, 0, false, "Settings updated", "")
+	_ = cb.Answer(c, "Settings updated", nil)
 	return nil
 }

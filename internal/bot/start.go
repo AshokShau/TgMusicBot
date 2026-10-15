@@ -39,7 +39,7 @@ func pingHandler(c *td.Client, m *td.Message) error {
 		latency, uptime, runtime.NumGoroutine(),
 	)
 
-	_, err = msg.EditText(c, response, &td.EditTextMessageOpts{ParseMode: "HTML"})
+	_, err = msg.EditText(c, response, &td.EditMessageTextOpts{ParseMode: "HTML"})
 	return err
 }
 
@@ -67,7 +67,7 @@ func startHandler(c *td.Client, m *td.Message) error {
 			},
 		}
 
-		_, err := m.ReplyRichMessage(c, richMessage, &td.SendTextMessageOpts{
+		_, err := m.ReplyRichMessage(c, richMessage, &td.SendMessageOpts{
 			ReplyMarkup: utils.AddMeMarkup(c.Me.Usernames.EditableUsername),
 		})
 

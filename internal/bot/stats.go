@@ -234,6 +234,6 @@ func statsHandler(c *td.Client, m *td.Message) error {
 		len(users),
 	)
 
-	_, _ = sysMsg.EditText(c, text, &td.EditTextMessageOpts{ParseMode: "HTML"})
+	_, _ = sysMsg.EditText(c, text, &td.EditMessageTextOpts{ParseMode: "HTML"})
 	return nil
 }
