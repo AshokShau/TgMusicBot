@@ -12,6 +12,7 @@ import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/db"
 	"ashokshau/tgmusic/internal/downloader"
+	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"context"
 	"errors"
@@ -195,7 +196,10 @@ func (c *TelegramCalls) prepareTrackDownload(bot *td.Client, song *utils.PlayerC
 
 	dlPath, err := downloader.DlCachedTrack(song, bot)
 	song.FilePath = dlPath
-	if err != nil || song.FilePath == "" {
+	if err == nil && song.FilePath == "" {
+		err = errors.New("download returned no file")
+	}
+	if err != nil {
 		_, _ = reply.EditText(bot, "⚠️ Download failed. Skipping track...", nil)
 		return err
 	}
@@ -203,46 +207,58 @@ func (c *TelegramCalls) prepareTrackDownload(bot *td.Client, song *utils.PlayerC
 	return nil
 }
 
-func (c *TelegramCalls) PlayNext(bot *td.Client, chatID int64) error {
+func (c *TelegramCalls) PlayNext(bot *td.Client, chatID int64, quiet ...bool) error {
 	loop := cache.ChatCache.GetLoopCount(chatID)
 	if loop > 0 {
 		cache.ChatCache.SetLoopCount(chatID, loop-1)
 		if currentsSong := cache.ChatCache.GetPlayingTrack(chatID); currentsSong != nil {
-			return c.playTrack(bot, chatID, currentsSong)
+			return c.playTrack(bot, chatID, currentsSong, quiet...)
 		}
 	}
 
-	cache.ChatCache.RemoveCurrentSong(chatID)
+	finishedTrack := cache.ChatCache.RemoveCurrentSong(chatID)
 	if nextSong := cache.ChatCache.GetPlayingTrack(chatID); nextSong != nil {
-		return c.playTrack(bot, chatID, nextSong)
+		return c.playTrack(bot, chatID, nextSong, quiet...)
 	}
 
-	lastTrackID := cache.ChatCache.GetLastAutoplayTrackID(chatID)
-	if lastTrackID != "" && cache.ChatCache.GetAutoplay(chatID) {
-		return c.handleAutoplay(bot, chatID, lastTrackID)
+	lastTrack := cache.ChatCache.GetLastAutoplayTrackID(chatID)
+	silent := len(quiet) > 0 && quiet[0]
+	if finishedTrack != nil {
+		silent = silent || finishedTrack.Silent
+		if finishedTrack.Platform == utils.Telegram || finishedTrack.Platform == utils.DirectLink {
+			lastTrack = strings.TrimSpace(finishedTrack.Name + " " + finishedTrack.Channel)
+		}
+	}
+	if lastTrack != "" && cache.ChatCache.GetAutoplay(chatID) {
+		return c.handleAutoplay(bot, chatID, lastTrack, silent)
 	}
 
-	return c.handleNoSong(bot, chatID)
+	return c.handleNoSong(bot, chatID, silent)
 }
 
-func (c *TelegramCalls) handleNoSong(bot *td.Client, chatID int64) error {
+func (c *TelegramCalls) handleNoSong(bot *td.Client, chatID int64, quiet ...bool) error {
 	_ = c.Stop(chatID, false)
-	_, _ = bot.SendMessage(chatID, "🎵 Queue finished. Add more songs with /play.", nil)
+	_, _ = messaging.Send(bot, chatID, "🎵 Queue finished. Add more songs with /play.", nil, len(quiet) > 0 && quiet[0])
 	return nil
 }
 
-func (c *TelegramCalls) playTrack(bot *td.Client, chatID int64, song *utils.PlayerCache) error {
+func (c *TelegramCalls) playTrack(bot *td.Client, chatID int64, song *utils.PlayerCache, quiet ...bool) error {
 	reply, err := bot.SendMessage(chatID, fmt.Sprintf("Downloading %s...", song.Name), nil)
 	if err != nil {
 		slog.Info("[playTrack] Failed to send message", "error", err)
 		return err
 	}
 
-	if err = c.prepareTrackDownload(bot, song, reply); err != nil {
-		return c.PlayNext(bot, chatID)
+	return c.PlayTrackWithMessage(bot, reply, chatID, song, quiet...)
+}
+
+// PlayTrackWithMessage starts the queued track using an existing progress message.
+func (c *TelegramCalls) PlayTrackWithMessage(bot *td.Client, reply *td.Message, chatID int64, song *utils.PlayerCache, quiet ...bool) error {
+	if err := c.prepareTrackDownload(bot, song, reply); err != nil {
+		return c.PlayNext(bot, chatID, quiet...)
 	}
 
-	if err = c.PlayMedia(bot, chatID, song.FilePath, song.IsVideo); err != nil {
+	if err := c.PlayMedia(bot, chatID, song.FilePath, song.IsVideo); err != nil {
 		_, _ = reply.EditText(bot, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
 		return nil
 	}
@@ -259,11 +275,11 @@ func (c *TelegramCalls) playTrack(bot *td.Client, chatID int64, song *utils.Play
 		html.EscapeString(song.User),
 	)
 
-	_, err = reply.EditText(bot, text, &td.EditMessageTextOpts{
+	_, err := messaging.FinishProgress(bot, reply, text, &td.EditMessageTextOpts{
 		ReplyMarkup:           utils.ControlButtons("play"),
 		ParseMode:             "HTML",
 		DisableWebPagePreview: true,
-	})
+	}, song.Silent || (len(quiet) > 0 && quiet[0]))
 
 	if err != nil {
 		slog.Info("[playTrack] Failed to edit message", "error", err)

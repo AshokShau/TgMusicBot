@@ -14,6 +14,7 @@ import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/db"
 	"ashokshau/tgmusic/internal/downloader"
+	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 	"html"
@@ -77,15 +78,18 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 
 	isReply := m.ReplyToMessageID() != 0
 	args := Args(m)
-	url := getUrl(c, m, isReply)
-
 	rMsg := m
 	var err error
-	if isReply && args == "" && url == "" {
-		r, err := m.GetRepliedMessage(c)
-		if err == nil && r != nil {
-			args = r.Text()
+	if isReply {
+		rMsg, err = getRepliedMessage(c, m)
+		if err != nil {
+			_, err = m.ReplyText(c, "Invalid reply message.", nil)
+			return err
 		}
+	}
+	url := getUrl(rMsg)
+	if isReply && args == "" && url == "" {
+		args = rMsg.Text()
 	}
 
 	input := coalesce(url, args)
@@ -119,12 +123,6 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 			_, err = m.ReplyText(c, "Invalid Telegram link.", nil)
 			return err
 		}
-	} else if isReply {
-		rMsg, err = m.GetRepliedMessage(c)
-		if err != nil {
-			_, err = m.ReplyText(c, "Invalid reply message.", nil)
-			return err
-		}
 	}
 
 	if isValid := isValidMedia(rMsg); isValid {
@@ -132,6 +130,18 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 	}
 
 	if url == "" && args == "" && (!isReply || !isValidMedia(rMsg)) {
+		if !isVideo && !force && !isReply && !m.IsPrivate() && m.SenderID() > 0 && !cache.ChatCache.IsActive(chatID) {
+			if _, adminErr := cache.GetUserAdmin(c, chatID, m.SenderID(), false); adminErr == nil {
+				tracks := getProfileTracks(c, m.SenderID())
+				if len(tracks) > 0 && !cache.ChatCache.IsActive(chatID) {
+					updater, sendErr := m.ReplyText(c, "🔍 Loading profile songs...", nil)
+					if sendErr != nil {
+						return sendErr
+					}
+					return handleMultipleTracks(c, m, updater, tracks, chatID, false, false)
+				}
+			}
+		}
 		_, _ = m.ReplyText(c, "<b>Usage:</b>\n/play [song or URL]\n\n<b>Supported Platforms:</b>\n- YouTube\n- Spotify\n- JioSaavn\n- Apple Music", &td.SendMessageOpts{ReplyMarkup: utils.SupportKeyboard(), ParseMode: "HTML"})
 		return td.EndGroups
 	}
@@ -193,17 +203,23 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 	}
 
 	dur := dlMsg.RemoteDuration()
+	var linkURL string
 	link, err := dlMsg.GetLink(c)
 	if err != nil {
 		c.Logger.Warn("Failed to get file link", "error", err)
-		link.Link = ""
+	} else if link != nil {
+		linkURL = link.Link
 	}
 
 	saveCache := utils.PlayerCache{
-		URL: link.Link, Name: fileName, User: firstName(c, m), TrackID: fileId,
+		URL: linkURL, Name: fileName, User: firstName(c, m), TrackID: fileId,
 		Duration: dur, IsVideo: isVideo, Platform: utils.Telegram,
 	}
+	if audio, ok := dlMsg.Content.(*td.MessageAudio); ok && audio.Audio != nil {
+		saveCache.Channel = audio.Audio.Performer
+	}
 
+	saveCache.Silent = messaging.SilentCommand(m)
 	if queued, err := enqueueTrack(c, updater, chatId, &saveCache, force); queued {
 		return err
 	}
@@ -281,6 +297,7 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 		IsVideo: isVideo, Platform: song.Platform,
 	}
 
+	saveCache.Silent = messaging.SilentCommand(m)
 	if queued, err := enqueueTrack(c, updater, chatId, &saveCache, force); queued {
 		return err
 	}
@@ -321,9 +338,6 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 	var tracksToAdd []*utils.PlayerCache
 	var skippedTracks []string
 
-	shouldPlayFirst := false
-	var firstTrack *utils.PlayerCache
-
 	for _, track := range tracks {
 		if track.Duration > config.SongDurationLimit {
 			skippedTracks = append(skippedTracks, track.Title)
@@ -335,6 +349,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 			Thumbnail: track.Thumbnail, User: firstName(c, m), Platform: track.Platform,
 			IsVideo: isVideo, URL: track.Url, Channel: track.Channel, Views: track.Views,
 		}
+		saveCache.Silent = messaging.SilentCommand(m)
 		tracksToAdd = append(tracksToAdd, saveCache)
 	}
 
@@ -367,9 +382,7 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 	}
 
 	if startLen == 0 {
-		shouldPlayFirst = true
-		firstTrack = tracksToAdd[0]
-		firstTrack.Loop = 1
+		return calls.Calls.PlayTrackWithMessage(c, updater, chatId, tracksToAdd[0])
 	}
 
 	var sb strings.Builder
@@ -402,15 +415,11 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 		fullMessage = queueSummary
 	}
 
-	if shouldPlayFirst && firstTrack != nil {
-		_ = calls.Calls.PlayNext(c, chatId)
-	}
-
-	_, err := updater.EditText(c, fullMessage, &td.EditMessageTextOpts{
+	_, err := messaging.FinishProgress(c, updater, fullMessage, &td.EditMessageTextOpts{
 		ParseMode:             "HTML",
 		ReplyMarkup:           utils.QueueMarkup(tracksToAdd[0].TrackID),
 		DisableWebPagePreview: true,
-	})
+	}, messaging.SilentCommand(m))
 
 	return err
 }
@@ -437,11 +446,11 @@ func enqueueTrack(c *td.Client, updater *td.Message, chatId int64, saveCache *ut
 			qLen, escURL, escName, utils.SecToMin(saveCache.Duration), escUser,
 		)
 
-		_, err := updater.EditText(c, queueInfo, &td.EditMessageTextOpts{
+		_, err := messaging.FinishProgress(c, updater, queueInfo, &td.EditMessageTextOpts{
 			ReplyMarkup:           utils.QueueMarkup(saveCache.TrackID),
 			ParseMode:             "HTML",
 			DisableWebPagePreview: true,
-		})
+		}, saveCache.Silent)
 		return true, err
 	}
 
@@ -458,11 +467,11 @@ func sendStartedStreaming(c *td.Client, updater *td.Message, saveCache *utils.Pl
 		escURL, escName, utils.SecToMin(saveCache.Duration), escUser,
 	)
 
-	_, err := updater.EditText(c, nowPlaying, &td.EditMessageTextOpts{
+	_, err := messaging.FinishProgress(c, updater, nowPlaying, &td.EditMessageTextOpts{
 		ParseMode:             "HTML",
 		ReplyMarkup:           utils.ControlButtons("play"),
 		DisableWebPagePreview: true,
-	})
+	}, saveCache.Silent)
 
 	return err
 }

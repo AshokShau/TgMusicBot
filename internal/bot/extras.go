@@ -100,7 +100,7 @@ func getTargetUserID(c *gotdbot.Client, m *gotdbot.Message) (int64, error) {
 }
 
 func resolveFromReply(c *gotdbot.Client, m *gotdbot.Message) (int64, error) {
-	replyMsg, err := m.GetRepliedMessage(c)
+	replyMsg, err := getRepliedMessage(c, m)
 	if err != nil {
 		return 0, fmt.Errorf("failed to fetch replied message: %w", err)
 	}

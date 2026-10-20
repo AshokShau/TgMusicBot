@@ -11,6 +11,7 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
+	"ashokshau/tgmusic/internal/messaging"
 
 	td "github.com/AshokShau/gotdbot"
 )
@@ -26,6 +27,6 @@ func skipHandler(c *td.Client, m *td.Message) error {
 		return nil
 	}
 
-	_ = calls.Calls.PlayNext(c, chatID)
+	_ = calls.Calls.PlayNext(c, chatID, messaging.SilentCommand(m))
 	return nil
 }

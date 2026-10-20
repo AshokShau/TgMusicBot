@@ -36,8 +36,11 @@ func getHelpCategories() map[string]struct {
   <table bordered striped>
     <tr><th>Command</th><th>Description</th></tr>
     <tr><td><code>/play [song]</code></td><td>Play music from YouTube, Spotify, SoundCloud, and other supported platforms.</td></tr>
-    <tr><td><code>/mix [song]</code></td><td>Create a mix playlist of related songs from YouTube.</td></tr>
+    <tr><td><code>/play</code> without arguments</td><td>When the group is idle, an administrator can play up to 10 songs from their Telegram profile.</td></tr>
+    <tr><td><code>/mix [song]</code></td><td>Create a mix playlist of related songs from supported platforms.</td></tr>
     <tr><td><code>/vplay [song]</code></td><td>Play a video in the group video chat.</td></tr>
+    <tr><td><code>/splay</code>, <code>/svplay</code>, <code>/sfplay</code>, <code>/sfvplay</code></td><td>Play with final success messages hidden; progress and errors stay visible.</td></tr>
+    <tr><td><code>/sskip</code>, <code>/sstop</code>, <code>/spause</code>, <code>/sresume</code></td><td>Run playback controls silently. Add an s prefix to other supported playback commands for the same behavior.</td></tr>
     <tr><td><code>/fplay [song]</code></td><td>Play a track immediately, skipping the current queue.</td></tr>
     <tr><td><code>/fvplay [song]</code></td><td>Play a video immediately, skipping the current queue.</td></tr>
   </table>
@@ -113,7 +116,7 @@ func getHelpCategories() map[string]struct {
   <summary>Chat Settings</summary>
   <table bordered striped>
     <tr><th>Command</th><th>Description</th></tr>
-    <tr><td><code>/settings</code></td><td>Manage chat settings, including play mode, administrator mode, command auto-delete, and language preferences.</td></tr>
+    <tr><td><code>/settings</code></td><td>Manage chat settings, including play mode, administrator mode, command deletion, bot-message auto-delete (2–7 minutes), silent mode, and language preferences.</td></tr>
   </table>
 </details>`,
 			Markup: utils.BackHelpMenuKeyboard(),

@@ -168,6 +168,15 @@ func playCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error {
 
 	case strings.HasPrefix(data, "play_now_"):
 		trackID := strings.TrimPrefix(data, "play_now_")
+		if strings.HasPrefix(data, "play_now_hash_") {
+			trackID = ""
+			for _, track := range cache.ChatCache.GetQueue(chatID) {
+				if track != nil && utils.PlayNowCallbackData(track.TrackID) == data {
+					trackID = track.TrackID
+					break
+				}
+			}
+		}
 		if ok := cache.ChatCache.MoveTrackToFront(chatID, trackID); !ok {
 			_ = cb.Answer(c, "Track not found in queue.", nil)
 			return nil

@@ -122,3 +122,7 @@ func (d *directLink) getTrack() (*utils.TrackInfo, error) {
 func (d *directLink) downloadTrack(_ *utils.TrackInfo, _ bool) (string, error) {
 	return d.query, nil
 }
+
+func (d *directLink) getRecommendations(_ context.Context, _ string) (*utils.PlatformTracks, error) {
+	return nil, errors.New("recommendations are not supported for direct links")
+}

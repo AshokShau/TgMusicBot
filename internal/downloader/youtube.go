@@ -26,6 +26,7 @@ import (
 	"strings"
 )
 
+// youTubeData provides an interface for fetching track and playlist information from YouTube.
 type youTubeData struct {
 	Query    string
 	ApiUrl   string
@@ -40,6 +41,7 @@ var youtubePatterns = map[string]*regexp.Regexp{
 	"yt_shorts": regexp.MustCompile(`(?i)^(?:https?://)?(?:www\.)?youtube\.com/shorts/.*`),
 }
 
+// newYouTubeData initializes a youTubeData instance with pre-compiled regex patterns and a cleaned query.
 func newYouTubeData(query string) *youTubeData {
 	return &youTubeData{
 		Query:    strings.TrimSpace(query),
@@ -77,7 +79,7 @@ func (y *youTubeData) getInfo() (*utils.PlatformTracks, error) {
 
 	switch {
 	case playlistID != "":
-		if strings.HasPrefix(playlistID, "RD") {
+		if strings.HasPrefix(playlistID, "RD") && !strings.HasPrefix(playlistID, "RDCLAK") {
 			return GetYouTubeMixPlaylist(ctx, playlistID)
 		}
 		return getYouTubePlaylist(ctx, playlistID)
@@ -115,13 +117,13 @@ func (y *youTubeData) getInfo() (*utils.PlatformTracks, error) {
 }
 
 func (y *youTubeData) search() (*utils.PlatformTracks, error) {
+	if y.isValid() {
+		return y.getInfo()
+	}
+
 	tracks, err := searchYouTube(y.Query, 5)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(tracks) == 0 {
-		return nil, errors.New("no video results were found")
 	}
 
 	return &utils.PlatformTracks{Results: tracks}, nil
@@ -160,6 +162,7 @@ func (y *youTubeData) getTrack() (*utils.TrackInfo, error) {
 	return trackInfo, nil
 }
 
+// downloadTrack handles the download of a track from YouTube.
 func (y *youTubeData) downloadTrack(info *utils.TrackInfo, video bool) (string, error) {
 	if !video && info.CdnURL != "" {
 		return info.CdnURL, nil
@@ -174,6 +177,7 @@ func (y *youTubeData) downloadTrack(info *utils.TrackInfo, video bool) (string, 
 	return y.downloadWithYtDlp(info.Id, video)
 }
 
+// buildYtdlpParams constructs the command-line parameters for yt-dlp to download media.
 func (y *youTubeData) buildYtdlpParams(videoID string, video bool) ([]string, string) {
 	outputTemplate := filepath.Join(config.DownloadsDir, "%(id)s.%(ext)s")
 	var cookieFile string
@@ -219,6 +223,7 @@ func (y *youTubeData) buildYtdlpParams(videoID string, video bool) ([]string, st
 	return params, cookieFile
 }
 
+// downloadWithYtDlp downloads media from YouTube using the yt-dlp command-line tool.
 func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, error) {
 	if videoID == "" {
 		return "", errors.New("videoID is empty")
@@ -260,6 +265,7 @@ func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, err
 	return downloadedPathStr, nil
 }
 
+// getCookieFile retrieves the path to a cookie file from the configured list.
 func (y *youTubeData) getCookieFile() string {
 	cookiesPath := config.CookiesPath
 	if len(cookiesPath) == 0 {
@@ -267,12 +273,14 @@ func (y *youTubeData) getCookieFile() string {
 	}
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(cookiesPath))))
 	if err != nil {
+		slog.Info("Could not generate a random number", "error", err)
 		return cookiesPath[0]
 	}
 
 	return cookiesPath[n.Int64()]
 }
 
+// downloadWithApi downloads a track using the external API.
 func (y *youTubeData) downloadWithApi(videoID string, _ bool) (string, error) {
 	videoUrl := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
 	api := newApiData(videoUrl)
@@ -282,4 +290,25 @@ func (y *youTubeData) downloadWithApi(videoID string, _ bool) (string, error) {
 	}
 
 	return processDownload(track)
+}
+
+// getRecommendations retrieves native YouTube mix recommendations without external API.
+func (y *youTubeData) getRecommendations(ctx context.Context, rawURL string) (*utils.PlatformTracks, error) {
+	urlToUse := rawURL
+	if urlToUse == "" {
+		urlToUse = y.Query
+	}
+
+	videoID := extractVideoID(urlToUse)
+	if videoID == "" && urlToUse != "" && !strings.HasPrefix(urlToUse, "http") {
+		if len(urlToUse) == 11 {
+			videoID = urlToUse
+		}
+	}
+
+	if videoID == "" {
+		return nil, errors.New("no valid YouTube video ID found for recommendations")
+	}
+
+	return GetYouTubeMixPlaylist(ctx, "RD"+videoID)
 }

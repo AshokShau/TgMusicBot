@@ -22,11 +22,14 @@ import (
 
 // Chats represents a chat document in the database.
 type Chats struct {
-	ID        int64  `bson:"_id"`
-	PlayType  int    `bson:"play_type"`
-	AdminPlay bool   `bson:"admin_play"`
-	AdminMode string `bson:"admin_mode"`
-	CmdDelete bool   `bson:"cmd_delete"`
+	ID                int64  `bson:"_id"`
+	PlayType          int    `bson:"play_type"`
+	AdminPlay         bool   `bson:"admin_play"`
+	AdminMode         string `bson:"admin_mode"`
+	CmdDelete         bool   `bson:"cmd_delete"`
+	AutoDelete        bool   `bson:"auto_delete"`
+	AutoDeleteMinutes int    `bson:"auto_delete_minutes"`
+	SilentMode        bool   `bson:"silent_mode"`
 }
 
 // getChat retrieves a chat's data from the cache or database.

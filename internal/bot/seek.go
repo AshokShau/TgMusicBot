@@ -11,6 +11,7 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
+	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 	"strconv"
@@ -69,6 +70,6 @@ func seekHandler(c *td.Client, m *td.Message) error {
 		return nil
 	}
 
-	_, _ = m.ReplyText(c, fmt.Sprintf("<b>Stream skipped %s and started from %s seconds by</b> %s", utils.SecToMin(int32(seekTime)), utils.SecToMin(toSeek), firstName(c, m)), replyOpts)
+	_, _ = messaging.Reply(c, m, fmt.Sprintf("<b>Stream skipped %s and started from %s seconds by</b> %s", utils.SecToMin(int32(seekTime)), utils.SecToMin(toSeek), firstName(c, m)), replyOpts)
 	return nil
 }

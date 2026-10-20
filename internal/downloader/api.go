@@ -11,6 +11,7 @@ package downloader
 import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/utils"
+	"context"
 	"log/slog"
 
 	"encoding/json"
@@ -175,4 +176,44 @@ func (a *apiData) downloadTrack(info *utils.TrackInfo, video bool) (string, erro
 	}
 
 	return filePath, nil
+}
+
+// getRecommendations retrieves recommended tracks for a given track URL from the API gateway.
+func (a *apiData) getRecommendations(ctx context.Context, rawURL string) (*utils.PlatformTracks, error) {
+	if a.ApiUrl == "" || a.APIKey == "" {
+		return nil, errors.New("API URL or API key is not configured")
+	}
+
+	urlToUse := rawURL
+	if urlToUse == "" {
+		urlToUse = a.Query
+	}
+	if urlToUse == "" {
+		return nil, errors.New("no URL provided for recommendations")
+	}
+
+	fullURL := fmt.Sprintf("%s/api/recommendations?%s", a.ApiUrl, url.Values{"url": {urlToUse}}.Encode())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-API-Key", a.APIKey)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("the GetRecommendations request failed: %w", err)
+	}
+
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code while fetching recommendations: %s", resp.Status)
+	}
+
+	var data utils.PlatformTracks
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, fmt.Errorf("failed to decode the GetRecommendations response: %w", err)
+	}
+	return &data, nil
 }

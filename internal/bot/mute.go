@@ -11,6 +11,7 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
+	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 
@@ -37,7 +38,7 @@ func muteHandler(c *td.Client, m *td.Message) error {
 		return err
 	}
 
-	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been muted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("mute")})
+	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been muted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("mute")})
 	return err
 }
 
@@ -61,6 +62,6 @@ func unmuteHandler(c *td.Client, m *td.Message) error {
 		return err
 	}
 
-	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been unmuted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("unmute")})
+	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been unmuted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("unmute")})
 	return err
 }

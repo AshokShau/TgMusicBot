@@ -13,23 +13,28 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrackID string) error {
+func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrack string, quiet bool) error {
 	history := cache.ChatCache.GetAutoplayHistory(chatID)
 	if len(history) >= int(config.AutoPlayLimit) {
 		cache.ChatCache.ClearAutoplayHistory(chatID)
-		return c.handleNoSong(bot, chatID)
+		return c.handleNoSong(bot, chatID, quiet)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	tracks, err := downloader.GetYouTubeMixPlaylist(ctx, "RD"+lastTrackID)
-	if err != nil || tracks == nil || len(tracks.Results) == 0 {
-		return c.handleNoSong(bot, chatID)
+	tracks, err := downloader.GetRecommendations(ctx, lastTrack, int(config.AutoPlayLimit))
+	if err != nil {
+		_, _ = bot.SendMessage(chatID, "Unable to load recommended tracks. Try /play to add another song.", nil)
+		return c.handleNoSong(bot, chatID, true)
+	}
+	if len(tracks) == 0 {
+		return c.handleNoSong(bot, chatID, quiet)
 	}
 
 	var candidates []utils.GetUrlTrack
-	for _, track := range tracks.Results {
-		if track.Id == lastTrackID || slices.Contains(history, track.Id) {
+	for _, track := range tracks {
+		if track.Id == lastTrack || track.Url == lastTrack || slices.Contains(history, track.Id) || slices.Contains(history, track.Url) ||
+			(config.SongDurationLimit > 0 && track.Duration > config.SongDurationLimit) {
 			continue
 		}
 
@@ -37,7 +42,7 @@ func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrackID
 	}
 
 	if len(candidates) == 0 {
-		return c.handleNoSong(bot, chatID)
+		return c.handleNoSong(bot, chatID, quiet)
 	}
 
 	rand.Shuffle(len(candidates), func(i, j int) {
@@ -45,7 +50,15 @@ func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrackID
 	})
 
 	nextTrack := candidates[0]
-	cache.ChatCache.AddAutoplayHistory(chatID, lastTrackID, nextTrack.Id)
+	trackKey := nextTrack.Url
+	if trackKey == "" {
+		trackKey = nextTrack.Id
+	}
+	cache.ChatCache.AddAutoplayHistory(chatID, lastTrack, trackKey)
+	platform := nextTrack.Platform
+	if platform == "" {
+		platform = utils.YouTube
+	}
 
 	saveCache := &utils.PlayerCache{
 		URL:       nextTrack.Url,
@@ -56,7 +69,8 @@ func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrackID
 		Duration:  nextTrack.Duration,
 		Channel:   nextTrack.Channel,
 		Views:     nextTrack.Views,
-		Platform:  utils.YouTube,
+		Platform:  platform,
+		Silent:    quiet,
 	}
 
 	cache.ChatCache.AddSong(chatID, saveCache)

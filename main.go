@@ -22,6 +22,7 @@ import "C"
 import (
 	"ashokshau/tgmusic/internal/bot"
 	"ashokshau/tgmusic/internal/calls"
+	"ashokshau/tgmusic/internal/cleanup"
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/db"
 	"ashokshau/tgmusic/internal/downloader"
@@ -89,7 +90,9 @@ func main() {
 	}
 
 	calls.Calls.RegisterHandlers(client)
-	bot.LoadModules(client)
+	cleanupScheduler, stopCleanup := cleanup.Start(client)
+	defer stopCleanup()
+	bot.LoadModules(client, cleanupScheduler.CancelChat)
 	msg := fmt.Sprintf("Bot started\nNtgCalls %s", ntgcalls.Version())
 	client.Logger.Info(msg)
 	_, _ = client.SendMessage(config.LoggerId, msg, nil)

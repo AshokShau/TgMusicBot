@@ -11,6 +11,7 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
+	"ashokshau/tgmusic/internal/messaging"
 	"fmt"
 
 	td "github.com/AshokShau/gotdbot"
@@ -28,6 +29,6 @@ func stopHandler(c *td.Client, m *td.Message) error {
 	}
 
 	_ = calls.Calls.Stop(chatID, false)
-	_, _ = m.ReplyText(c, fmt.Sprintf("<b>Stream ended by</b> %s", firstName(c, m)), replyOpts)
+	_, _ = messaging.Reply(c, m, fmt.Sprintf("<b>Stream ended by</b> %s", firstName(c, m)), replyOpts)
 	return nil
 }

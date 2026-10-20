@@ -166,9 +166,13 @@ func (c *ChatCacher) RemoveCurrentSong(chatID int64) *utils.PlayerCache {
 
 	removed := data.Queue[0]
 
-	if removed != nil && removed.Platform == utils.YouTube && removed.TrackID != "" {
-		if !slices.Contains(data.AutoplayHistory, removed.TrackID) {
-			data.AutoplayHistory = append(data.AutoplayHistory, removed.TrackID)
+	if removed != nil {
+		trackKey := removed.URL
+		if trackKey == "" {
+			trackKey = removed.TrackID
+		}
+		if trackKey != "" && !slices.Contains(data.AutoplayHistory, trackKey) {
+			data.AutoplayHistory = append(data.AutoplayHistory, trackKey)
 		}
 	}
 

@@ -9,22 +9,49 @@
 package bot
 
 import (
+	"errors"
 	"strings"
+	"unicode/utf16"
 
 	td "github.com/AshokShau/gotdbot"
 )
 
-func getUrl(c *td.Client, m *td.Message, isReply bool) string {
-	text := m.GetText()
-	entities := m.GetEntities()
-
-	if isReply {
-		reply, err := m.GetRepliedMessage(c)
-		if err == nil && reply != nil {
-			text = reply.Text()
-			entities = reply.GetEntities()
-		}
+func getRepliedMessage(c *td.Client, m *td.Message) (*td.Message, error) {
+	if m == nil {
+		return nil, errors.New("missing reply message")
 	}
+
+	message, err := m.GetRepliedMessage(c)
+	if err == nil && message != nil {
+		return message, nil
+	}
+
+	reply, ok := m.ReplyTo.(*td.MessageReplyToMessage)
+	if !ok || reply == nil || reply.MessageId == 0 {
+		return nil, errors.New("missing reply message")
+	}
+
+	chatId := reply.ChatId
+	if chatId == 0 {
+		chatId = m.ChatId
+	}
+
+	message, err = c.GetMessage(chatId, reply.MessageId)
+	if err != nil {
+		return nil, err
+	}
+	if message == nil {
+		return nil, errors.New("reply message not found")
+	}
+	return message, nil
+}
+
+func getUrl(m *td.Message) string {
+	if m == nil {
+		return ""
+	}
+	text := utf16.Encode([]rune(m.GetText()))
+	entities := m.GetEntities()
 
 	if entities == nil || len(entities) == 0 {
 		return ""
@@ -36,8 +63,8 @@ func getUrl(c *td.Client, m *td.Message, isReply bool) string {
 		case *td.TextEntityTypeUrl:
 			start := entity.Offset
 			end := entity.Offset + entity.Length
-			if int(end) <= len(text) {
-				return text[start:end]
+			if start >= 0 && end > start && int(end) <= len(text) {
+				return string(utf16.Decode(text[start:end]))
 			}
 
 		case *td.TextEntityTypeTextUrl:

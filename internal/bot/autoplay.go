@@ -28,7 +28,7 @@ func autoplayHandler(c *td.Client, m *td.Message) error {
 	}
 
 	state := cache.ChatCache.GetAutoplay(chatID)
-	text := "<b>Autoplay Control</b>\n\nWhen autoplay is enabled, the bot will automatically play recommended songs from YouTube when the queue is empty."
+	text := "<b>Autoplay Control</b>\n\nWhen autoplay is enabled, the bot will automatically play recommended songs from supported platforms when the queue is empty."
 	button := autoplayButton(state)
 
 	_, err := m.ReplyText(c, text, &td.SendMessageOpts{
@@ -53,7 +53,7 @@ func autoplayCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 	newState := !state
 	cache.ChatCache.SetAutoplay(chatID, newState)
 
-	text := "<b>Autoplay Control</b>\n\nWhen autoplay is enabled, the bot will automatically play recommended songs from YouTube when the queue is empty."
+	text := "<b>Autoplay Control</b>\n\nWhen autoplay is enabled, the bot will automatically play recommended songs from supported platforms when the queue is empty."
 	button := autoplayButton(newState)
 
 	_, err := cb.EditMessageText(c, text, &td.EditMessageTextOpts{

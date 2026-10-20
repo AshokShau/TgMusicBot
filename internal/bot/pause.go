@@ -11,6 +11,7 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
+	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 
@@ -34,7 +35,7 @@ func pauseHandler(c *td.Client, m *td.Message) error {
 		return nil
 	}
 
-	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been paused by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("pause")})
+	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been paused by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("pause")})
 	return err
 }
 
@@ -60,6 +61,6 @@ func resumeHandler(c *td.Client, m *td.Message) error {
 		return nil
 	}
 
-	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been resumed by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("resume")})
+	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been resumed by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("resume")})
 	return err
 }

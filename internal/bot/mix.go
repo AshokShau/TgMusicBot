@@ -14,13 +14,12 @@ import (
 	"ashokshau/tgmusic/internal/downloader"
 	"ashokshau/tgmusic/internal/utils"
 	"context"
-	"fmt"
+	"strings"
 	"time"
 
 	td "github.com/AshokShau/gotdbot"
 )
 
-// mixHandler handles the /mix command.
 func mixHandler(c *td.Client, m *td.Message) error {
 	if !playMode(c, m) {
 		return td.EndGroups
@@ -35,17 +34,19 @@ func mixHandler(c *td.Client, m *td.Message) error {
 
 	isReply := m.ReplyToMessageID() != 0
 	args := Args(m)
-	url := getUrl(c, m, isReply)
-
-	if isReply && args == "" && url == "" {
-		r, err := m.GetRepliedMessage(c)
-		if err == nil && r != nil {
-			args = r.Text()
+	source := m
+	if isReply {
+		if replied, err := getRepliedMessage(c, m); err == nil {
+			source = replied
 		}
+	}
+	url := getUrl(source)
+	if isReply && source != m && args == "" && url == "" {
+		args = source.Text()
 	}
 
 	input := coalesce(url, args)
-	var seedTrackID string
+	targetURL := ""
 
 	if input == "" {
 		playing := cache.ChatCache.GetPlayingTrack(chatID)
@@ -53,7 +54,12 @@ func mixHandler(c *td.Client, m *td.Message) error {
 			_, _ = m.ReplyText(c, "<b>Usage:</b>\n/mix [song or URL]\n\nOr run /mix while a song is currently playing to create a mix based on it.", &td.SendMessageOpts{ParseMode: "HTML"})
 			return td.EndGroups
 		}
-		seedTrackID = playing.TrackID
+		targetURL = playing.URL
+		if playing.Platform == utils.Telegram || playing.Platform == utils.DirectLink {
+			targetURL = strings.TrimSpace(playing.Name + " " + playing.Channel)
+		}
+	} else {
+		targetURL = input
 	}
 
 	updater, err := m.ReplyText(c, "Fetching mix tracks...", nil)
@@ -66,9 +72,9 @@ func mixHandler(c *td.Client, m *td.Message) error {
 	defer cancel()
 
 	limit := int(config.AutoPlayLimit)
-	tracks, err := downloader.GetYouTubeMix(ctx, input, seedTrackID, limit)
+	tracks, err := downloader.GetRecommendations(ctx, targetURL, limit)
 	if err != nil {
-		_, err = updater.EditText(c, fmt.Sprintf("Failed to get mix: %s", err.Error()), nil)
+		_, err = updater.EditText(c, "Failed to get mix: Please try again later.", nil)
 		return err
 	}
 

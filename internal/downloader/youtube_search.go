@@ -41,6 +41,7 @@ type ytClientProfile struct {
 	Origin        string
 	UserAgent     string
 
+	// Optional fields used by native/mobile client contexts.
 	OsName      string
 	OsVersion   string
 	AndroidSDK  int
@@ -129,13 +130,17 @@ var ytProfiles = []ytClientProfile{
 }
 
 var (
-	labelDurationRe = regexp.MustCompile(`(\d+)\s*(hours?|minutes?|seconds?)`)
-	videoIDRe1      = regexp.MustCompile(`(?i)(?:youtube\.com/(?:watch\?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})`)
-	videoIDRe2      = regexp.MustCompile(`(?:v=|\/)([0-9A-Za-z_-]{11})`)
-	playlistIDRe1   = regexp.MustCompile(`(?i)(?:youtube\.com|music\.youtube\.com).*(?:\?|&)list=([A-Za-z0-9_-]+)`)
-	playlistIDRe2   = regexp.MustCompile(`list=([0-9A-Za-z_-]+)`)
+	errYouTubeSearchNoResults      = errors.New("youtube search returned no results")
+	errYouTubeSearchAgeRequired    = errors.New("YouTube requires age verification for this search. Try a different query.")
+	errYouTubeSearchSignInRequired = errors.New("YouTube requires sign-in for this search. Try a different query.")
+	labelDurationRe                = regexp.MustCompile(`(\d+)\s*(hours?|minutes?|seconds?)`)
+	videoIDRe1                     = regexp.MustCompile(`(?i)(?:youtube\.com/(?:watch\?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})`)
+	videoIDRe2                     = regexp.MustCompile(`(?:v=|\/)([0-9A-Za-z_-]{11})`)
+	playlistIDRe1                  = regexp.MustCompile(`(?i)(?:youtube\.com|music\.youtube\.com).*(?:\?|&)list=([A-Za-z0-9_-]+)`)
+	playlistIDRe2                  = regexp.MustCompile(`list=([0-9A-Za-z_-]+)`)
 )
 
+// setYTHeadersWithProfile sets standard headers for YouTube InnerTube API
 func setYTHeadersWithProfile(req *http.Request, prof ytClientProfile) {
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", prof.UserAgent)
@@ -188,19 +193,24 @@ func formatYTErr(action string, statusCode int, statusText string, body []byte) 
 	bodyStr := string(body)
 	if statusCode == http.StatusForbidden || statusCode == http.StatusTooManyRequests ||
 		strings.Contains(strings.ToLower(bodyStr), "<html") || strings.Contains(bodyStr, "automated queries") {
-		return fmt.Errorf("%s failed: status=%d %s (rate limited by YouTube / automated query block)", action, statusCode, statusText)
+		return fmt.Errorf("%s failed: status=%d %s (rate limited / automated query block)", action, statusCode, statusText)
 	}
 
-	if len(bodyStr) > 100 {
-		bodyStr = bodyStr[:100] + "..."
+	if len(bodyStr) > 200 {
+		bodyStr = bodyStr[:200] + "..."
 	}
 	return fmt.Errorf("%s failed: status=%d %s body=%q", action, statusCode, statusText, bodyStr)
 }
 
 func ytRequest(ctx context.Context, path string, extraFields map[string]any, accept func(map[string]any) bool) (map[string]any, error) {
 	var lastErr error
+	searchRequest := path == "/youtubei/v1/search"
+	profiles := ytProfiles
+	if searchRequest {
+		profiles = slices.DeleteFunc(slices.Clone(ytProfiles), func(prof ytClientProfile) bool { return prof.EmbedURL != "" })
+	}
 
-	for i, prof := range ytProfiles {
+	for i, prof := range profiles {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
@@ -248,7 +258,16 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 			continue
 		}
 
-		if accept != nil && !accept(out) {
+		if accept != nil && accept(out) {
+			return out, nil
+		}
+		if searchRequest {
+			if err := youtubeSearchResponseError(out); err != nil {
+				return nil, err
+			}
+		}
+
+		if accept != nil {
 			lastErr = fmt.Errorf("youtube %s (%s): response rejected (empty/invalid)", path, prof.ClientName)
 			continue
 		}
@@ -266,8 +285,12 @@ func ytPost(ctx context.Context, path string, extraFields map[string]any) (map[s
 	return ytRequest(ctx, path, extraFields, nil)
 }
 
-func searchYouTube(query string, limit int) ([]utils.GetUrlTrack, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func searchYouTube(query string, limit int, parentContext ...context.Context) ([]utils.GetUrlTrack, error) {
+	parent := context.Background()
+	if len(parentContext) > 0 {
+		parent = parentContext[0]
+	}
+	ctx, cancel := context.WithTimeout(parent, 10*time.Second)
 	defer cancel()
 
 	var tracks []utils.GetUrlTrack
@@ -284,10 +307,62 @@ func searchYouTube(query string, limit int) ([]utils.GetUrlTrack, error) {
 	if len(tracks) > 0 {
 		return tracks, nil
 	}
+	if errors.Is(err, errYouTubeSearchNoResults) {
+		return []utils.GetUrlTrack{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
 	return nil, errors.New("youtube search returned no results across client profiles")
+}
+
+func youtubeSearchResponseError(data map[string]any) error {
+	stack := []any{data["contents"], data["alerts"]}
+	for len(stack) > 0 {
+		node := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch value := node.(type) {
+		case []any:
+			stack = append(stack, value...)
+		case map[string]any:
+			for _, key := range []string{"backgroundPromoRenderer", "messageRenderer", "alertRenderer"} {
+				message, ok := value[key].(map[string]any)
+				if !ok {
+					continue
+				}
+				copy := strings.ToLower(strings.Join([]string{youtubeMessageText(message["title"]), youtubeMessageText(message["bodyText"]), youtubeMessageText(message["text"])}, " "))
+				switch {
+				case strings.Contains(copy, "confirm your age"), strings.Contains(copy, "age-restricted"), strings.Contains(copy, "age restricted"):
+					return errYouTubeSearchAgeRequired
+				case dig(message, "ctaButton", "buttonRenderer", "navigationEndpoint", "signInEndpoint") != nil,
+					strings.Contains(copy, "sign in"), strings.Contains(copy, "sign-in"):
+					return errYouTubeSearchSignInRequired
+				case strings.Contains(copy, "no results found"), strings.Contains(copy, "no results for"), strings.TrimSpace(copy) == "no results":
+					return errYouTubeSearchNoResults
+				}
+			}
+			for _, child := range value {
+				stack = append(stack, child)
+			}
+		}
+	}
+	return nil
+}
+
+func youtubeMessageText(node any) string {
+	if text, ok := node.(string); ok {
+		return text
+	}
+	for _, field := range []string{"simpleText", "content"} {
+		if text := digStr(node, field); text != "" {
+			return text
+		}
+	}
+	var text strings.Builder
+	for _, run := range digArray(node, "runs") {
+		text.WriteString(safeString(run["text"]))
+	}
+	return text.String()
 }
 
 func parseResults(node any, tracks *[]utils.GetUrlTrack, limit int) {
@@ -333,6 +408,7 @@ func parseResults(node any, tracks *[]utils.GetUrlTrack, limit int) {
 	}
 }
 
+// isLiveNow reports whether a videoRenderer map carries the LIVE_NOW badge.
 func isLiveNow(vr map[string]any) bool {
 	badges, ok := vr["badges"].([]any)
 	if !ok {
@@ -350,6 +426,7 @@ func isLiveNow(vr map[string]any) bool {
 	return false
 }
 
+// getYouTubeTitleFromOEmbed fetches the video title using YouTube's oEmbed API.
 func getYouTubeTitleFromOEmbed(videoID string) (string, error) {
 	apiURL := fmt.Sprintf("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=%s&format=json", videoID)
 
@@ -366,7 +443,6 @@ func getYouTubeTitleFromOEmbed(videoID string) (string, error) {
 	var data struct {
 		Title string `json:"title"`
 	}
-
 	if err = json.NewDecoder(io.LimitReader(resp.Body, 1*1024*1024)).Decode(&data); err != nil {
 		return "", fmt.Errorf("failed to decode oEmbed response: %w", err)
 	}
@@ -394,13 +470,16 @@ func getYouTubeVideo(ctx context.Context, videoID string) (*utils.PlatformTracks
 }
 
 func getYouTubePlaylist(ctx context.Context, playlistID string) (*utils.PlatformTracks, error) {
-	resp, err := ytPost(ctx, "/youtubei/v1/browse", map[string]any{"browseId": "VL" + playlistID})
+	var tracks *utils.PlatformTracks
+	_, err := ytRequest(ctx, "/youtubei/v1/browse", map[string]any{"browseId": "VL" + playlistID}, func(data map[string]any) bool {
+		tracks = buildTrackList(extractPlaylistVideos(data), mapYTVideo)
+		return len(tracks.Results) > 0
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	videos := extractPlaylistVideos(resp)
-	return buildTrackList(videos, mapYTVideo), nil
+	return tracks, nil
 }
 
 func GetYouTubeMixPlaylist(ctx context.Context, playlistID string) (*utils.PlatformTracks, error) {
@@ -413,46 +492,7 @@ func GetYouTubeMixPlaylist(ctx context.Context, playlistID string) (*utils.Platf
 	return buildTrackList(videos, mapMixVideo), nil
 }
 
-func GetYouTubeMix(ctx context.Context, query string, seedTrackID string, limit int) ([]utils.GetUrlTrack, error) {
-	startTrackID := seedTrackID
-	if startTrackID == "" && query != "" {
-		tracks, err := searchYouTube(query, 1)
-		if err != nil {
-			return nil, err
-		}
-		if len(tracks) == 0 {
-			return nil, errors.New("no tracks found for query")
-		}
-		startTrackID = tracks[0].Id
-	}
-
-	if startTrackID == "" {
-		return nil, errors.New("no query or seed track ID provided")
-	}
-
-	playlistID := "RD" + startTrackID
-	mix, err := GetYouTubeMixPlaylist(ctx, playlistID)
-	if err != nil {
-		return nil, err
-	}
-
-	seen := make(map[string]bool)
-	var uniqueTracks []utils.GetUrlTrack
-
-	for _, track := range mix.Results {
-		if track.Id == "" || seen[track.Id] {
-			continue
-		}
-		seen[track.Id] = true
-		uniqueTracks = append(uniqueTracks, track)
-		if limit > 0 && len(uniqueTracks) >= limit {
-			break
-		}
-	}
-
-	return uniqueTracks, nil
-}
-
+// buildTrackList converts raw renderer maps to MusicTrack, dropping empty IDs.
 func buildTrackList(videos []map[string]any, mapper func(map[string]any) utils.GetUrlTrack) *utils.PlatformTracks {
 	out := make([]utils.GetUrlTrack, 0, len(videos))
 	for _, v := range videos {
@@ -469,7 +509,7 @@ func mapYTVideo(v map[string]any) utils.GetUrlTrack {
 		Id:        id,
 		Title:     digStr(v, "title", "runs", 0, "text"),
 		Url:       ytWatchURL + id,
-		Thumbnail: lastThumbURL(digArray(v, "thumbnail", "thumbnails")),
+		Thumbnail: pickYTThumb(v),
 		Channel:   digStr(v, "shortBylineText", "runs", 0, "text"),
 		Duration:  parseYTDuration(v),
 		Views:     digStr(v, "viewCountText", "simpleText"),
@@ -483,7 +523,7 @@ func mapMixVideo(v map[string]any) utils.GetUrlTrack {
 		Id:        id,
 		Title:     digStr(v, "title", "simpleText"),
 		Url:       ytWatchURL + id,
-		Thumbnail: lastThumbURL(digArray(v, "thumbnail", "thumbnails")),
+		Thumbnail: pickYTThumb(v),
 		Channel:   digStr(v, "shortBylineText", "runs", 0, "text"),
 		Duration:  parseYTDuration(v),
 		Platform:  utils.YouTube,
@@ -496,7 +536,7 @@ func mapPlayerToTrack(src map[string]any) utils.GetUrlTrack {
 		Id:        id,
 		Title:     digStr(src, "videoDetails", "title"),
 		Url:       ytWatchURL + id,
-		Thumbnail: lastThumbURL(digArray(src, "videoDetails", "thumbnail", "thumbnails")),
+		Thumbnail: pickYTPlayerThumb(src),
 		Channel:   digStr(src, "videoDetails", "author"),
 		Duration:  atoi(digStr(src, "videoDetails", "lengthSeconds")),
 		Views:     digStr(src, "videoDetails", "viewCount"),
@@ -505,26 +545,59 @@ func mapPlayerToTrack(src map[string]any) utils.GetUrlTrack {
 }
 
 func extractPlaylistVideos(src map[string]any) []map[string]any {
-	contents := digArray(src,
-		"contents",
-		"twoColumnBrowseResultsRenderer",
-		"tabs", 0,
-		"tabRenderer",
-		"content",
-		"sectionListRenderer",
-		"contents", 0,
-		"itemSectionRenderer",
-		"contents", 0,
-		"playlistVideoListRenderer",
-		"contents",
-	)
 	var out []map[string]any
-	for _, c := range contents {
-		if v, ok := c["playlistVideoRenderer"].(map[string]any); ok {
-			out = append(out, v)
+	var visit func(any)
+	visit = func(node any) {
+		switch value := node.(type) {
+		case []any:
+			for _, child := range value {
+				visit(child)
+			}
+		case map[string]any:
+			if video, ok := value["playlistVideoRenderer"].(map[string]any); ok {
+				out = append(out, video)
+				return
+			}
+			if video, ok := value["lockupViewModel"].(map[string]any); ok {
+				if normalized := normalizePlaylistLockup(video); normalized != nil {
+					out = append(out, normalized)
+				}
+				return
+			}
+			// Traverse only playlist contents, preserving array order across layouts.
+			keys := slices.Sorted(maps.Keys(value))
+			for _, key := range keys {
+				visit(value[key])
+			}
 		}
 	}
+	visit(src["contents"])
 	return out
+}
+
+// Normalize the current WEB playlist representation to the legacy track mapper.
+func normalizePlaylistLockup(video map[string]any) map[string]any {
+	if digStr(video, "contentType") != "LOCKUP_CONTENT_TYPE_VIDEO" || digStr(video, "contentId") == "" {
+		return nil
+	}
+	metadata := dig(video, "metadata", "lockupMetadataViewModel")
+	image := dig(video, "contentImage", "thumbnailViewModel")
+	duration := ""
+	for _, overlay := range digArray(image, "overlays") {
+		for _, badge := range digArray(overlay, "thumbnailBottomOverlayViewModel", "badges") {
+			text := digStr(badge, "thumbnailBadgeViewModel", "text")
+			if strings.Contains(text, ":") {
+				duration = text
+			}
+		}
+	}
+	return map[string]any{
+		"videoId":         digStr(video, "contentId"),
+		"title":           map[string]any{"runs": []any{map[string]any{"text": digStr(metadata, "title", "content")}}},
+		"shortBylineText": map[string]any{"runs": []any{map[string]any{"text": digStr(metadata, "metadata", "contentMetadataViewModel", "metadataRows", 0, "metadataParts", 0, "text", "content")}}},
+		"thumbnail":       map[string]any{"thumbnails": dig(image, "image", "sources")},
+		"lengthText":      map[string]any{"simpleText": duration},
+	}
 }
 
 func extractMixPlaylistVideos(src map[string]any) []map[string]any {
@@ -542,6 +615,15 @@ func extractMixPlaylistVideos(src map[string]any) []map[string]any {
 	return out
 }
 
+func pickYTThumb(v map[string]any) string {
+	return lastThumbURL(digArray(v, "thumbnail", "thumbnails"))
+}
+
+func pickYTPlayerThumb(src map[string]any) string {
+	return lastThumbURL(digArray(src, "videoDetails", "thumbnail", "thumbnails"))
+}
+
+// lastThumbURL returns the URL of the last (highest-res) thumbnail, or "".
 func lastThumbURL(thumbs []map[string]any) string {
 	if len(thumbs) == 0 {
 		return ""
@@ -563,6 +645,7 @@ func normalizeYouTubeURL(rawURL string) string {
 	return ytWatchURL + id
 }
 
+// extractSegment splits on sep, then strips query string and fragment.
 func extractSegment(u, sep string) string {
 	parts := strings.SplitN(u, sep, 2)
 	if len(parts) < 2 {
@@ -604,6 +687,7 @@ func parseYTDuration(v map[string]any) int32 {
 	return 0
 }
 
+// parseDuration handles "H:MM:SS" / "M:SS" / "SS" colon-separated strings.
 func parseDuration(s string) int32 {
 	parts := strings.Split(s, ":")
 	var total, mul int32 = 0, 1
@@ -614,6 +698,7 @@ func parseDuration(s string) int32 {
 	return total
 }
 
+// parseTimeToSeconds is like parseDuration but uses strconv and returns 0 on any error.
 func parseTimeToSeconds(s string) int32 {
 	parts := strings.Split(s, ":")
 	total := 0

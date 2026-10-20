@@ -11,8 +11,11 @@ package downloader
 import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/utils"
+	"context"
 )
 
+// service defines a standard interface for interacting with various music services.
+// This allows for a unified approach to handling different platforms like YouTube, Spotify, etc.
 type service interface {
 	// isValid determines if the service can handle the given query.
 	isValid() bool
@@ -24,11 +27,16 @@ type service interface {
 	getTrack() (*utils.TrackInfo, error)
 	// downloadTrack handles the download of a track.
 	downloadTrack(trackInfo *utils.TrackInfo, video bool) (string, error)
+	// getRecommendations fetches recommended tracks for a given track URL.
+	getRecommendations(ctx context.Context, url string) (*utils.PlatformTracks, error)
 }
 
 // DlWrapper provides a unified interface for music service interactions.
-type DlWrapper struct{ service service }
+type DlWrapper struct {
+	service service
+}
 
+// NewDlWrapper selects the appropriate musicService based on the query format or configuration defaults.
 func NewDlWrapper(query string) *DlWrapper {
 	yt := newYouTubeData(query)
 	api := newApiData(query)
@@ -79,4 +87,12 @@ func (d *DlWrapper) GetTrack() (*utils.TrackInfo, error) {
 // It returns the file path of the downloaded track or an error if the download fails.
 func (d *DlWrapper) DownloadTrack(info *utils.TrackInfo, video bool) (string, error) {
 	return d.service.downloadTrack(info, video)
+}
+
+// GetRecommendations retrieves recommended tracks by delegating the call to the wrapped service.
+func (d *DlWrapper) GetRecommendations(ctx context.Context, url string) (*utils.PlatformTracks, error) {
+	if d.service == nil {
+		return nil, nil
+	}
+	return d.service.getRecommendations(ctx, url)
 }

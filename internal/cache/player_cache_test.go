@@ -5,6 +5,22 @@ import (
 	"testing"
 )
 
+func TestAutoplayHistoryKeepsProviderURL(t *testing.T) {
+	for _, platform := range []string{utils.YouTube, utils.Spotify, utils.Apple, utils.Telegram} {
+		c := newChatCacher()
+		track := &utils.PlayerCache{TrackID: "seed", URL: "https://example.test/" + platform + "/seed", Platform: platform}
+		c.AddSong(-100, track)
+		c.SetAutoplay(-100, true)
+		if c.RemoveCurrentSong(-100) != track || c.GetLastAutoplayTrackID(-100) != track.URL {
+			t.Errorf("lost %s seed", platform)
+		}
+		c.AddAutoplayHistory(-100, track.URL)
+		if len(c.GetAutoplayHistory(-100)) != 1 {
+			t.Errorf("duplicated %s seed", platform)
+		}
+	}
+}
+
 func TestChatCacherQueueOperations(t *testing.T) {
 	c := newChatCacher()
 	chatID := int64(1001)
