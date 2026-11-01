@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/xAmarnath/gogram/telegram"
 )
 
 func DecodeTelethonSessionString(sessionString string) (*telegram.Session, error) {

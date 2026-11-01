@@ -30,10 +30,10 @@ func SettingsAccess(c *td.Client, chatID, userID int64, setting string) error {
 }
 
 func BotCanDeleteCommands(c *td.Client, chatID int64) bool {
-	if c == nil || c.Me == nil {
+	if c == nil {
 		return false
 	}
 
-	rights, err := GetRights(c, chatID, c.Me.Id, false)
+	rights, err := GetRights(c, chatID, c.Me().Id, false)
 	return err == nil && rights != nil && rights.CanDeleteMessages
 }

@@ -72,7 +72,7 @@ func Start(c *td.Client) (*Scheduler, func()) {
 			return td.ContinueGroups
 		}
 
-		s.TelegramMember(c.Me.Id, u)
+		s.TelegramMember(c.Me().Id, u)
 		return td.ContinueGroups
 	}, nil, -2)
 

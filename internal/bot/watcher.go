@@ -29,7 +29,7 @@ func handleVoiceChatMessage(c *td.Client, update *td.UpdateNewMessage) error {
 		)
 
 		_, _ = c.SendMessage(chatID, text, &td.SendMessageOpts{
-			ReplyMarkup:           utils.AddMeMarkup(c.Me.Usernames.EditableUsername),
+			ReplyMarkup:           utils.AddMeMarkup(c.Me().Usernames.EditableUsername),
 			DisableWebPagePreview: true,
 			ParseMode:             "HTML",
 		})

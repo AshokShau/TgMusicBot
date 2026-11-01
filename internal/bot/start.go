@@ -58,7 +58,7 @@ func startHandler(c *td.Client, m *td.Message) error {
 				"<p>Use the buttons below to add the bot to your group or explore the available commands.</p>",
 			config.StartImg,
 			firstName(c, m),
-			c.Me.FirstName,
+			c.Me().FirstName,
 		)
 
 		richMessage := &td.InputRichMessage{
@@ -68,7 +68,7 @@ func startHandler(c *td.Client, m *td.Message) error {
 		}
 
 		_, err := m.ReplyRichMessage(c, richMessage, &td.SendMessageOpts{
-			ReplyMarkup: utils.AddMeMarkup(c.Me.Usernames.EditableUsername),
+			ReplyMarkup: utils.AddMeMarkup(c.Me().Usernames.EditableUsername),
 		})
 
 		return err
@@ -80,7 +80,7 @@ func startHandler(c *td.Client, m *td.Message) error {
 			"<p><b>Uptime:</b> <code>%s</code></p>\n"+
 			"<p><i>A feature-rich music bot for your group video chats. Play your favorite tracks seamlessly.</i></p>\n\n"+
 			"<p><tg-button type=\"url\" url=\"%s\">Updates</tg-button> <tg-button type=\"url\" url=\"%s\">Group</tg-button></p>",
-		c.Me.FirstName,
+		c.Me().FirstName,
 		uptime,
 		config.SupportChannel,
 		config.SupportGroup,

@@ -54,7 +54,7 @@ func handleParticipant(client *gotdbot.Client, update *gotdbot.UpdateChatMember)
 	}
 
 	assistantID := assistant.App.Me().ID
-	if userID != client.Me.Id && userID != assistantID {
+	if userID != client.Me().Id && userID != assistantID {
 		return gotdbot.EndGroups
 	}
 
@@ -76,7 +76,7 @@ func handleParticipant(client *gotdbot.Client, update *gotdbot.UpdateChatMember)
 		cache.UpdateAdminCache(chatID, update.NewChatMember)
 	}
 
-	if userID == client.Me.Id {
+	if userID == client.Me().Id {
 		hasDeleteRights := false
 		if s, ok := newStatus.(*gotdbot.ChatMemberStatusAdministrator); ok {
 			if s.Rights != nil && s.Rights.CanDeleteMessages {
@@ -175,7 +175,7 @@ func onRestriction(client *gotdbot.Client, chatID, userID, assistantID int64, ol
 
 func onJoin(client *gotdbot.Client, chatID, userID, assistantID int64, chat *gotdbot.Supergroup) error {
 	client.Logger.Info("User joined chat", "user_id", userID, "chat_id", chatID)
-	if userID == client.Me.Id {
+	if userID == client.Me().Id {
 		client.Logger.Info("Bot joined chat", "chat_id", chatID)
 		sendJoinLog(client, chatID, chat)
 	}
@@ -191,7 +191,7 @@ func onLeave(client *gotdbot.Client, chatID, userID, assistantID int64) error {
 	}
 
 	calls.Calls.UpdateMembership(chatID, userID, &gotdbot.ChatMemberStatusLeft{})
-	if userID == client.Me.Id {
+	if userID == client.Me().Id {
 		if err := calls.Calls.Stop(chatID, false); err != nil {
 			client.Logger.Error("Failed to stop VC after leave", "error", err)
 		}
@@ -218,7 +218,7 @@ func onBan(client *gotdbot.Client, chatID, userID, assistantID int64) error {
 		}
 	}
 
-	if userID == client.Me.Id {
+	if userID == client.Me().Id {
 		if err := calls.Calls.Stop(chatID, true); err != nil {
 			client.Logger.Error("Failed to stop VC after ban", "error", err)
 		}

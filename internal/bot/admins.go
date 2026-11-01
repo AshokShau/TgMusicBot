@@ -120,7 +120,7 @@ func joinHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 }
 
 func privacyHandler(c *gotdbot.Client, m *gotdbot.Message) error {
-	botName := c.Me.FirstName
+	botName := c.Me().FirstName
 
 	text := fmt.Sprintf(
 		`<b>Privacy Policy for %s</b>

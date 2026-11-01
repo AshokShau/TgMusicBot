@@ -22,7 +22,7 @@ import (
 	"time"
 
 	td "github.com/AshokShau/gotdbot"
-	tg "github.com/amarnathcjd/gogram/telegram"
+	tg "github.com/xAmarnath/gogram/telegram"
 )
 
 const inviteLinkName = "FallenBeatz"
@@ -327,7 +327,7 @@ func (c *TelegramCalls) recoverBannedAssistant(
 ) error {
 	assistantID := acc.App.Me().ID
 
-	member, err := cache.GetUserAdmin(bot, chatID, bot.Me.Id, false)
+	member, err := cache.GetUserAdmin(bot, chatID, bot.Me().Id, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an administrator in chat") {
 			return fmt.Errorf(

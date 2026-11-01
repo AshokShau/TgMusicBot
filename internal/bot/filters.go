@@ -19,7 +19,7 @@ import (
 )
 
 func checkBotAdmin(c *td.Client, chatID int64, replyErr func(msg string)) bool {
-	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me.Id, false)
+	botStatus, err := cache.GetUserAdmin(c, chatID, c.Me().Id, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an administrator in chat") {
 			replyErr("Bot is not an administrator in this chat. Please promote the bot with invite users permission.")

@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/AshokShau/gotdbot"
-	tg "github.com/amarnathcjd/gogram/telegram"
+	tg "github.com/xAmarnath/gogram/telegram"
 )
 
 func (c *TelegramCalls) startCallStream(ctx context.Context, acc *AssistantAccount, chatId int64, mediaDesc ntgcalls.MediaDescription) error {

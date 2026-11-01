@@ -20,7 +20,7 @@ import (
 	"math/big"
 	"sync"
 
-	tg "github.com/amarnathcjd/gogram/telegram"
+	tg "github.com/xAmarnath/gogram/telegram"
 )
 
 type pendingConnection struct {

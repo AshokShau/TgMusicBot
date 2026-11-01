@@ -78,7 +78,7 @@ func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
 	})
 
 	for _, acc := range accounts {
-		if _, err := acc.App.SendMessage(client.Me.Usernames.EditableUsername, "/start"); err != nil {
+		if _, err := acc.App.SendMessage(client.Me().Usernames.EditableUsername, "/start"); err != nil {
 			acc.App.Log.Warnf("failed to start bot: %v", err)
 		}
 

@@ -12,7 +12,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/amarnathcjd/gogram/telegram"
+	"github.com/xAmarnath/gogram/telegram"
 )
 
 func DecodePyrogramSessionString(encodedString string) (*telegram.Session, error) {

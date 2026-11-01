@@ -210,7 +210,7 @@ func statsHandler(c *td.Client, m *td.Message) error {
 			"• Users: %d\n\n"+
 			"────────────────────────────────────",
 
-		c.Me.FirstName,
+		c.Me().FirstName,
 
 		stats.SystemCPU,
 		stats.CPUCores,
