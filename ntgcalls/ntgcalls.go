@@ -12,7 +12,7 @@ extern void handleRemoteSourceChange(ntg_instance* handle, int64_t chatID, ntg_r
 extern void handleRequestBroadcastTimestamp(ntg_instance* handle, int64_t chatID, void* userData);
 extern void handleRequestBroadcastPart(ntg_instance* handle, int64_t chatID, ntg_segment_part_request request, void* userData);
 extern void handleUpdateEmojis(ntg_instance* handle, int64_t chatID, char* emojis, void* userData);
-extern void handleRequestParticipants(ntg_instance* handle, int64_t chatID, void* userData);
+extern void handleRequestParticipants(ntg_instance* handle, int64_t chatID, ntg_participants_request request, void* userData);
 extern void handleOutboundBlock(ntg_instance* handle, int64_t chatID, uint8_t* block, size_t size, void* userData);
 extern void handleSubchainRequest(ntg_instance* handle, int64_t chatID, ntg_subchain_request request, void* userData);
 extern void handleLogs(ntg_log_message message, void* userData);
@@ -245,13 +245,17 @@ func handleUpdateEmojis(handle *C.ntg_instance, chatID C.int64_t, emojis *C.char
 }
 
 //export handleRequestParticipants
-func handleRequestParticipants(handle *C.ntg_instance, chatID C.int64_t, _ unsafe.Pointer) {
+func handleRequestParticipants(handle *C.ntg_instance, chatID C.int64_t, request C.ntg_participants_request, _ unsafe.Pointer) {
 	self := lookupClient(handle)
 	if self == nil {
 		return
 	}
+	goRequest := ParticipantsRequest{Ssrcs: make([]uint32, request.ssrcs_len)}
+	for i, ssrc := range unsafe.Slice(request.ssrcs, int(request.ssrcs_len)) {
+		goRequest.Ssrcs[i] = uint32(ssrc)
+	}
 	for _, callback := range self.copyRequestParticipantsCallbacks() {
-		go callback(int64(chatID))
+		go callback(int64(chatID), goRequest)
 	}
 }
 

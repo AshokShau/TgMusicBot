@@ -241,6 +241,11 @@ typedef struct ntg_frame_data {
     uint16_t height;
 } ntg_frame_data;
 
+typedef struct ntg_participants_request {
+    uint32_t* ssrcs;
+    size_t ssrcs_len;
+} ntg_participants_request;
+
 typedef struct ntg_ssrc_group {
     char* semantics;
     uint32_t* ssrcs;
@@ -335,6 +340,7 @@ NTG_C_EXPORT void ntg_media_state_free(ntg_media_state* value);
 NTG_C_EXPORT void ntg_video_description_free(ntg_video_description* value);
 NTG_C_EXPORT void ntg_media_description_free(ntg_media_description* value);
 NTG_C_EXPORT void ntg_frame_data_free(ntg_frame_data* value);
+NTG_C_EXPORT void ntg_participants_request_free(ntg_participants_request* value);
 NTG_C_EXPORT void ntg_ssrc_group_free(ntg_ssrc_group* value);
 NTG_C_EXPORT void ntg_frame_free(ntg_frame* value);
 NTG_C_EXPORT void ntg_segment_part_request_free(ntg_segment_part_request* value);
@@ -610,6 +616,7 @@ NTG_C_EXPORT ntg_result ntg_on_request_broadcast_timestamp_callback(ntg_instance
 typedef void (*ntg_request_participants_callback_cb)(
     ntg_instance* handle,
     int64_t chat_id,
+    ntg_participants_request request,
     void* user_data
 );
 NTG_C_EXPORT ntg_result ntg_on_request_participants_callback(ntg_instance* handle, ntg_request_participants_callback_cb callback, void* user_data);
