@@ -187,6 +187,7 @@ typedef struct ntg_audio_description {
     uint8_t channel_count;
     char* input;
     bool keep_open;
+    uint32_t* bitrate;
 } ntg_audio_description;
 
 typedef struct ntg_call_info {
