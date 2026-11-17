@@ -27,6 +27,8 @@ func (ctx *AudioDescription) ParseToC() (C.ntg_audio_description, func()) {
 	}
 	return x, func() {
 		C.free(unsafe.Pointer(x.input))
-		C.free(unsafe.Pointer(x.bitrate))
+		if x.bitrate != nil {
+			C.free(unsafe.Pointer(x.bitrate))
+		}
 	}
 }
