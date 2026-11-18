@@ -36,7 +36,6 @@ func NTgCalls() *Client {
 	instance := &Client{
 		handle: C.ntg_instance_create(),
 	}
-
 	registerClient(instance)
 	C.ntg_on_stream_end_callback(instance.handle, (C.ntg_stream_end_callback_cb)(unsafe.Pointer(C.handleStreamEnd)), nil)
 	C.ntg_on_upgrade_callback(instance.handle, (C.ntg_upgrade_callback_cb)(unsafe.Pointer(C.handleUpgrade)), nil)
@@ -50,7 +49,6 @@ func NTgCalls() *Client {
 	C.ntg_on_request_participants_callback(instance.handle, (C.ntg_request_participants_callback_cb)(unsafe.Pointer(C.handleRequestParticipants)), nil)
 	C.ntg_on_outbound_block_callback(instance.handle, (C.ntg_outbound_block_callback_cb)(unsafe.Pointer(C.handleOutboundBlock)), nil)
 	C.ntg_on_subchain_request_callback(instance.handle, (C.ntg_subchain_request_callback_cb)(unsafe.Pointer(C.handleSubchainRequest)), nil)
-
 	return instance
 }
 
@@ -71,6 +69,7 @@ func handleLogs(message C.ntg_log_message, _ unsafe.Pointer) {
 	}
 
 	loggerInstance := lg
+
 	switch message.level {
 	case C.NTG_LOG_DEBUG:
 		loggerInstance.Debug(text)
@@ -117,7 +116,6 @@ func handleSignal(handle *C.ntg_instance, chatID C.int64_t, data *C.uint8_t, siz
 	if self == nil {
 		return
 	}
-
 	goData := C.GoBytes(unsafe.Pointer(data), C.int(size))
 	for _, callback := range self.copySignalCallbacks() {
 		go callback(int64(chatID), goData)
@@ -250,7 +248,9 @@ func handleRequestParticipants(handle *C.ntg_instance, chatID C.int64_t, request
 	if self == nil {
 		return
 	}
-	goRequest := ParticipantsRequest{Ssrcs: make([]uint32, request.ssrcs_len)}
+	goRequest := ParticipantsRequest{
+		Ssrcs: make([]uint32, int(request.ssrcs_len)),
+	}
 	for i, ssrc := range unsafe.Slice(request.ssrcs, int(request.ssrcs_len)) {
 		goRequest.Ssrcs[i] = uint32(ssrc)
 	}
@@ -320,6 +320,30 @@ func (ctx *Client) GetEmojisFingerprint(chatId int64) (string, error) {
 	}
 	defer C.ntg_string_free(buffer)
 	return C.GoString(buffer), nil
+}
+
+func (ctx *Client) EncryptMessage(chatId int64, data []byte) ([]byte, error) {
+	dataC, dataSize := parseBytes(data)
+	defer freeBytes(dataC)
+	var buffer *C.uint8_t
+	var size C.size_t
+	if err := parseResult(C.ntg_encrypt_message(ctx.handle, C.int64_t(chatId), dataC, dataSize, &buffer, &size)); err != nil {
+		return nil, err
+	}
+	defer C.ntg_bytes_free(unsafe.Pointer(buffer))
+	return C.GoBytes(unsafe.Pointer(buffer), C.int(size)), nil
+}
+
+func (ctx *Client) DecryptMessage(chatId int64, userId int64, data []byte) ([]byte, error) {
+	dataC, dataSize := parseBytes(data)
+	defer freeBytes(dataC)
+	var buffer *C.uint8_t
+	var size C.size_t
+	if err := parseResult(C.ntg_decrypt_message(ctx.handle, C.int64_t(chatId), C.int64_t(userId), dataC, dataSize, &buffer, &size)); err != nil {
+		return nil, err
+	}
+	defer C.ntg_bytes_free(unsafe.Pointer(buffer))
+	return C.GoBytes(unsafe.Pointer(buffer), C.int(size)), nil
 }
 
 func (ctx *Client) GetCallType(chatId int64) (CallType, error) {
@@ -630,6 +654,7 @@ func (ctx *Client) Calls() (map[int64]CallInfo, error) {
 	return result, nil
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func Version() string {
 	return C.GoString(C.ntg_get_version())
 }

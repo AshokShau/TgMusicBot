@@ -10,6 +10,7 @@ package calls
 
 import (
 	"ashokshau/tgmusic/internal/cache"
+	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/ntgcalls"
 	"context"
 	"fmt"
@@ -50,10 +51,12 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 		duration = int(track.Duration)
 	}
 
+	bitrate := uint32(config.AudioBitrate)
 	audioDescription := &ntgcalls.AudioDescription{
 		MediaSource:  ntgcalls.MediaSourceShell,
 		SampleRate:   48000,
 		ChannelCount: 2,
+		Bitrate:      &bitrate,
 	}
 
 	quotedPath := fmt.Sprintf("\"%s\"", filePath)

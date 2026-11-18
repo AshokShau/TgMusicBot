@@ -26,7 +26,7 @@ import (
 const (
 	destHeader = "ntgcalls"
 	destLib    = ""
-	releaseURL = "https://api.github.com/repos/pytgcalls/ntgcalls/releases/tags/v3.0.6"
+	releaseURL = "https://api.github.com/repos/pytgcalls/ntgcalls/releases/tags/v3.1.0-alpha01"
 )
 
 type Release struct {
@@ -80,6 +80,10 @@ func setup() error {
 	goarch := runtime.GOARCH
 
 	switch goos {
+	case "linux":
+		if _, err := os.Stat("/etc/alpine-release"); err == nil {
+			goos = "muslinux"
+		}
 	case "darwin":
 		goos = "macos"
 	case "windows":
