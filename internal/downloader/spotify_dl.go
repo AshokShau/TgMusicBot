@@ -11,7 +11,6 @@ package downloader
 import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/utils"
-	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
@@ -21,7 +20,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -70,10 +68,12 @@ func processSpotify(track *utils.TrackInfo) (string, error) {
 	}
 
 	if err := rebuildOGG(decryptedFile); err != nil {
-		slog.Info("Failed to rebuild the OGG headers", "error", err)
+		return "", err
 	}
-
-	return fixOGG(decryptedFile, track)
+	if err := utils.RepairOGG(decryptedFile, outputFile); err != nil {
+		return "", fmt.Errorf("repair OGG: %w", err)
+	}
+	return outputFile, nil
 }
 
 func downloadAndDecrypt(track *utils.TrackInfo, encryptedPath, decryptedPath string) error {
@@ -175,18 +175,4 @@ func rebuildOGG(filename string) error {
 	}
 
 	return nil
-}
-
-func fixOGG(inputFile string, track *utils.TrackInfo) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-
-	sanitizedTrackID := filepath.Base(track.Id)
-	outputFile := filepath.Join(config.DownloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
-	cmd := exec.CommandContext(ctx, "ffmpeg", "-i", inputFile, "-c", "copy", outputFile)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("ffmpeg failed with error: %w\nOutput: %s", err, string(output))
-	}
-
-	return outputFile, nil
 }

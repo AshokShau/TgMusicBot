@@ -11,6 +11,7 @@ package calls
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/db"
+	"ashokshau/tgmusic/internal/disk"
 	"ashokshau/tgmusic/internal/downloader"
 	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
@@ -98,7 +99,15 @@ func (c *TelegramCalls) playMediaWithAssistant(bot *td.Client, chatID int64, fil
 	return nil
 }
 
-func (c *TelegramCalls) PlayMedia(bot *td.Client, chatID int64, filePath string, video bool, ffmpegParameters ...string) error {
+func (c *TelegramCalls) PlayMedia(bot *td.Client, chatID int64, filePath string, video bool, ffmpegParameters ...string) (err error) {
+	release := disk.Hold(filePath)
+	defer func() {
+		if err == nil {
+			disk.SetPlaying(chatID, filePath)
+		}
+		release()
+	}()
+
 	ffParam := ""
 	if len(ffmpegParameters) > 0 {
 		ffParam = ffmpegParameters[0]
@@ -194,7 +203,7 @@ func (c *TelegramCalls) prepareTrackDownload(bot *td.Client, song *utils.PlayerC
 		return nil
 	}
 
-	dlPath, err := downloader.DlCachedTrack(song, bot)
+	dlPath, err := downloader.DlCachedTrack(song, bot, nil)
 	song.FilePath = dlPath
 	if err == nil && song.FilePath == "" {
 		err = errors.New("download returned no file")

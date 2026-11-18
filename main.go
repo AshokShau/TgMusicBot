@@ -25,11 +25,14 @@ import (
 	"ashokshau/tgmusic/internal/cleanup"
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/db"
+	"ashokshau/tgmusic/internal/disk"
 	"ashokshau/tgmusic/internal/downloader"
 	"ashokshau/tgmusic/ntgcalls"
+	"context"
 	"fmt"
 	_ "net/http/pprof"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/AshokShau/gotdbot"
@@ -41,6 +44,14 @@ func main() {
 	if err := config.LoadEnv(); err != nil {
 		panic(err)
 	}
+
+	downloadsDir, err := filepath.Abs(config.DownloadsDir)
+	if err != nil {
+		panic(err)
+	}
+	diskContext, stopDisk := context.WithCancel(context.Background())
+	defer stopDisk()
+	disk.Start(diskContext, downloadsDir)
 
 	if err := db.InitDatabase(); err != nil {
 		panic("failed to connect database: " + err.Error())
@@ -57,6 +68,7 @@ func main() {
 
 	clientConfig.DatabaseDirectory = tdDir
 	clientConfig.ParseMode = gotdbot.ParseModeHTML
+	clientConfig.FilesDirectory = filepath.Join(downloadsDir, "main")
 	client, err := manager.RegisterClient(config.ApiId, config.ApiHash, config.Token, clientConfig)
 	if err != nil {
 		panic("failed to register client: " + err.Error())
@@ -69,6 +81,7 @@ func main() {
 		}
 
 		dlClientConfig.DatabaseDirectory = tdDir + "_dl"
+		dlClientConfig.FilesDirectory = filepath.Join(downloadsDir, "dl")
 		_ = os.Remove(dlClientConfig.DatabaseDirectory)
 
 		dlClient, err := manager.RegisterClient(config.ApiId, config.ApiHash, config.DlBotToken, dlClientConfig)

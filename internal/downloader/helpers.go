@@ -9,6 +9,7 @@
 package downloader
 
 import (
+	"ashokshau/tgmusic/internal/utils"
 	"errors"
 	"net/url"
 	"regexp"
@@ -24,6 +25,18 @@ const (
 var (
 	errMissingCDNURL = errors.New("missing cdn url")
 )
+
+func processDownload(track *utils.TrackInfo) (string, error) {
+	if track.CdnURL == "" {
+		return "", errMissingCDNURL
+	}
+
+	if track.Key != "" && strings.EqualFold(track.Platform, "spotify") {
+		return processSpotify(track)
+	}
+
+	return track.CdnURL, nil
+}
 
 var (
 	sanitizeRegex = regexp.MustCompile(`[<>:"/\\|?*]`)

@@ -10,6 +10,7 @@ package calls
 
 import (
 	"ashokshau/tgmusic/internal/cache"
+	"ashokshau/tgmusic/internal/disk"
 	"ashokshau/tgmusic/ntgcalls"
 	"context"
 	"errors"
@@ -53,6 +54,7 @@ func (c *TelegramCalls) stopAssistantCall(acc *AssistantAccount, chatId int64, b
 	if err := acc.binding.Stop(chatId); err != nil && !strings.Contains(err.Error(), "not found") {
 		return err
 	}
+	disk.SetPlaying(chatId, "")
 
 	if banned || inputGroupCall == nil {
 		return nil
@@ -614,6 +616,7 @@ func (c *TelegramCalls) onGroupCall(acc *AssistantAccount, m tg.Update) error {
 		delete(acc.inputGroupCalls, chatID)
 		acc.mu.Unlock()
 		_ = acc.binding.Stop(chatID)
+		disk.SetPlaying(chatID, "")
 		return nil
 	}
 	return nil
@@ -699,6 +702,7 @@ func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
 
 	acc, index, err := c.GetAccount(chatId)
 	if err != nil {
+		disk.SetPlaying(chatId, "")
 		return err
 	}
 
