@@ -39,12 +39,12 @@ const (
 var log = logger.New()
 
 var (
-	ApiId          = getEnvInt32("API_ID", 0)
-	ApiHash        = os.Getenv("API_HASH")
-	Token          = os.Getenv("TOKEN")
-	DlBotToken     = os.Getenv("DL_BOT_TOKEN")
-	SessionStrings = getSessionStrings("STRING", defaultMaxSessions)
-	SessionType    = getEnv("SESSION_TYPE", defaultSessionType)
+	ApiId             = getEnvInt32("API_ID", 0)
+	ApiHash           = os.Getenv("API_HASH")
+	Token             = os.Getenv("TOKEN")
+	DlBotToken        = os.Getenv("DL_BOT_TOKEN")
+	AssistantSessions = getSessionStrings("STRING", defaultMaxSessions)
+	SessionType       = getEnv("SESSION_TYPE", defaultSessionType)
 
 	MongoUri = os.Getenv("MONGO_URI")
 	DbName   = getEnv("DB_NAME", defaultDBName)
@@ -129,7 +129,7 @@ func validate() error {
 		)
 	}
 
-	if len(SessionStrings) == 0 {
+	if len(AssistantSessions) == 0 {
 		return fmt.Errorf(
 			"at least one session string is required (STRING or STRING1-%d)",
 			defaultMaxSessions,

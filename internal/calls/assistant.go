@@ -67,7 +67,8 @@ func (c *TelegramCalls) newAssistantAccount(app *tg.Client) (*AssistantAccount, 
 	return a, nil
 }
 
-func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession, name string) error {
+// StartClient starts an assistant and reports whether it can be used for calls.
+func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession, name string) (bool, error) {
 	var sess *tg.Session
 	var err error
 
@@ -84,34 +85,35 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession, name st
 	case "telethon":
 		sess, err = sessions.DecodeTelethonSessionString(stringSession)
 		if err != nil {
-			return fmt.Errorf("failed to decode telethon session string: %w", err)
+			return false, fmt.Errorf("failed to decode telethon session string: %w", err)
 		}
 		clientConfig.StringSession = sess.Encode()
 	case "pyrogram":
 		sess, err = sessions.DecodePyrogramSessionString(stringSession)
 		if err != nil {
-			return fmt.Errorf("failed to decode pyrogram session string: %w", err)
+			return false, fmt.Errorf("failed to decode pyrogram session string: %w", err)
 		}
 		clientConfig.StringSession = sess.Encode()
 	case "gogram":
 		clientConfig.StringSession = stringSession
 	default:
-		return fmt.Errorf("unsupported session type: %s", config.SessionType)
+		return false, fmt.Errorf("unsupported session type: %s", config.SessionType)
 	}
 
 	mtProto, err := tg.NewClient(clientConfig)
 	if err != nil {
-		return fmt.Errorf("failed to create the MTProto client: %w", err)
+		return false, fmt.Errorf("failed to create the MTProto client: %w", err)
 	}
 
 	if err = mtProto.Start(); err != nil {
-		return fmt.Errorf("failed to start the client: %w", err)
+		_ = mtProto.Stop()
+		return false, fmt.Errorf("failed to start the client: %w", err)
 	}
 
 	me := mtProto.Me()
 	if me.Bot {
 		_ = mtProto.Stop()
-		return fmt.Errorf("the client is a bot")
+		return false, fmt.Errorf("the client is a bot")
 	}
 
 	appConfig, err := mtProto.HelpGetAppConfig(0)
@@ -131,16 +133,16 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession, name st
 		}
 
 		if isFreeze {
-			logger.Warn("[TelegramCalls] The client is frozen and cannot be used for voice calls", "id", me.ID, "username", me.Username)
+			logger.Warn("[TelegramCalls] Skipping frozen assistant", "session", name, "id", me.ID, "username", me.Username)
 			_ = mtProto.Stop()
-			return nil
+			return false, nil
 		}
 	}
 
 	acc, err := c.newAssistantAccount(mtProto)
 	if err != nil {
 		_ = mtProto.Stop()
-		return fmt.Errorf("failed to create the assistant instance: %w", err)
+		return false, fmt.Errorf("failed to create the assistant instance: %w", err)
 	}
 
 	c.mu.Lock()
@@ -149,7 +151,7 @@ func (c *TelegramCalls) StartClient(apiID int32, apiHash, stringSession, name st
 	c.mu.Unlock()
 
 	logger.Info("[TelegramCalls] Client started", "client", fmt.Sprintf("client%d", clientIndex), "id", me.ID, "username", me.Username)
-	return nil
+	return true, nil
 }
 
 func (c *TelegramCalls) StopAllClients() {
@@ -193,6 +195,9 @@ func (c *TelegramCalls) getAccountIndex(chatID int64) (int, error) {
 	if assignedIndex >= 0 && assignedIndex < totalAccounts {
 		return assignedIndex, nil
 	}
+	if assignedIndex != -1 {
+		logger.Warnf("stored assistant index %d for chat %d is unavailable with %d active assistants; reassigning", assignedIndex, chatID, totalAccounts)
+	}
 
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(totalAccounts)))
 	if err != nil {
@@ -201,11 +206,18 @@ func (c *TelegramCalls) getAccountIndex(chatID int64) (int, error) {
 
 	newAccountIndex := int(n.Int64())
 	if chatID != 0 {
-		assigned, err := db.Instance.AssignAssistant(chatID, newAccountIndex)
+		assigned, err := db.Instance.AssignAssistant(chatID, newAccountIndex, totalAccounts)
 		if err != nil {
 			return -1, fmt.Errorf("assign assistant for chat %d: %w", chatID, err)
 		}
-		newAccountIndex = assigned
+		if assigned < 0 || assigned >= totalAccounts {
+			logger.Warnf("assistant assignment %d for chat %d is still unavailable; replacing with %d", assigned, chatID, newAccountIndex)
+			if err := db.Instance.SetAssistant(chatID, newAccountIndex); err != nil {
+				return -1, fmt.Errorf("replace unavailable assistant for chat %d: %w", chatID, err)
+			}
+		} else {
+			newAccountIndex = assigned
+		}
 	}
 
 	return newAccountIndex, nil

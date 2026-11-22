@@ -66,8 +66,8 @@ func (db *Database) RemoveAssistant(chatID int64) error {
 	return err
 }
 
-// AssignAssistant attempts to set the assistant for a chat if it is not currently set.
-func (db *Database) AssignAssistant(chatID int64, proposedAssistant int) (int, error) {
+// AssignAssistant sets an assistant when the chat has no active assignment.
+func (db *Database) AssignAssistant(chatID int64, proposedAssistant, activeAccounts int) (int, error) {
 	ctx, cancel := db.ctx()
 	defer cancel()
 
@@ -76,6 +76,8 @@ func (db *Database) AssignAssistant(chatID int64, proposedAssistant int) (int, e
 		"$or": bson.A{
 			bson.M{"num": bson.M{"$exists": false}},
 			bson.M{"num": -1},
+			bson.M{"num": bson.M{"$gte": activeAccounts}},
+			bson.M{"num": bson.M{"$lt": -1}},
 		},
 	}
 	update := bson.M{"$set": bson.M{"num": proposedAssistant}}
@@ -84,6 +86,7 @@ func (db *Database) AssignAssistant(chatID int64, proposedAssistant int) (int, e
 	result, err := db.assistantDB.UpdateOne(ctx, filter, update, opts)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
+			db.assistantCache.Delete(toKey(chatID))
 			return db.GetAssistant(chatID)
 		}
 		return -1, err

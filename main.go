@@ -64,6 +64,24 @@ func main() {
 			log.Errorf("close database connection: %v", err)
 		}
 	}()
+	defer func() {
+		calls.Calls.StopAllClients()
+		_ = os.Remove(config.DownloadsDir)
+	}()
+
+	startedAssistants := 0
+	for _, session := range config.AssistantSessions {
+		started, err := calls.Calls.StartClient(config.ApiId, config.ApiHash, session.Value, session.EnvName)
+		if err != nil {
+			panic(fmt.Errorf("failed to start assistant %s: %w", session.EnvName, err))
+		}
+		if started {
+			startedAssistants++
+		}
+	}
+	if startedAssistants == 0 {
+		panic("no assistant could start; all configured assistants are frozen")
+	}
 
 	tdDir := "td"
 	_ = os.Remove(tdDir)
@@ -102,13 +120,6 @@ func main() {
 		}
 	}
 
-	for i, session := range config.SessionStrings {
-		err = calls.Calls.StartClient(config.ApiId, config.ApiHash, session, fmt.Sprintf("_%d", i))
-		if err != nil {
-			panic("failed to start client: " + err.Error())
-		}
-	}
-
 	calls.Calls.RegisterHandlers(client)
 	cleanupScheduler, stopCleanup := cleanup.Start(client)
 	defer stopCleanup()
@@ -120,6 +131,4 @@ func main() {
 	}
 	manager.Idle()
 	client.Logger.Info("The bot is shutting down...")
-	calls.Calls.StopAllClients()
-	_ = os.Remove(config.DownloadsDir)
 }

@@ -20,7 +20,7 @@ import (
 	l "github.com/AshokShau/gotdbot/logger"
 )
 
-var logger *l.Logger
+var logger = l.New()
 
 const connectWaitTimeout = 20 * time.Second
 
@@ -59,7 +59,6 @@ func (c *TelegramCalls) OnStreamEnd(callback func(chatID int64, t ntgcalls.Strea
 }
 
 func (c *TelegramCalls) RegisterHandlers(client *td.Client) {
-	logger = client.Logger
 	c.startAutoLeave(context.Background(), client)
 
 	c.mu.RLock()

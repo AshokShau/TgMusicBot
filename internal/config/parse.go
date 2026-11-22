@@ -104,19 +104,25 @@ func getEnvBool(key string, defaultValue bool) bool {
 	return result
 }
 
-func getSessionStrings(prefix string, max int) []string {
-	sessions := make([]string, 0, max+1)
+// AssistantSession identifies the environment variable used for an assistant.
+type AssistantSession struct {
+	EnvName string
+	Value   string
+}
+
+func getSessionStrings(prefix string, max int) []AssistantSession {
+	sessions := make([]AssistantSession, 0, max+1)
 
 	for i := 1; i <= max; i++ {
 		key := fmt.Sprintf("%s%d", prefix, i)
 
 		if session := strings.TrimSpace(os.Getenv(key)); session != "" {
-			sessions = append(sessions, session)
+			sessions = append(sessions, AssistantSession{EnvName: key, Value: session})
 		}
 	}
 
 	if session := strings.TrimSpace(os.Getenv(prefix)); session != "" {
-		sessions = append(sessions, session)
+		sessions = append(sessions, AssistantSession{EnvName: prefix, Value: session})
 	}
 
 	return sessions
