@@ -6,3 +6,4 @@ td_*
 .env
 libntgcalls.a
 libtdjson.so.*
+/downloads
