@@ -13,37 +13,93 @@ import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/ntgcalls"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"regexp"
-	"strconv"
+	"runtime"
 	"strings"
 	"time"
 )
 
-func getVideoDimensions(filePath string) (int, int) {
+type probedStream struct {
+	CodecType  string `json:"codec_type"`
+	CodecName  string `json:"codec_name"`
+	Channels   int    `json:"channels"`
+	Width      int    `json:"width"`
+	Height     int    `json:"height"`
+	HasBFrames *int   `json:"has_b_frames"`
+}
+
+type mediaProbe struct {
+	Streams []probedStream `json:"streams"`
+	Format  struct {
+		Name string `json:"format_name"`
+	} `json:"format"`
+}
+
+func probeMedia(filePath string) (mediaProbe, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", filePath)
+	cmd := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-show_entries",
+		"format=format_name:stream=codec_type,codec_name,channels,width,height,has_b_frames", "-of", "json", filePath)
 	out, err := cmd.Output()
 	if err != nil {
-		logger.Warn("[getVideoDimensions] Failed to get video dimensions (%s): %v", filePath, err)
-		return 0, 0
+		return mediaProbe{}, err
 	}
-	dimensions := strings.Split(strings.TrimSpace(string(out)), "x")
-	if len(dimensions) != 2 {
-		logger.Warn("[getVideoDimensions] Invalid video dimensions(%s): %s", filePath, string(out))
-		return 0, 0
+	var probe mediaProbe
+	if err := json.Unmarshal(out, &probe); err != nil {
+		return mediaProbe{}, err
+	}
+	return probe, nil
+}
+
+func (p mediaProbe) stream(kind string) *probedStream {
+	for i := range p.Streams {
+		if p.Streams[i].CodecType == kind {
+			return &p.Streams[i]
+		}
+	}
+	return nil
+}
+
+func (p mediaProbe) hasFormat(name string) bool {
+	for format := range strings.SplitSeq(p.Format.Name, ",") {
+		if format == name {
+			return true
+		}
+	}
+	return false
+}
+
+func canCopyAudio(stream *probedStream) bool {
+	return stream != nil && stream.CodecName == "opus" && (stream.Channels == 1 || stream.Channels == 2)
+}
+
+func canCopyVideo(stream *probedStream) bool {
+	if stream == nil || stream.Width <= 0 || stream.Height <= 0 || stream.Width > 1280 || stream.Height > 720 {
+		return false
 	}
 
-	width, _ := strconv.Atoi(dimensions[0])
-	height, _ := strconv.Atoi(dimensions[1])
-	return width, height
+	switch stream.CodecName {
+	case "h264":
+		return stream.HasBFrames != nil && *stream.HasBFrames == 0
+	case "vp8", "vp9", "av1":
+		return true
+	default:
+		return false
+	}
+}
+
+func shellQuote(value string) string {
+	if runtime.GOOS == "windows" {
+		return "\"" + strings.ReplaceAll(value, "\"", "\\\"") + "\""
+	}
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 var urlRegex = regexp.MustCompile(`^https?://`)
 
-// getMediaDescription creates a media description for ntgcalls based on the provided file path, video status, and ffmpeg parameters.
 func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegParameters string) ntgcalls.MediaDescription {
 	var duration int
 	track := cache.ChatCache.GetPlayingTrack(chatId)
@@ -51,23 +107,24 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 		duration = int(track.Duration)
 	}
 
+	probe, probeErr := probeMedia(filePath)
+	if probeErr != nil {
+		logger.Warn("[getMediaDescription] ffprobe failed for %s: %v", filePath, probeErr)
+	}
+
 	bitrate := uint32(config.AudioBitrate)
+	audioFormat := ntgcalls.MediaFormatPCM
 	audioDescription := &ntgcalls.AudioDescription{
 		MediaSource:  ntgcalls.MediaSourceShell,
 		SampleRate:   48000,
 		ChannelCount: 2,
 		Bitrate:      &bitrate,
+		Format:       &audioFormat,
 	}
 
-	quotedPath := fmt.Sprintf("\"%s\"", filePath)
+	quotedPath := shellQuote(filePath)
 	isURL := urlRegex.MatchString(filePath)
 	isLive := isURL && duration == 0
-
-	var audioCmd strings.Builder
-	audioCmd.WriteString("ffmpeg ")
-	if isLive {
-		audioCmd.WriteString("-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 ")
-	}
 
 	var seekFlags, filterFlags string
 	if ffmpegParameters != "" {
@@ -78,20 +135,29 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 		}
 	}
 
-	if seekFlags != "" {
-		audioCmd.WriteString(seekFlags + " ")
+	var inputFlags strings.Builder
+	if isLive {
+		inputFlags.WriteString("-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 ")
 	}
-	audioCmd.WriteString("-i " + quotedPath + " ")
-	if filterFlags != "" {
-		audioCmd.WriteString(filterFlags + " ")
-	}
-	audioCmd.WriteString(fmt.Sprintf(
-		"-f s16le -ac %d -ar %d -v quiet pipe:1",
-		audioDescription.ChannelCount,
-		audioDescription.SampleRate,
-	))
 
-	audioDescription.Input = audioCmd.String()
+	if seekFlags != "" {
+		inputFlags.WriteString(seekFlags + " ")
+	}
+
+	canPassthrough := probeErr == nil && filterFlags == "" && !isLive
+	if audio := probe.stream("audio"); canPassthrough && canCopyAudio(audio) {
+		audioFormat = ntgcalls.MediaFormatOgg
+		audioDescription.ChannelCount = uint8(audio.Channels)
+		if !isURL && seekFlags == "" && probe.hasFormat("ogg") {
+			audioDescription.MediaSource = ntgcalls.MediaSourceFile
+			audioDescription.Input = filePath
+		} else {
+			audioDescription.Input = fmt.Sprintf("ffmpeg %s-i %s -map 0:a:0 -vn -c:a copy -f ogg -v error pipe:1", inputFlags.String(), quotedPath)
+		}
+	} else {
+		audioDescription.Input = fmt.Sprintf("ffmpeg %s-i %s %s-f s16le -ac %d -ar %d -v quiet pipe:1",
+			inputFlags.String(), quotedPath, filterFlagsWithSpace(filterFlags), audioDescription.ChannelCount, audioDescription.SampleRate)
+	}
 
 	if !isVideo {
 		return ntgcalls.MediaDescription{
@@ -99,14 +165,14 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 		}
 	}
 
-	originalWidth, originalHeight := getVideoDimensions(filePath)
+	video := probe.stream("video")
 	width := 1280
 	height := 720
 
-	if originalWidth > 0 && originalHeight > 0 {
-		ratio := float64(originalWidth) / float64(originalHeight)
+	if video != nil && video.Width > 0 && video.Height > 0 {
+		ratio := float64(video.Width) / float64(video.Height)
 
-		newW := min(originalWidth, width)
+		newW := min(video.Width, width)
 		newH := int(float64(newW) / ratio)
 
 		if newH > height {
@@ -126,37 +192,36 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 		height = newH
 	}
 
+	videoFormat := ntgcalls.MediaFormatI420
 	videoDescription := &ntgcalls.VideoDescription{
 		MediaSource: ntgcalls.MediaSourceShell,
 		Width:       int16(width),
 		Height:      int16(height),
 		Fps:         30,
+		Format:      &videoFormat,
 	}
-
-	var videoCmd strings.Builder
-	videoCmd.WriteString("ffmpeg ")
-	if isLive {
-		videoCmd.WriteString("-reconnect 1 -reconnect_at_eof 1 -reconnect_streamed 1 -reconnect_delay_max 2 ")
+	if canPassthrough && canCopyVideo(video) {
+		videoFormat = ntgcalls.MediaFormatMatroska
+		if !isURL && seekFlags == "" && (probe.hasFormat("matroska") || probe.hasFormat("webm")) {
+			videoDescription.MediaSource = ntgcalls.MediaSourceFile
+			videoDescription.Input = filePath
+		} else {
+			videoDescription.Input = fmt.Sprintf("ffmpeg %s-i %s -map 0:v:0 -an -c:v copy -f matroska -v error pipe:1", inputFlags.String(), quotedPath)
+		}
+	} else {
+		videoDescription.Input = fmt.Sprintf("ffmpeg %s-i %s %s-f rawvideo -r %d -pix_fmt yuv420p -vf scale=%d:%d -v quiet pipe:1",
+			inputFlags.String(), quotedPath, filterFlagsWithSpace(filterFlags), videoDescription.Fps, videoDescription.Width, videoDescription.Height)
 	}
-
-	if seekFlags != "" {
-		videoCmd.WriteString(seekFlags + " ")
-	}
-	videoCmd.WriteString("-i " + quotedPath + " ")
-	if filterFlags != "" {
-		videoCmd.WriteString(filterFlags + " ")
-	}
-	videoCmd.WriteString(fmt.Sprintf(
-		"-f rawvideo -r %d -pix_fmt yuv420p -vf scale=%d:%d -v quiet pipe:1",
-		videoDescription.Fps,
-		videoDescription.Width,
-		videoDescription.Height,
-	))
-
-	videoDescription.Input = videoCmd.String()
 
 	return ntgcalls.MediaDescription{
 		Microphone: audioDescription,
 		Camera:     videoDescription,
 	}
+}
+
+func filterFlagsWithSpace(flags string) string {
+	if flags != "" {
+		return flags + " "
+	}
+	return ""
 }

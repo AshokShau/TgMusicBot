@@ -86,11 +86,17 @@ typedef enum {
     NTG_MEDIA_SOURCE_UNKNOWN,
     NTG_MEDIA_SOURCE_FILE,
     NTG_MEDIA_SOURCE_SHELL,
-    NTG_MEDIA_SOURCE_FFMPEG,
     NTG_MEDIA_SOURCE_DEVICE,
     NTG_MEDIA_SOURCE_DESKTOP,
     NTG_MEDIA_SOURCE_EXTERNAL,
 } ntg_media_source;
+
+typedef enum {
+    NTG_FORMAT_PCM,
+    NTG_FORMAT_OGG,
+    NTG_FORMAT_I420,
+    NTG_FORMAT_MATROSKA,
+} ntg_format;
 
 typedef enum {
     NTG_STREAM_TYPE_AUDIO,
@@ -135,6 +141,16 @@ typedef enum {
     NTG_CALL_TYPE_P2P,
     NTG_CALL_TYPE_CONFERENCE,
 } ntg_call_type;
+
+typedef enum {
+    NTG_CODEC_PCM,
+    NTG_CODEC_OPUS,
+    NTG_CODEC_I420,
+    NTG_CODEC_H264,
+    NTG_CODEC_VP8,
+    NTG_CODEC_VP9,
+    NTG_CODEC_AV1,
+} ntg_codec;
 
 typedef enum {
     NTG_MEDIA_SEGMENT_QUALITY_NONE,
@@ -188,6 +204,7 @@ typedef struct ntg_audio_description {
     char* input;
     bool keep_open;
     uint32_t* bitrate;
+    ntg_format* format;
 } ntg_audio_description;
 
 typedef struct ntg_call_info {
@@ -226,6 +243,7 @@ typedef struct ntg_video_description {
     uint8_t fps;
     char* input;
     bool keep_open;
+    ntg_format* format;
 } ntg_video_description;
 
 typedef struct ntg_media_description {
@@ -240,6 +258,8 @@ typedef struct ntg_frame_data {
     ntg_video_rotation rotation;
     uint16_t width;
     uint16_t height;
+    ntg_codec codec;
+    bool keyframe;
 } ntg_frame_data;
 
 typedef struct ntg_participants_request {
@@ -462,6 +482,19 @@ NTG_C_EXPORT ntg_result ntg_get_emojis_fingerprint(
     ntg_instance* handle,
     int64_t chat_id,
     char** out
+);
+NTG_C_EXPORT ntg_result ntg_encrypt_message(
+    ntg_instance* handle,
+    int64_t chat_id,
+    const uint8_t* data, size_t data_len,
+    uint8_t** out, size_t* out_len
+);
+NTG_C_EXPORT ntg_result ntg_decrypt_message(
+    ntg_instance* handle,
+    int64_t chat_id,
+    int64_t user_id,
+    const uint8_t* data, size_t data_len,
+    uint8_t** out, size_t* out_len
 );
 NTG_C_EXPORT ntg_result ntg_time(
     ntg_instance* handle,

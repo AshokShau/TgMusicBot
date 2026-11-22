@@ -11,6 +11,7 @@ type StreamStatus int
 type StreamMode int
 type StreamDevice int
 type MediaSource int
+type MediaFormat int
 type MediaSegmentQuality int
 type MediaSegmentStatus int
 type CallType int
@@ -49,6 +50,26 @@ const (
 	MediaSourceDesktop
 	MediaSourceExternal
 )
+
+const (
+	MediaFormatPCM MediaFormat = iota
+	MediaFormatOgg
+	MediaFormatI420
+	MediaFormatMatroska
+)
+
+func (ctx MediaFormat) ParseToC() C.ntg_format {
+	switch ctx {
+	case MediaFormatOgg:
+		return C.NTG_FORMAT_OGG
+	case MediaFormatI420:
+		return C.NTG_FORMAT_I420
+	case MediaFormatMatroska:
+		return C.NTG_FORMAT_MATROSKA
+	default:
+		return C.NTG_FORMAT_PCM
+	}
+}
 
 const (
 	ActiveStream StreamStatus = iota

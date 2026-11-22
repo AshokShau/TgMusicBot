@@ -205,9 +205,9 @@ func (y *youTubeData) buildYtdlpParams(videoID string, video bool) ([]string, st
 
 	if video {
 		formatSelector := "bestvideo[height<=720]+bestaudio/best[height<=720]"
-		params = append(params, "-f", formatSelector, "--merge-output-format", "mp4")
+		params = append(params, "-f", formatSelector, "--merge-output-format", "mkv")
 	} else {
-		params = append(params, "-f", "bestaudio[ext=m4a]/bestaudio")
+		params = append(params, "-f", "bestaudio[acodec=opus]/bestaudio[ext=m4a]/bestaudio")
 	}
 
 	cookieFile = y.getCookieFile()
