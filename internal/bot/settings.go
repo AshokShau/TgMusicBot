@@ -11,7 +11,6 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/db"
-	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 	"html"
@@ -28,7 +27,20 @@ func settingsHandler(c *td.Client, m *td.Message) error {
 
 	chatID := m.ChatId
 	chatInfo, chatErr := m.GetChat(c)
-	if chatErr != nil || !messaging.IsGroup(chatInfo) {
+	if chatErr != nil {
+		c.Logger.Warnf("get settings chat %d: %v", chatID, chatErr)
+		return nil
+	}
+	if chatInfo == nil {
+		return nil
+	}
+	switch kind := chatInfo.Type.(type) {
+	case *td.ChatTypeBasicGroup:
+	case *td.ChatTypeSupergroup:
+		if kind.IsChannel {
+			return nil
+		}
+	default:
 		return nil
 	}
 
@@ -76,34 +88,57 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery, cancel
 	chatID := cb.ChatId
 
 	chat, err := c.GetChat(chatID)
-	if err != nil || !messaging.IsGroup(chat) {
-		return cb.Answer(c, "These settings are available only in groups.", &td.CallbackAnswerOpts{ShowAlert: true})
+	if err != nil {
+		c.Logger.Warnf("get settings callback chat %d: %v", chatID, err)
+		_ = cb.Answer(c, "Unable to check this chat right now.", &td.CallbackAnswerOpts{ShowAlert: true})
+		return nil
+	}
+	if chat == nil {
+		_ = cb.Answer(c, "These settings are available only in groups.", &td.CallbackAnswerOpts{ShowAlert: true})
+		return nil
+	}
+	switch kind := chat.Type.(type) {
+	case *td.ChatTypeBasicGroup:
+	case *td.ChatTypeSupergroup:
+		if kind.IsChannel {
+			_ = cb.Answer(c, "These settings are available only in groups.", &td.CallbackAnswerOpts{ShowAlert: true})
+			return nil
+		}
+	default:
+		_ = cb.Answer(c, "These settings are available only in groups.", &td.CallbackAnswerOpts{ShowAlert: true})
+		return nil
 	}
 	if accessErr := cache.SettingsAccess(c, chatID, cb.SenderUserId, "main"); accessErr != nil {
-		return cb.Answer(c, accessErr.Error(), &td.CallbackAnswerOpts{ShowAlert: true})
+		_ = cb.Answer(c, accessErr.Error(), &td.CallbackAnswerOpts{ShowAlert: true})
+		return nil
 	}
 
 	data := cb.DataString()
 	if data == "settings_main" {
-		return cb.Answer(c, "Update your chat settings", nil)
+		_ = cb.Answer(c, "Update your chat settings", nil)
+		return nil
 	}
 
 	parts := strings.Split(data, "_")
 	if len(parts) < 2 || parts[0] != "settings" {
-		return cb.Answer(c, "Invalid settings button. Open /settings again.", nil)
+		_ = cb.Answer(c, "Invalid settings button. Open /settings again.", nil)
+		return nil
 	}
 	settingType := parts[1]
 	if accessErr := cache.SettingsAccess(c, chatID, cb.SenderUserId, settingType); accessErr != nil {
-		return cb.Answer(c, accessErr.Error(), nil)
+		_ = cb.Answer(c, accessErr.Error(), nil)
+		return nil
 	}
 	_, err = db.Instance.GetCleanSettings(chatID)
 	if err != nil {
-		return cb.Answer(c, "Unable to load settings. Try again later.", nil)
+		_ = cb.Answer(c, "Unable to load settings. Try again later.", nil)
+		return nil
 	}
-	if settingType == "autodelete" || settingType == "silent" || settingType == "timer" {
+	if settingType == "autodelete" || settingType == "timer" {
 		value, parseErr := parseCleanCallback(data)
 		if parseErr != nil {
-			return cb.Answer(c, parseErr.Error(), nil)
+			_ = cb.Answer(c, parseErr.Error(), nil)
+			return nil
 		}
 		switch settingType {
 		case "autodelete":
@@ -111,13 +146,12 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery, cancel
 			if err == nil && value == 0 && cancelCleanup != nil {
 				cancelCleanup(chatID)
 			}
-		case "silent":
-			err = db.Instance.SetSilentMode(chatID, value == 1)
 		case "timer":
 			err = db.Instance.SetAutoDeleteMinutes(chatID, value)
 		}
 	} else if len(parts) != 2 {
-		return cb.Answer(c, "This settings button is outdated. Open /settings again.", &td.CallbackAnswerOpts{ShowAlert: true})
+		_ = cb.Answer(c, "This settings button is outdated. Open /settings again.", &td.CallbackAnswerOpts{ShowAlert: true})
+		return nil
 	} else {
 		switch settingType {
 		case "delete":
@@ -149,14 +183,17 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery, cancel
 			autoplay := cache.ChatCache.GetAutoplay(chatID)
 			cache.ChatCache.SetAutoplay(chatID, !autoplay)
 		case "lang":
-			return cb.Answer(c, "Language selection is not yet implemented via this menu.", &td.CallbackAnswerOpts{ShowAlert: true})
+			_ = cb.Answer(c, "Language selection is not yet implemented via this menu.", &td.CallbackAnswerOpts{ShowAlert: true})
+			return nil
 		default:
-			return cb.Answer(c, "Unknown setting", &td.CallbackAnswerOpts{ShowAlert: true})
+			_ = cb.Answer(c, "Unknown setting", &td.CallbackAnswerOpts{ShowAlert: true})
+			return nil
 		}
 
 	}
 	if err != nil {
-		return cb.Answer(c, "Unable to save settings. Please try again.", &td.CallbackAnswerOpts{ShowAlert: true})
+		_ = cb.Answer(c, "Unable to save settings. Please try again.", &td.CallbackAnswerOpts{ShowAlert: true})
+		return nil
 	}
 
 	getPlayMode := db.Instance.GetPlayMode(chatID)
@@ -180,7 +217,7 @@ func settingsCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery, cancel
 
 	_, err = cb.EditMessageText(c, text, &td.EditMessageTextOpts{ReplyMarkup: cleanSettingsKeyboard(chatID, playModeStr, getAdminMode, cmdDelete, language, autoplay), ParseMode: td.ParseModeHTML})
 	if err != nil {
-		return err
+		return fmt.Errorf("edit settings message in chat %d: %w", chatID, err)
 	}
 
 	_ = cb.Answer(c, "Settings updated", nil)
@@ -201,7 +238,7 @@ func parseCleanCallback(data string) (int, error) {
 		if err := db.ValidateAutoDeleteMinutes(value); err != nil {
 			return 0, err
 		}
-	case "autodelete", "silent":
+	case "autodelete":
 		if value != 0 && value != 1 {
 			return 0, fmt.Errorf("invalid setting value")
 		}
@@ -244,7 +281,7 @@ func cleanSettingsKeyboard(chatID int64, playMode, adminMode string, cmdDelete b
 		timers = append(timers, button(label, fmt.Sprintf("settings_timer_%d", minutes)))
 	}
 
-	rows = append(rows, timers, []td.InlineKeyboardButton{button("Silent mode: "+state(settings.Silent), fmt.Sprintf("settings_silent_%d", next(settings.Silent)))})
+	rows = append(rows, timers)
 	keyboard.Rows = append(rows, keyboard.Rows...)
 	return keyboard
 }

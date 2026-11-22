@@ -11,7 +11,6 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
-	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 
@@ -31,11 +30,18 @@ func pauseHandler(c *td.Client, m *td.Message) error {
 	}
 
 	if _, err := calls.Calls.Pause(chatID); err != nil {
-		_, _ = m.ReplyText(c, fmt.Sprintf("Failed to pause the playback: %s", err.Error()), nil)
-		return nil
+		c.Logger.Errorf("pause playback in chat %d: %v", chatID, err)
+		_, replyErr := m.ReplyText(c, "Unable to pause playback. Please try again.", nil)
+		if replyErr != nil {
+			c.Logger.Warnf("send pause failure in chat %d: %v", chatID, replyErr)
+		}
+		return replyErr
 	}
 
-	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been paused by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("pause")})
+	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been paused by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("pause")})
+	if err != nil {
+		c.Logger.Warnf("send pause confirmation in chat %d: %v", chatID, err)
+	}
 	return err
 }
 
@@ -57,10 +63,17 @@ func resumeHandler(c *td.Client, m *td.Message) error {
 	}
 
 	if _, err := calls.Calls.Resume(chatID); err != nil {
-		_, _ = m.ReplyText(c, fmt.Sprintf("Failed to resume the playback: %s", err.Error()), nil)
-		return nil
+		c.Logger.Errorf("resume playback in chat %d: %v", chatID, err)
+		_, replyErr := m.ReplyText(c, "Unable to resume playback. Please try again.", nil)
+		if replyErr != nil {
+			c.Logger.Warnf("send resume failure in chat %d: %v", chatID, replyErr)
+		}
+		return replyErr
 	}
 
-	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been resumed by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("resume")})
+	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been resumed by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("resume")})
+	if err != nil {
+		c.Logger.Warnf("send resume confirmation in chat %d: %v", chatID, err)
+	}
 	return err
 }

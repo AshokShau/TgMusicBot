@@ -14,7 +14,6 @@ import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/db"
 	"ashokshau/tgmusic/internal/downloader"
-	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 	"html"
@@ -97,7 +96,11 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 	if strings.HasPrefix(input, "tgpl_") {
 		playlist, err := db.Instance.GetPlaylist(input)
 		if err != nil {
+			c.Logger.Warnf("load playlist %s in chat %d: %v", input, chatID, err)
 			_, err = m.ReplyText(c, "❌ Playlist not found.", nil)
+			if err != nil {
+				c.Logger.Warnf("send playlist load failure in chat %d: %v", chatID, err)
+			}
 			return err
 		}
 
@@ -109,7 +112,7 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 
 		updater, err := m.ReplyText(c, "🔍 Searching playlist...", nil)
 		if err != nil {
-			c.Logger.Warn("failed to send message", "error", err)
+			c.Logger.Warnf("send playlist search progress in chat %d: %v", chatID, err)
 			return td.EndGroups
 		}
 
@@ -148,7 +151,7 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 
 	updater, err := m.ReplyText(c, "🔍 Searching and downloading...", nil)
 	if err != nil {
-		c.Logger.Warn("failed to send message", "error", err)
+		c.Logger.Warnf("send playback progress in chat %d: %v", chatID, err)
 		return td.EndGroups
 	}
 
@@ -165,12 +168,17 @@ func handlePlay(c *td.Client, m *td.Message, isVideo bool, force bool) error {
 
 		trackInfo, err := wrapper.GetInfo()
 		if err != nil {
-			_, _ = updater.EditText(c, fmt.Sprintf("❌ Error fetching track info: %s", err.Error()), nil)
+			c.Logger.Errorf("load track information in chat %d: %v", chatID, err)
+			if _, editErr := updater.EditText(c, "Unable to load this track. It may be unavailable or restricted. Please try another.", nil); editErr != nil {
+				return fmt.Errorf("edit track information error in chat %d: %w", chatID, editErr)
+			}
 			return td.EndGroups
 		}
 
 		if trackInfo.Results == nil || len(trackInfo.Results) == 0 {
-			_, _ = updater.EditText(c, "No tracks found.", nil)
+			if _, editErr := updater.EditText(c, "No tracks found.", nil); editErr != nil {
+				return fmt.Errorf("edit empty track result in chat %d: %w", chatID, editErr)
+			}
 			return td.EndGroups
 		}
 
@@ -185,13 +193,16 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 	file, fileName := getFile(dlMsg)
 	if file == nil {
 		_, err := updater.EditText(c, "No valid media found in the message.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit invalid media message in chat %d: %w", chatId, err)
+		}
+		return nil
 	}
 
 	if file.Size > config.MaxFileSize {
 		_, err := updater.EditText(c, fmt.Sprintf("File too large. Max size: %d MB.", config.MaxFileSize/(1024*1024)), nil)
 		if err != nil {
-			c.Logger.Warn("Edit message failed", "error", err)
+			return fmt.Errorf("edit oversized media message in chat %d: %w", chatId, err)
 		}
 		return nil
 	}
@@ -199,7 +210,10 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 	fileId := dlMsg.RemoteFileID()
 	if _track := cache.ChatCache.GetTrackIfExists(chatId, fileId); _track != nil {
 		_, err := updater.EditText(c, "Track already in queue or playing.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit duplicate media message in chat %d: %w", chatId, err)
+		}
+		return nil
 	}
 
 	dur := dlMsg.RemoteDuration()
@@ -219,7 +233,6 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 		saveCache.Channel = audio.Audio.Performer
 	}
 
-	saveCache.Silent = messaging.SilentCommand(m)
 	if queued, err := enqueueTrack(c, updater, chatId, &saveCache, force); queued {
 		return err
 	}
@@ -227,8 +240,12 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 	filePath, err := downloader.DlCachedTrack(&saveCache, c, dlMsg)
 	if err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
-		_, err = updater.EditText(c, fmt.Sprintf("Download failed: %s", err.Error()), nil)
-		return err
+		c.Logger.Errorf("download Telegram media in chat %d: %v", chatId, err)
+		_, editErr := updater.EditText(c, "Unable to download this Telegram media. Please try again.", nil)
+		if editErr != nil {
+			return fmt.Errorf("edit media download error in chat %d: %w", chatId, editErr)
+		}
+		return nil
 	}
 
 	if dur == 0 {
@@ -240,8 +257,12 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 
 	if err = calls.Calls.PlayMedia(c, chatId, saveCache.FilePath, saveCache.IsVideo); err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
-		_, err = updater.EditText(c, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
-		return err
+		c.Logger.Errorf("start media playback in chat %d: %v", chatId, err)
+		_, editErr := updater.EditText(c, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
+		if editErr != nil {
+			return fmt.Errorf("edit media playback error in chat %d: %w", chatId, editErr)
+		}
+		return nil
 	}
 
 	return sendStartedStreaming(c, updater, &saveCache)
@@ -251,19 +272,29 @@ func handleMedia(c *td.Client, m *td.Message, updater *td.Message, dlMsg *td.Mes
 func handleTextSearch(c *td.Client, m *td.Message, updater *td.Message, wrapper *downloader.DlWrapper, chatId int64, isVideo bool, force bool) error {
 	searchResult, err := wrapper.Search()
 	if err != nil {
-		_, err = updater.EditText(c, fmt.Sprintf("❌ Search failed: %s", err.Error()), nil)
-		return err
+		c.Logger.Errorf("search tracks in chat %d: %v", chatId, err)
+		_, editErr := updater.EditText(c, "Search failed. Please try another query.", nil)
+		if editErr != nil {
+			return fmt.Errorf("edit track search error in chat %d: %w", chatId, editErr)
+		}
+		return nil
 	}
 
 	if searchResult.Results == nil || len(searchResult.Results) == 0 {
 		_, err = updater.EditText(c, "😕 No results found. Try a different query.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit empty search result in chat %d: %w", chatId, err)
+		}
+		return nil
 	}
 
 	song := searchResult.Results[0]
 	if _track := cache.ChatCache.GetTrackIfExists(chatId, song.Id); _track != nil {
 		_, err := updater.EditText(c, "Track already in queue or playing.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit duplicate search track in chat %d: %w", chatId, err)
+		}
+		return nil
 	}
 
 	return handleSingleTrack(c, m, updater, song, "", chatId, isVideo, force)
@@ -275,7 +306,10 @@ func handleUrl(c *td.Client, m *td.Message, updater *td.Message, trackInfo *util
 		track := trackInfo.Results[0]
 		if _track := cache.ChatCache.GetTrackIfExists(chatId, track.Id); _track != nil {
 			_, err := updater.EditText(c, "Track already in queue or playing.", nil)
-			return err
+			if err != nil {
+				return fmt.Errorf("edit duplicate URL track in chat %d: %w", chatId, err)
+			}
+			return nil
 		}
 		return handleSingleTrack(c, m, updater, track, "", chatId, isVideo, force)
 	}
@@ -287,7 +321,10 @@ func handleUrl(c *td.Client, m *td.Message, updater *td.Message, trackInfo *util
 func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song utils.GetUrlTrack, filePath string, chatId int64, isVideo bool, force bool) error {
 	if song.Duration > config.SongDurationLimit {
 		_, err := updater.EditText(c, fmt.Sprintf("Sorry, song exceeds max duration of %d minutes.", config.SongDurationLimit/60), nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit long track message in chat %d: %w", chatId, err)
+		}
+		return nil
 	}
 
 	saveCache := utils.PlayerCache{
@@ -296,7 +333,6 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 		IsVideo: isVideo, Platform: song.Platform,
 	}
 
-	saveCache.Silent = messaging.SilentCommand(m)
 	if queued, err := enqueueTrack(c, updater, chatId, &saveCache, force); queued {
 		return err
 	}
@@ -305,8 +341,12 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 		dlResult, err := downloader.DlCachedTrack(&saveCache, c, nil)
 		if err != nil {
 			cache.ChatCache.RemoveCurrentSong(chatId)
-			_, err = updater.EditText(c, fmt.Sprintf("Download failed: %s", err.Error()), nil)
-			return err
+			c.Logger.Errorf("download track in chat %d: %v", chatId, err)
+			_, editErr := updater.EditText(c, "Unable to download this track. It may be restricted or unavailable. Please try another.", nil)
+			if editErr != nil {
+				return fmt.Errorf("edit track download error in chat %d: %w", chatId, editErr)
+			}
+			return nil
 		}
 
 		saveCache.FilePath = dlResult
@@ -314,12 +354,15 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 
 	if err := calls.Calls.PlayMedia(c, chatId, saveCache.FilePath, saveCache.IsVideo); err != nil {
 		cache.ChatCache.RemoveCurrentSong(chatId)
-		_, err = updater.EditText(c, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
-		return err
+		c.Logger.Errorf("start track playback in chat %d: %v", chatId, err)
+		_, editErr := updater.EditText(c, err.Error(), &td.EditMessageTextOpts{ParseMode: "HTML", DisableWebPagePreview: true})
+		if editErr != nil {
+			return fmt.Errorf("edit track playback error in chat %d: %w", chatId, editErr)
+		}
+		return nil
 	}
 
 	if err := sendStartedStreaming(c, updater, &saveCache); err != nil {
-		c.Logger.Warn("Edit message failed", "error", err)
 		return err
 	}
 
@@ -330,7 +373,10 @@ func handleSingleTrack(c *td.Client, m *td.Message, updater *td.Message, song ut
 func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, tracks []utils.GetUrlTrack, chatId int64, isVideo bool, force bool) error {
 	if len(tracks) == 0 {
 		_, err := updater.EditText(c, "No tracks found.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit empty queue message in chat %d: %w", chatId, err)
+		}
+		return nil
 	}
 
 	queueHeader := "<u><b>Added to Queue:</b></u>\n<blockquote expandable>\n"
@@ -348,17 +394,22 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 			Thumbnail: track.Thumbnail, User: firstName(c, m), Platform: track.Platform,
 			IsVideo: isVideo, URL: track.Url, Channel: track.Channel, Views: track.Views,
 		}
-		saveCache.Silent = messaging.SilentCommand(m)
 		tracksToAdd = append(tracksToAdd, saveCache)
 	}
 
 	if len(tracksToAdd) == 0 {
 		if len(skippedTracks) > 0 {
 			_, err := updater.EditText(c, fmt.Sprintf("All tracks were skipped (max duration %d min).", config.SongDurationLimit/60), nil)
-			return err
+			if err != nil {
+				return fmt.Errorf("edit skipped tracks message in chat %d: %w", chatId, err)
+			}
+			return nil
 		}
 		_, err := updater.EditText(c, "No valid tracks found.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit invalid tracks message in chat %d: %w", chatId, err)
+		}
+		return nil
 	}
 
 	var qLenAfter int
@@ -414,13 +465,18 @@ func handleMultipleTracks(c *td.Client, m *td.Message, updater *td.Message, trac
 		fullMessage = queueSummary
 	}
 
-	_, err := messaging.FinishProgress(c, updater, fullMessage, &td.EditMessageTextOpts{
+	_, err := updater.EditText(c, fullMessage, &td.EditMessageTextOpts{
 		ParseMode:             "HTML",
 		ReplyMarkup:           utils.QueueMarkup(tracksToAdd[0].TrackID),
 		DisableWebPagePreview: true,
-	}, messaging.SilentCommand(m))
-
-	return err
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "MESSAGE_NOT_MODIFIED") {
+			return nil
+		}
+		return fmt.Errorf("edit queue summary in chat %d: %w", chatId, err)
+	}
+	return nil
 }
 
 func enqueueTrack(c *td.Client, updater *td.Message, chatId int64, saveCache *utils.PlayerCache, force bool) (bool, error) {
@@ -445,12 +501,15 @@ func enqueueTrack(c *td.Client, updater *td.Message, chatId int64, saveCache *ut
 			qLen, escURL, escName, utils.SecToMin(saveCache.Duration), escUser,
 		)
 
-		_, err := messaging.FinishProgress(c, updater, queueInfo, &td.EditMessageTextOpts{
+		_, err := updater.EditText(c, queueInfo, &td.EditMessageTextOpts{
 			ReplyMarkup:           utils.QueueMarkup(saveCache.TrackID),
 			ParseMode:             "HTML",
 			DisableWebPagePreview: true,
-		}, saveCache.Silent)
-		return true, err
+		})
+		if err != nil && !strings.Contains(err.Error(), "MESSAGE_NOT_MODIFIED") {
+			return true, fmt.Errorf("edit queued track in chat %d: %w", chatId, err)
+		}
+		return true, nil
 	}
 
 	return false, nil
@@ -466,11 +525,16 @@ func sendStartedStreaming(c *td.Client, updater *td.Message, saveCache *utils.Pl
 		escURL, escName, utils.SecToMin(saveCache.Duration), escUser,
 	)
 
-	_, err := messaging.FinishProgress(c, updater, nowPlaying, &td.EditMessageTextOpts{
+	_, err := updater.EditText(c, nowPlaying, &td.EditMessageTextOpts{
 		ParseMode:             "HTML",
 		ReplyMarkup:           utils.ControlButtons("play"),
 		DisableWebPagePreview: true,
-	}, saveCache.Silent)
-
-	return err
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "MESSAGE_NOT_MODIFIED") {
+			return nil
+		}
+		return fmt.Errorf("edit started track in chat %d: %w", updater.ChatId, err)
+	}
+	return nil
 }

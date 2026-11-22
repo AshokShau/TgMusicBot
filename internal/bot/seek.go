@@ -11,7 +11,6 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
-	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 	"strconv"
@@ -55,8 +54,12 @@ func seekHandler(c *td.Client, m *td.Message) error {
 
 	currDur, err := calls.Calls.PlayedTime(chatID)
 	if err != nil {
-		_, _ = m.ReplyText(c, "Failed to fetch the duration of the ongoing stream.", nil)
-		return nil
+		c.Logger.Warnf("read playback time in chat %d: %v", chatID, err)
+		_, replyErr := m.ReplyText(c, "Unable to read playback time. Please try again.", nil)
+		if replyErr != nil {
+			c.Logger.Warnf("send playback time failure in chat %d: %v", chatID, replyErr)
+		}
+		return replyErr
 	}
 
 	toSeek := int32(currDur) + int32(seekTime)
@@ -66,10 +69,11 @@ func seekHandler(c *td.Client, m *td.Message) error {
 	}
 
 	if err = calls.Calls.SeekStream(c, chatID, seekTime); err != nil {
-		_, _ = m.ReplyText(c, fmt.Sprintf("An error occurred while seeking the track: %s", err.Error()), replyOpts)
-		return nil
+		c.Logger.Errorf("seek playback in chat %d: %v", chatID, err)
+		_, replyErr := m.ReplyText(c, "Unable to seek playback. Please try again.", nil)
+		return replyErr
 	}
 
-	_, _ = messaging.Reply(c, m, fmt.Sprintf("<b>Stream skipped %s and started from %s seconds by</b> %s", utils.SecToMin(int32(seekTime)), utils.SecToMin(toSeek), firstName(c, m)), replyOpts)
-	return nil
+	_, replyErr := m.ReplyText(c, fmt.Sprintf("<b>Stream skipped %s and started from %s seconds by</b> %s", utils.SecToMin(int32(seekTime)), utils.SecToMin(toSeek), firstName(c, m)), replyOpts)
+	return replyErr
 }

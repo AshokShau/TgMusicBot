@@ -11,7 +11,6 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
-	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 
@@ -34,11 +33,18 @@ func muteHandler(c *td.Client, m *td.Message) error {
 	}
 
 	if _, err := calls.Calls.Mute(chatID); err != nil {
-		_, err = m.ReplyText(c, fmt.Sprintf("Failed to mute the playback: %s", err.Error()), nil)
-		return err
+		c.Logger.Errorf("mute playback in chat %d: %v", chatID, err)
+		_, replyErr := m.ReplyText(c, "Unable to mute playback. Please try again.", nil)
+		if replyErr != nil {
+			c.Logger.Warnf("send mute failure in chat %d: %v", chatID, replyErr)
+		}
+		return replyErr
 	}
 
-	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been muted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("mute")})
+	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been muted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("mute")})
+	if err != nil {
+		c.Logger.Warnf("send mute confirmation in chat %d: %v", chatID, err)
+	}
 	return err
 }
 
@@ -58,10 +64,17 @@ func unmuteHandler(c *td.Client, m *td.Message) error {
 	}
 
 	if _, err := calls.Calls.Unmute(chatID); err != nil {
-		_, err = m.ReplyText(c, fmt.Sprintf("Failed to unmute the playback: %s", err.Error()), nil)
-		return err
+		c.Logger.Errorf("unmute playback in chat %d: %v", chatID, err)
+		_, replyErr := m.ReplyText(c, "Unable to unmute playback. Please try again.", nil)
+		if replyErr != nil {
+			c.Logger.Warnf("send unmute failure in chat %d: %v", chatID, replyErr)
+		}
+		return replyErr
 	}
 
-	_, err := messaging.Reply(c, m, fmt.Sprintf("Playback has been unmuted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("unmute")})
+	_, err := m.ReplyText(c, fmt.Sprintf("Playback has been unmuted by %s.", firstName(c, m)), &td.SendMessageOpts{ReplyMarkup: utils.ControlButtons("unmute")})
+	if err != nil {
+		c.Logger.Warnf("send unmute confirmation in chat %d: %v", chatID, err)
+	}
 	return err
 }

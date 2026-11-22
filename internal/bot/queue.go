@@ -11,7 +11,6 @@ package bot
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/calls"
-	"ashokshau/tgmusic/internal/messaging"
 	"ashokshau/tgmusic/internal/utils"
 	"fmt"
 	"math"
@@ -109,6 +108,9 @@ func queueHandler(c *td.Client, m *td.Message) error {
 		text = sb.String()
 	}
 
-	_, err = messaging.Reply(c, m, text, replyOpts)
+	_, err = m.ReplyText(c, text, replyOpts)
+	if err != nil {
+		c.Logger.Warnf("send queue in chat %d: %v", chatID, err)
+	}
 	return err
 }

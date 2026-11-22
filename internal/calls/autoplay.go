@@ -13,22 +13,27 @@ import (
 	td "github.com/AshokShau/gotdbot"
 )
 
-func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrack string, quiet bool) error {
+func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrack string) error {
 	history := cache.ChatCache.GetAutoplayHistory(chatID)
 	if len(history) >= int(config.AutoPlayLimit) {
 		cache.ChatCache.ClearAutoplayHistory(chatID)
-		return c.handleNoSong(bot, chatID, quiet)
+		return c.handleNoSong(bot, chatID)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	tracks, err := downloader.GetRecommendations(ctx, lastTrack, int(config.AutoPlayLimit))
 	if err != nil {
-		_, _ = bot.SendMessage(chatID, "Unable to load recommended tracks. Try /play to add another song.", nil)
-		return c.handleNoSong(bot, chatID, true)
+		logger.Warnf("load autoplay recommendations in chat %d: %v", chatID, err)
+		_, sendErr := bot.SendMessage(chatID, "Unable to load recommended tracks. Try /play to add another song.", nil)
+		if sendErr != nil {
+			logger.Warnf("send autoplay failure in chat %d: %v", chatID, sendErr)
+		}
+		_ = c.Stop(chatID, false)
+		return sendErr
 	}
 	if len(tracks) == 0 {
-		return c.handleNoSong(bot, chatID, quiet)
+		return c.handleNoSong(bot, chatID)
 	}
 
 	var candidates []utils.GetUrlTrack
@@ -42,7 +47,7 @@ func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrack s
 	}
 
 	if len(candidates) == 0 {
-		return c.handleNoSong(bot, chatID, quiet)
+		return c.handleNoSong(bot, chatID)
 	}
 
 	rand.Shuffle(len(candidates), func(i, j int) {
@@ -70,7 +75,6 @@ func (c *TelegramCalls) handleAutoplay(bot *td.Client, chatID int64, lastTrack s
 		Channel:   nextTrack.Channel,
 		Views:     nextTrack.Views,
 		Platform:  platform,
-		Silent:    quiet,
 	}
 
 	cache.ChatCache.AddSong(chatID, saveCache)

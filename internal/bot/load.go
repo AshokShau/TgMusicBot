@@ -9,7 +9,6 @@
 package bot
 
 import (
-	"ashokshau/tgmusic/internal/messaging"
 	"time"
 
 	"github.com/AshokShau/gotdbot"
@@ -19,12 +18,6 @@ import (
 var startTime = time.Now()
 
 func LoadModules(c *gotdbot.Client, cancelCleanup func(int64)) {
-	register := func(name string, handler func(*gotdbot.Client, *gotdbot.Message) error) {
-		c.OnCommand(name, handler)
-		if messaging.SupportsSilence(name) {
-			c.OnCommand("s"+name, handler)
-		}
-	}
 	c.OnCommand("reload", reloadAdminCacheHandler)
 	c.OnCommand("join", joinHandler)
 	c.OnCommand("link", joinHandler)
@@ -46,33 +39,33 @@ func LoadModules(c *gotdbot.Client, cancelCleanup func(int64)) {
 	c.OnCommand("logger", loggerHandler)
 	c.OnCommand("privacy", privacyHandler)
 	c.OnCommand("autoplay", autoplayHandler)
-	register("loop", loopHandler)
-	register("pause", pauseHandler)
-	register("resume", resumeHandler)
+	c.OnCommand("loop", loopHandler)
+	c.OnCommand("pause", pauseHandler)
+	c.OnCommand("resume", resumeHandler)
 	c.OnCommand("cplist", createPlaylistHandler)
 	c.OnCommand("createplaylist", createPlaylistHandler)
 	c.OnCommand("deleteplaylist", deletePlaylistHandler)
-	register("queue", queueHandler)
-	register("seek", seekHandler)
+	c.OnCommand("queue", queueHandler)
+	c.OnCommand("seek", seekHandler)
 	c.OnCommand("sh", shellCommand)
-	register("skip", skipHandler)
-	register("stop", stopHandler)
-	register("end", stopHandler)
+	c.OnCommand("skip", skipHandler)
+	c.OnCommand("stop", stopHandler)
+	c.OnCommand("end", stopHandler)
 	c.OnCommand("start", startHandler)
 	c.OnCommand("help", startHandler)
 	c.OnCommand("ping", pingHandler)
-	register("mix", mixHandler)
-	register("play", playHandler)
-	register("p", playHandler)
-	register("fplay", fPlayHandler)
-	register("fp", fPlayHandler)
-	register("vplay", vPlayHandler)
-	register("v", vPlayHandler)
-	register("fvplay", fVPlayHandler)
-	register("fvp", fVPlayHandler)
-	register("remove", removeHandler)
-	register("mute", muteHandler)
-	register("unmute", unmuteHandler)
+	c.OnCommand("mix", mixHandler)
+	c.OnCommand("play", playHandler)
+	c.OnCommand("p", playHandler)
+	c.OnCommand("fplay", fPlayHandler)
+	c.OnCommand("fp", fPlayHandler)
+	c.OnCommand("vplay", vPlayHandler)
+	c.OnCommand("v", vPlayHandler)
+	c.OnCommand("fvplay", fVPlayHandler)
+	c.OnCommand("fvp", fVPlayHandler)
+	c.OnCommand("remove", removeHandler)
+	c.OnCommand("mute", muteHandler)
+	c.OnCommand("unmute", unmuteHandler)
 	c.OnCommand("settings", settingsHandler)
 	c.OnCommand("addtoplaylist", addToPlaylistHandler)
 	c.OnCommand("addtoplist", addToPlaylistHandler)

@@ -10,7 +10,6 @@ package bot
 
 import (
 	"ashokshau/tgmusic/internal/cache"
-	"ashokshau/tgmusic/internal/messaging"
 	"fmt"
 	"strconv"
 
@@ -55,6 +54,9 @@ func loopHandler(c *td.Client, m *td.Message) error {
 		action = fmt.Sprintf("Looping has been set to %d time(s)", argsInt)
 	}
 
-	_, err = messaging.Reply(c, m, fmt.Sprintf("%s.\nChanged by: %s", action, firstName(c, m)), nil)
+	_, err = m.ReplyText(c, fmt.Sprintf("%s.\nChanged by: %s", action, firstName(c, m)), nil)
+	if err != nil {
+		c.Logger.Warnf("send loop update in chat %d: %v", chatID, err)
+	}
 	return err
 }

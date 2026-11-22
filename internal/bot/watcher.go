@@ -28,14 +28,18 @@ func handleVoiceChatMessage(c *td.Client, update *td.UpdateNewMessage) error {
 			chatID,
 		)
 
-		_, _ = c.SendMessage(chatID, text, &td.SendMessageOpts{
+		if _, err := c.SendMessage(chatID, text, &td.SendMessageOpts{
 			ReplyMarkup:           utils.AddMeMarkup(c.Me().Usernames.EditableUsername),
 			DisableWebPagePreview: true,
 			ParseMode:             "HTML",
-		})
+		}); err != nil {
+			c.Logger.Warnf("send group upgrade notice in chat %d: %v", chatID, err)
+		}
 
 		time.Sleep(1 * time.Second)
-		_ = c.LeaveChat(chatID)
+		if err := c.LeaveChat(chatID); err != nil {
+			c.Logger.Warnf("leave basic group %d: %v", chatID, err)
+		}
 		return nil
 	}
 

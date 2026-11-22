@@ -61,7 +61,7 @@ func autoplayCallbackHandler(c *td.Client, cb *td.UpdateNewCallbackQuery) error 
 		ReplyMarkup: button,
 	})
 	if err != nil {
-		c.Logger.Warn("Failed to edit autoplay message", "error", err)
+		return fmt.Errorf("edit autoplay message in chat %d: %w", chatID, err)
 	}
 
 	var status string

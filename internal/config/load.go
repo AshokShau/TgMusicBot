@@ -9,13 +9,12 @@
 package config
 
 import (
-	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"slices"
 	"strings"
 
+	"github.com/AshokShau/gotdbot/logger"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -36,6 +35,8 @@ const (
 	defaultVideoPlayback  = true
 	defaultAudioBitrate   = int64(128000)
 )
+
+var log = logger.New()
 
 var (
 	ApiId          = getEnvInt32("API_ID", 0)
@@ -86,7 +87,7 @@ func LoadEnv() error {
 	}
 
 	if err := os.MkdirAll(DownloadsDir, 0o755); err != nil {
-		return errors.New("failed to create downloads directory")
+		return fmt.Errorf("create downloads directory: %w", err)
 	}
 
 	if len(cookiesUrl) == 0 {
@@ -94,7 +95,7 @@ func LoadEnv() error {
 	}
 
 	if err := os.MkdirAll(cookiesDr, 0o750); err != nil {
-		return errors.New("failed to create cookies directory")
+		return fmt.Errorf("create cookies directory: %w", err)
 	}
 
 	go saveAllCookies(cookiesUrl)
@@ -147,7 +148,7 @@ func validate() error {
 	}
 
 	if !isValidService(DefaultService) {
-		slog.Warn("invalid default service, falling back to default",
+		log.Warn("invalid default service, falling back to default",
 			"service", DefaultService,
 			"default", defaultService,
 		)

@@ -19,9 +19,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/AshokShau/gotdbot/logger"
 )
 
 // GetMediaDuration reads local media in Go and probes remote URLs with ffprobe.
+var log = logger.New()
+
 func GetMediaDuration(input string) int32 {
 	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
 		ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
@@ -29,6 +33,7 @@ func GetMediaDuration(input string) int32 {
 
 		output, err := exec.CommandContext(ctx, "ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", input).Output()
 		if err != nil {
+			log.Warnf("ffprobe failed to read remote duration: %v", err)
 			return 0
 		}
 		seconds, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)

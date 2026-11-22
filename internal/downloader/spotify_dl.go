@@ -11,17 +11,16 @@ package downloader
 import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/utils"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 const (
@@ -41,18 +40,13 @@ func processSpotify(track *utils.TrackInfo) (string, error) {
 
 	outputFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.ogg", sanitizedTrackID))
 	if _, err := os.Stat(outputFile); err == nil {
-		slog.Info("The file already exists", "arg1", outputFile)
 		return outputFile, nil
 	}
 
 	if track.Key == "" {
+		log.Errorf("Spotify track %s has no CDN decryption key", sanitizedTrackID)
 		return "", errMissingKey
 	}
-
-	startTime := time.Now()
-	defer func() {
-		slog.Info("The process was completed in .", "duration", time.Since(startTime))
-	}()
 
 	encryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s.encrypted", sanitizedTrackID))
 	decryptedFile := filepath.Join(downloadsDir, fmt.Sprintf("%s_decrypted.ogg", sanitizedTrackID))
@@ -63,21 +57,29 @@ func processSpotify(track *utils.TrackInfo) (string, error) {
 	}()
 
 	if err := downloadAndDecrypt(track, encryptedFile, decryptedFile); err != nil {
-		slog.Info("Failed to download and decrypt the file", "error", err)
+		log.Errorf("Spotify download or decrypt failed for track %s: %v", sanitizedTrackID, err)
 		return "", err
 	}
 
 	if err := rebuildOGG(decryptedFile); err != nil {
-		return "", err
+		log.Errorf("rebuild Spotify OGG headers for track %s: %v", sanitizedTrackID, err)
+		return "", fmt.Errorf("rebuild OGG: %w", err)
 	}
 	if err := utils.RepairOGG(decryptedFile, outputFile); err != nil {
+		log.Errorf("repair Spotify OGG for track %s: %v", sanitizedTrackID, err)
 		return "", fmt.Errorf("repair OGG: %w", err)
 	}
 	return outputFile, nil
 }
 
 func downloadAndDecrypt(track *utils.TrackInfo, encryptedPath, decryptedPath string) error {
-	resp, err := http.Get(track.CdnURL)
+	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, track.CdnURL, nil)
+	if err != nil {
+		return fmt.Errorf("create CDN request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to download the file: %w", err)
 	}
@@ -95,53 +97,52 @@ func downloadAndDecrypt(track *utils.TrackInfo, encryptedPath, decryptedPath str
 		return fmt.Errorf("failed to read the response body: %w", err)
 	}
 
-	if err = os.WriteFile(encryptedPath, data, defaultFilePerm); err != nil {
+	if err := os.WriteFile(encryptedPath, data, defaultFilePerm); err != nil {
 		return fmt.Errorf("failed to write the encrypted file: %w", err)
 	}
 
-	decryptedData, decryptTime, err := decryptAudioFile(encryptedPath, track.Key)
+	decryptedData, err := decryptAudioFile(encryptedPath, track.Key)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt the audio file: %w", err)
 	}
 
-	slog.Info("Decryption was completed in .", "duration", decryptTime)
 	return os.WriteFile(decryptedPath, decryptedData, defaultFilePerm)
 }
 
 // decryptAudioFile decrypts an audio file using AES-CTR encryption.
-func decryptAudioFile(filePath, hexKey string) ([]byte, string, error) {
+func decryptAudioFile(filePath, hexKey string) ([]byte, error) {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return nil, "", fmt.Errorf("%w: %s", errFileNotFound, filePath)
+		return nil, fmt.Errorf("%w: %s", errFileNotFound, filePath)
 	}
 
 	key, err := hex.DecodeString(hexKey)
 	if err != nil {
-		return nil, "", fmt.Errorf("%w: %v", errInvalidHexKey, err)
+		return nil, fmt.Errorf("%w: %v", errInvalidHexKey, err)
 	}
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to read the file: %w", err)
+		return nil, fmt.Errorf("failed to read the file: %w", err)
 	}
 
 	audioAesIv, err := hex.DecodeString("72e067fbddcbcf77ebe8bc643f630d93")
 	if err != nil {
-		return nil, "", fmt.Errorf("%w: %v", errInvalidAESIV, err)
+		return nil, fmt.Errorf("%w: %v", errInvalidAESIV, err)
 	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create the AES cipher: %w", err)
+		return nil, fmt.Errorf("failed to create the AES cipher: %w", err)
 	}
 
-	startTime := time.Now()
 	ctr := cipher.NewCTR(block, audioAesIv)
 	decrypted := make([]byte, len(data))
 	ctr.XORKeyStream(decrypted, data)
 
-	return decrypted, fmt.Sprintf("%dms", time.Since(startTime).Milliseconds()), nil
+	return decrypted, nil
 }
 
+// rebuildOGG reconstructs the OGG header of a given file by patching specific offsets.
 func rebuildOGG(filename string) error {
 	file, err := os.OpenFile(filename, os.O_RDWR, defaultFilePerm)
 	if err != nil {
@@ -169,7 +170,7 @@ func rebuildOGG(filename string) error {
 	}
 
 	for offset, data := range patches {
-		if err = writeAt(offset, data); err != nil {
+		if err := writeAt(offset, data); err != nil {
 			return fmt.Errorf("failed to write at offset %d: %w", offset, err)
 		}
 	}

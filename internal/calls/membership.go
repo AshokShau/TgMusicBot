@@ -14,7 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
+	"html"
 	"strconv"
 	"strings"
 	"sync"
@@ -330,21 +330,14 @@ func (c *TelegramCalls) recoverBannedAssistant(
 	member, err := cache.GetUserAdmin(bot, chatID, bot.Me().Id, false)
 	if err != nil {
 		if strings.Contains(err.Error(), "is not an administrator in chat") {
-			return fmt.Errorf(
-				"bot is not an admin in this chat, cannot recover assistant (%d)",
-				assistantID,
-			)
+			return errors.New("The bot needs to be an admin to restore its assistant.")
 		}
 		return fmt.Errorf("failed to check bot permissions: %w", err)
 	}
 
 	admin, ok := member.Status.(*td.ChatMemberStatusAdministrator)
 	if !ok || admin.Rights == nil || !admin.Rights.CanRestrictMembers {
-		return fmt.Errorf(
-			"the assistant (ID: <code>%d</code>) is banned or restricted and the bot lacks the "+
-				"'Ban Users' permission (CanRestrictMembers) to unban it",
-			assistantID,
-		)
+		return errors.New("The assistant is banned or restricted. Give the bot permission to ban users so it can restore the assistant.")
 	}
 
 	err = bot.SetChatMemberStatus(
@@ -456,14 +449,17 @@ func (c *TelegramCalls) resolveInviteLink(bot *td.Client, chatID int64, cacheKey
 }
 
 func (c *TelegramCalls) handleJoinError(bot *td.Client, chatID, userID int64, index int, err error) error {
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "USER_ALREADY_PARTICIPANT") && !strings.Contains(errMsg, "INVITE_REQUEST_SENT") {
+		logger.Warnf("assistant %d failed to join chat %d: %v", index, chatID, err)
+	}
+	reason := html.EscapeString(errMsg)
 	if wait := tg.GetFloodWait(err); wait > 0 {
 		return fmt.Errorf(
 			"Telegram is temporarily limiting join attempts (wait ~%ds).\n\n"+
-				"Please wait a few minutes and try again.", wait,
+				"Please wait a few minutes and try again.\n\nReason: %s", wait, reason,
 		)
 	}
-
-	errMsg := err.Error()
 
 	switch {
 	case strings.Contains(errMsg, "INVITE_REQUEST_SENT"):
@@ -474,15 +470,12 @@ func (c *TelegramCalls) handleJoinError(bot *td.Client, chatID, userID int64, in
 			userID,
 			&td.ProcessChatJoinRequestOpts{Approve: true},
 		); approveErr != nil {
-			slog.Warn(
-				"failed to approve join request",
-				"error", approveErr,
-				"index", index,
-			)
+			logger.Warnf("approve assistant %d join request for chat %d: %v", index, chatID, approveErr)
 
 			return fmt.Errorf(
-				"The assistant has sent a join request but I couldn't approve it automatically.\n\n" +
-					"Please make sure the bot is an admin with permission to approve join requests, then try again",
+				"The assistant has sent a join request but I couldn't approve it automatically.\n\n"+
+					"Please make sure the bot is an admin with permission to approve join requests, then try again.\n\nReason: %s",
+				html.EscapeString(approveErr.Error()),
 			)
 		}
 
@@ -493,23 +486,13 @@ func (c *TelegramCalls) handleJoinError(bot *td.Client, chatID, userID int64, in
 		return nil
 
 	case strings.Contains(errMsg, "INVITE_HASH_EXPIRED"):
-		cached, _ := c.inviteCache.Get(strconv.FormatInt(chatID, 10))
-
-		logger.Warn(
-			"invite link expired",
-			"chat_id", chatID,
-			"index", index,
-			"cached_link", cached,
-		)
-
 		c.inviteCache.Delete(strconv.FormatInt(chatID, 10))
 		c.UpdateMembership(chatID, userID, &td.ChatMemberStatusLeft{})
 
-		return errors.New(
-			"The assistant couldn't join because the group's invite link is no longer valid.\n\n" +
-				"This usually happens when an admin revokes or resets the invite link.\n\n" +
-				"Please run /reload and then try your command again.",
-		)
+		return fmt.Errorf(
+			"The assistant couldn't join because the group's invite link is no longer valid.\n\n"+
+				"This usually happens when an admin revokes or resets the invite link.\n\n"+
+				"Please run /reload and then try your command again.\n\nReason: %s", reason)
 
 	case strings.Contains(errMsg, "CHANNEL_PRIVATE"):
 		c.inviteCache.Delete(strconv.FormatInt(chatID, 10))
@@ -518,37 +501,30 @@ func (c *TelegramCalls) handleJoinError(bot *td.Client, chatID, userID int64, in
 		return fmt.Errorf(
 			"The assistant (ID: <code>%d</code>) cannot access this group.\n\n"+
 				"It may have been banned, removed, or the group privacy settings are preventing access.\n\n"+
-				"Please unban the assistant (ID: <code>%d</code>) and try again.",
-			userID, userID,
+				"Please unban the assistant (ID: <code>%d</code>) and try again.\n\nReason: %s",
+			userID, userID, reason,
 		)
 
 	case strings.Contains(errMsg, "USER_BANNED_IN_CHANNEL"):
 		return fmt.Errorf(
 			"The assistant (ID: <code>%d</code>) is banned from this group.\n\n"+
-				"Please unban the assistant (ID: <code>%d</code>) and try again.",
-			userID, userID,
+				"Please unban the assistant (ID: <code>%d</code>) and try again.\n\nReason: %s",
+			userID, userID, reason,
 		)
 
 	case strings.Contains(errMsg, "INVITE_HASH_INVALID"):
-		return errors.New(
-			"The invite link is invalid.\n\n" +
-				"Please run /reload so the bot can generate a new invite link.",
-		)
+		return fmt.Errorf(
+			"The invite link is invalid.\n\n"+
+				"Please run /reload so the bot can generate a new invite link.\n\nReason: %s", reason)
 	}
-
-	logger.Warn(
-		"unhandled JoinChannel error",
-		"error", err,
-		"index", index,
-	)
 
 	return fmt.Errorf(
 		"The assistant (ID: <code>%d</code>) couldn't join the group.\n\n"+
-			"Reason: %v\n\n"+
 			"If the issue continues, try:\n"+
 			"• Running /reload\n"+
 			"• Checking that the bot is an admin\n"+
-			"• Making sure the assistant (ID: <code>%d</code>) is not banned",
-		userID, err, userID,
+			"• Making sure the assistant (ID: <code>%d</code>) is not banned\n\n"+
+			"Reason: %s",
+		userID, userID, reason,
 	)
 }

@@ -712,7 +712,7 @@ func (c *TelegramCalls) Stop(chatId int64, banned bool) error {
 			return nil
 		}
 
-		acc.App.Logger.Info("[Stop] Failed to stop the call", "error", err, "index", index)
+		logger.Warnf("stop call in chat %d with assistant %d: %v", chatId, index, err)
 		return fmt.Errorf("failed to stop call: %w", err)
 	}
 	return nil
@@ -727,7 +727,7 @@ func (c *TelegramCalls) Pause(chatId int64) (bool, error) {
 
 	res, err := acc.binding.Pause(chatId)
 	if err != nil {
-		acc.App.Logger.Warn("[Pause] Failed to pause the call", "error", err, "index", index)
+		logger.Warnf("pause call in chat %d with assistant %d: %v", chatId, index, err)
 		return res, fmt.Errorf("failed to pause: %w", err)
 	}
 	return res, err
@@ -742,7 +742,7 @@ func (c *TelegramCalls) Resume(chatId int64) (bool, error) {
 
 	res, err := acc.binding.Resume(chatId)
 	if err != nil {
-		logger.Warn("Failed to resume the call", "error", err, "index", index)
+		logger.Warnf("resume call in chat %d with assistant %d: %v", chatId, index, err)
 		return res, fmt.Errorf("failed to resume: %w", err)
 	}
 
@@ -758,7 +758,7 @@ func (c *TelegramCalls) Mute(chatId int64) (bool, error) {
 
 	res, err := acc.binding.Mute(chatId)
 	if err != nil {
-		logger.Warn("Failed to mute the call", "error", err, "index", index)
+		logger.Warnf("mute call in chat %d with assistant %d: %v", chatId, index, err)
 		return res, fmt.Errorf("failed to mute: %w", err)
 	}
 
@@ -774,7 +774,7 @@ func (c *TelegramCalls) Unmute(chatId int64) (bool, error) {
 
 	res, err := acc.binding.UnMute(chatId)
 	if err != nil {
-		logger.Warn("Failed to unmute the call", "error", err, "index", index)
+		logger.Warnf("unmute call in chat %d with assistant %d: %v", chatId, index, err)
 		return res, fmt.Errorf("failed to unmute: %w", err)
 	}
 

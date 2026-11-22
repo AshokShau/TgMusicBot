@@ -9,9 +9,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,13 +22,35 @@ import (
 )
 
 const (
-	cookiesDr      = "src/cookies"
-	maxCookieSize  = 10 << 20 // 10 MiB
+	cookiesDr = "src/cookies"
+
+	maxCookieSize = 10 << 20 // 10 MiB
+
 	requestTimeout = 30 * time.Second
 )
 
 var cookieHTTPClient = &http.Client{
 	Timeout: requestTimeout,
+}
+var cookiesMu sync.RWMutex
+
+// CookieFiles returns a snapshot of downloaded cookie file paths.
+func CookieFiles() []string {
+	cookiesMu.RLock()
+	defer cookiesMu.RUnlock()
+	return append([]string(nil), CookiesPath...)
+}
+
+func cookieFailure(err error) error {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		return urlErr.Err
+	}
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		return pathErr.Err
+	}
+	return err
 }
 
 // fetchContent downloads content from Pastebin, Batbin, or a direct URL.
@@ -45,46 +67,41 @@ func fetchContent(rawURL string) (string, error) {
 
 	req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("create request for %q: %w", downloadURL, err)
+		return "", fmt.Errorf("create cookie request: %w", err)
 	}
 
 	req.Header.Set("User-Agent", "TgMusicBot/1.0")
 
 	resp, err := cookieHTTPClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request %q: %w", downloadURL, err)
+		return "", fmt.Errorf("request cookie source: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf(
-			"unexpected HTTP status %s for %q",
-			resp.Status,
-			downloadURL,
-		)
+		return "", fmt.Errorf("cookie source returned HTTP %s", resp.Status)
 	}
 
+	// Prevent unexpectedly large responses from consuming memory.
 	reader := io.LimitReader(resp.Body, maxCookieSize+1)
+
 	body, err := io.ReadAll(reader)
 	if err != nil {
-		return "", fmt.Errorf("read response from %q: %w", downloadURL, err)
+		return "", fmt.Errorf("read cookie response: %w", err)
 	}
 
 	if len(body) > maxCookieSize {
-		return "", fmt.Errorf(
-			"response from %q exceeds maximum size of %d bytes",
-			downloadURL,
-			maxCookieSize,
-		)
+		return "", fmt.Errorf("cookie response exceeds maximum size of %d bytes", maxCookieSize)
 	}
 
 	return string(body), nil
 }
 
+// resolveRawURL converts supported paste services into their raw URLs.
 func resolveRawURL(rawURL string) (string, error) {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return "", fmt.Errorf("invalid URL %q: %w", rawURL, err)
+		return "", fmt.Errorf("invalid cookie URL: %w", err)
 	}
 
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
@@ -97,7 +114,7 @@ func resolveRawURL(rawURL string) (string, error) {
 	switch host {
 	case "pastebin.com", "www.pastebin.com":
 		if path == "" {
-			return "", fmt.Errorf("invalid Pastebin URL %q", rawURL)
+			return "", fmt.Errorf("invalid Pastebin URL")
 		}
 
 		id, _, _ := strings.Cut(path, "/")
@@ -105,7 +122,7 @@ func resolveRawURL(rawURL string) (string, error) {
 
 	case "batbin.me", "www.batbin.me":
 		if path == "" {
-			return "", fmt.Errorf("invalid Batbin URL %q", rawURL)
+			return "", fmt.Errorf("invalid Batbin URL")
 		}
 
 		id, _, _ := strings.Cut(path, "/")
@@ -116,6 +133,7 @@ func resolveRawURL(rawURL string) (string, error) {
 	}
 }
 
+// saveContent saves content to the cookies directory and returns the file path.
 func saveContent(sourceURL, content string) (string, error) {
 	filename := cookieFilename(sourceURL)
 
@@ -132,6 +150,7 @@ func saveContent(sourceURL, content string) (string, error) {
 	return filePath, nil
 }
 
+// cookieFilename creates a safe filename from the source URL.
 func cookieFilename(rawURL string) string {
 	parsed, err := url.Parse(rawURL)
 	if err == nil {
@@ -152,6 +171,7 @@ func cookieFilename(rawURL string) string {
 	return "cookie.txt"
 }
 
+// sanitizeFilename removes characters that could make the filename unsafe.
 func sanitizeFilename(name string) string {
 	name = strings.TrimSpace(name)
 
@@ -187,12 +207,9 @@ func saveAllCookies(urls []string) {
 		return
 	}
 
-	var (
-		wg sync.WaitGroup
-		mu sync.Mutex
-	)
+	var wg sync.WaitGroup
 
-	for _, rawURL := range urls {
+	for source, rawURL := range urls {
 		rawURL = strings.TrimSpace(rawURL)
 		if rawURL == "" {
 			continue
@@ -200,30 +217,29 @@ func saveAllCookies(urls []string) {
 
 		wg.Add(1)
 
-		go func(rawURL string) {
+		go func(rawURL string, source int) {
 			defer wg.Done()
 
 			content, err := fetchContent(rawURL)
 			if err != nil {
-				slog.Warn("failed to fetch cookies", "url", rawURL, "error", err)
+				log.Warnf("fetch cookies from source %d: %v", source+1, cookieFailure(err))
 				return
 			}
 
 			path, err := saveContent(rawURL, content)
 			if err != nil {
-				slog.Warn("failed to save cookies", "url", rawURL, "error", err)
+				log.Errorf("save cookies from source %d: %v", source+1, cookieFailure(err))
 				return
 			}
 
-			mu.Lock()
+			cookiesMu.Lock()
 			CookiesPath = append(CookiesPath, path)
-			mu.Unlock()
+			cookiesMu.Unlock()
 
-			slog.Debug("cookies downloaded", "url", rawURL, "path", path)
-		}(rawURL)
+		}(rawURL, source)
 	}
 
 	wg.Wait()
 
-	slog.Info("cookie downloads completed", "requested", len(urls), "saved", len(CookiesPath))
+	log.Infof("cookie downloads completed: requested=%d saved=%d", len(urls), len(CookieFiles()))
 }

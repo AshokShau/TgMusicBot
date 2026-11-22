@@ -12,7 +12,6 @@ import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/utils"
 	"context"
-	"log/slog"
 
 	"encoding/json"
 	"errors"
@@ -76,13 +75,15 @@ func (a *apiData) isValid() bool {
 
 func (a *apiData) getInfo() (*utils.PlatformTracks, error) {
 	if !a.isValid() {
+		log.Warn("API get info rejected an invalid or unsupported URL")
 		return nil, errors.New("the provided URL is invalid or the platform is not supported")
 	}
 
 	fullURL := fmt.Sprintf("%s/api/get_url?%s", a.ApiUrl, url.Values{"url": {a.Query}}.Encode())
-	resp, err := sendRequest(http.MethodGet, fullURL, nil, map[string]string{"X-API-Key": a.APIKey})
+	resp, err := sendRequest(http.MethodGet, fullURL, map[string]string{"X-API-Key": a.APIKey})
 	if err != nil {
-		return nil, fmt.Errorf("the GetInfo request failed: %w", err)
+		log.Errorf("API get info request failed: %v", err)
+		return nil, fmt.Errorf("Unable to load track information right now. Please try again.")
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -90,12 +91,14 @@ func (a *apiData) getInfo() (*utils.PlatformTracks, error) {
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code while fetching info: %s", resp.Status)
+		log.Errorf("API get info returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("Unable to load track information right now. Please try again.")
 	}
 
 	var data utils.PlatformTracks
 	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to decode the GetInfo response: %w", err)
+		log.Errorf("API get info response decode failed: %v", err)
+		return nil, fmt.Errorf("Unable to read track information right now. Please try again.")
 	}
 	return &data, nil
 }
@@ -110,22 +113,24 @@ func (a *apiData) search() (*utils.PlatformTracks, error) {
 		"limit": {"5"},
 	}.Encode())
 
-	resp, err := sendRequest(http.MethodGet, fullURL, nil, map[string]string{"X-API-Key": a.APIKey})
+	resp, err := sendRequest(http.MethodGet, fullURL, map[string]string{"X-API-Key": a.APIKey})
 	if err != nil {
-		return nil, fmt.Errorf("the search request failed: %w", err)
+		log.Errorf("API search request failed: %v", err)
+		return nil, fmt.Errorf("Search is unavailable right now. Please try again.")
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code during search: %s", resp.Status)
+		log.Errorf("API search returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("Search is unavailable right now. Please try again.")
 	}
 
 	var data utils.PlatformTracks
 	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		slog.Warn("Failed to decode search response", "error", err)
-		return nil, fmt.Errorf("failed to decode the search response: %w", err)
+		log.Errorf("API search response decode failed: %v", err)
+		return nil, fmt.Errorf("Unable to read search results right now. Please try again.")
 	}
 
 	return &data, nil
@@ -133,10 +138,10 @@ func (a *apiData) search() (*utils.PlatformTracks, error) {
 
 func (a *apiData) getTrack() (*utils.TrackInfo, error) {
 	fullURL := fmt.Sprintf("%s/api/track?%s", a.ApiUrl, url.Values{"url": {a.Query}}.Encode())
-	resp, err := sendRequest(http.MethodGet, fullURL, nil, map[string]string{"X-API-Key": a.APIKey})
+	resp, err := sendRequest(http.MethodGet, fullURL, map[string]string{"X-API-Key": a.APIKey})
 	if err != nil {
-		slog.Warn("GetTrack request failed", "error", err)
-		return nil, fmt.Errorf("the GetTrack request failed: %w", err)
+		log.Errorf("API get track request failed: %v", err)
+		return nil, fmt.Errorf("Unable to load this track right now. Please try again.")
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -144,13 +149,14 @@ func (a *apiData) getTrack() (*utils.TrackInfo, error) {
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code while fetching the track: %s", resp.Status)
+		log.Errorf("API get track returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("Unable to load this track right now. Please try again.")
 	}
 
 	var data utils.TrackInfo
 	if err = json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		slog.Warn("Failed to decode the GetTrack response", "error", err)
-		return nil, fmt.Errorf("failed to decode the GetTrack response: %w", err)
+		log.Errorf("API get track response decode failed: %v", err)
+		return nil, fmt.Errorf("Unable to read this track right now. Please try again.")
 	}
 
 	return &data, nil
@@ -166,13 +172,20 @@ func (a *apiData) downloadTrack(info *utils.TrackInfo, video bool) (string, erro
 	filePath, err := processDownload(info)
 	if err != nil {
 		if info.Platform == utils.YouTube {
+			log.Warnf("API track download failed; trying YouTube downloader: %v", err)
 			return yt.downloadTrack(info, video)
 		}
-		return "", fmt.Errorf("the download process failed: %w", err)
+		log.Errorf("API track download failed: %v", err)
+		return "", fmt.Errorf("Unable to download this track. Please try another.")
 	}
 
 	if strings.Contains(a.ApiUrl, filePath) {
-		return downloadFile(filePath, "", false)
+		path, err := downloadFile(filePath, "", false)
+		if err != nil {
+			log.Errorf("API media file download failed: %v", err)
+			return "", fmt.Errorf("Unable to download this track right now. Please try again.")
+		}
+		return path, nil
 	}
 
 	return filePath, nil
@@ -181,6 +194,7 @@ func (a *apiData) downloadTrack(info *utils.TrackInfo, video bool) (string, erro
 // getRecommendations retrieves recommended tracks for a given track URL from the API gateway.
 func (a *apiData) getRecommendations(ctx context.Context, rawURL string) (*utils.PlatformTracks, error) {
 	if a.ApiUrl == "" || a.APIKey == "" {
+		log.Warn("API recommendations unavailable: URL or API key is not configured")
 		return nil, errors.New("API URL or API key is not configured")
 	}
 
@@ -195,12 +209,18 @@ func (a *apiData) getRecommendations(ctx context.Context, rawURL string) (*utils
 	fullURL := fmt.Sprintf("%s/api/recommendations?%s", a.ApiUrl, url.Values{"url": {urlToUse}}.Encode())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fullURL, nil)
 	if err != nil {
-		return nil, err
+		log.Errorf("API recommendations request creation failed: %v", err)
+		return nil, fmt.Errorf("Unable to load recommendations right now. Please try again.")
 	}
 	req.Header.Set("X-API-Key", a.APIKey)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("the GetRecommendations request failed: %w", err)
+		requestErr := err
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			requestErr = urlErr.Err
+		}
+		log.Errorf("API recommendations request failed: %v", requestErr)
+		return nil, fmt.Errorf("Unable to load recommendations right now. Please try again.")
 	}
 
 	defer func(Body io.ReadCloser) {
@@ -208,12 +228,14 @@ func (a *apiData) getRecommendations(ctx context.Context, rawURL string) (*utils
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code while fetching recommendations: %s", resp.Status)
+		log.Errorf("API recommendations returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf("Unable to load recommendations right now. Please try again.")
 	}
 
 	var data utils.PlatformTracks
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to decode the GetRecommendations response: %w", err)
+		log.Errorf("API recommendations response decode failed: %v", err)
+		return nil, fmt.Errorf("Unable to read recommendations right now. Please try again.")
 	}
 	return &data, nil
 }

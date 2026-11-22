@@ -40,7 +40,10 @@ func pingHandler(c *td.Client, m *td.Message) error {
 	)
 
 	_, err = msg.EditText(c, response, &td.EditMessageTextOpts{ParseMode: "HTML"})
-	return err
+	if err != nil {
+		return fmt.Errorf("edit ping response in chat %d: %w", m.ChatId, err)
+	}
+	return nil
 }
 
 func startHandler(c *td.Client, m *td.Message) error {

@@ -3,7 +3,6 @@ package cleanup
 import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/db"
-	"ashokshau/tgmusic/internal/messaging"
 	"context"
 	"strconv"
 	"sync"
@@ -105,7 +104,14 @@ func Start(c *td.Client) (*Scheduler, func()) {
 						continue
 					}
 
-					group = messaging.IsGroup(chat)
+					if chat != nil {
+						switch kind := chat.Type.(type) {
+						case *td.ChatTypeBasicGroup:
+							group = true
+						case *td.ChatTypeSupergroup:
+							group = !kind.IsChannel
+						}
+					}
 					groupTypes.Set(key, group)
 				}
 				if !group {

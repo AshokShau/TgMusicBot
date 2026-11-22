@@ -9,7 +9,6 @@
 package utils
 
 type PlayerCache struct {
-	Silent    bool   `json:"-"`
 	URL       string `json:"url"`
 	Name      string `json:"name"`
 	Loop      int    `json:"loop"`

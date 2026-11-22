@@ -19,7 +19,6 @@ func ValidateAutoDeleteMinutes(minutes int) error {
 type CleanSettings struct {
 	AutoDelete bool
 	Minutes    int
-	Silent     bool
 }
 
 func (db *Database) GetCleanSettings(chatID int64) (CleanSettings, error) {
@@ -31,7 +30,7 @@ func (db *Database) GetCleanSettings(chatID int64) (CleanSettings, error) {
 	if err != nil || chat == nil {
 		return settings, err
 	}
-	settings.AutoDelete, settings.Silent = chat.AutoDelete, chat.SilentMode
+	settings.AutoDelete = chat.AutoDelete
 	if ValidateAutoDeleteMinutes(chat.AutoDeleteMinutes) == nil {
 		settings.Minutes = chat.AutoDeleteMinutes
 	}
@@ -59,7 +58,4 @@ func (db *Database) SetAutoDeleteMinutes(chatID int64, minutes int) error {
 		return err
 	}
 	return db.setCleanField(chatID, "auto_delete_minutes", minutes)
-}
-func (db *Database) SetSilentMode(chatID int64, enabled bool) error {
-	return db.setCleanField(chatID, "silent_mode", enabled)
 }

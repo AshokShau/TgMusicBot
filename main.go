@@ -36,9 +36,12 @@ import (
 	"time"
 
 	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/logger"
 )
 
 //go:generate go run github.com/AshokShau/gotdbot/scripts/tools
+
+var log = logger.New()
 
 func main() {
 	if err := config.LoadEnv(); err != nil {
@@ -56,6 +59,11 @@ func main() {
 	if err := db.InitDatabase(); err != nil {
 		panic("failed to connect database: " + err.Error())
 	}
+	defer func() {
+		if err := db.Instance.Close(); err != nil {
+			log.Errorf("close database connection: %v", err)
+		}
+	}()
 
 	tdDir := "td"
 	_ = os.Remove(tdDir)
@@ -107,7 +115,9 @@ func main() {
 	bot.LoadModules(client, cleanupScheduler.CancelChat)
 	msg := fmt.Sprintf("Bot started\nNtgCalls %s", ntgcalls.Version())
 	client.Logger.Info(msg)
-	_, _ = client.SendMessage(config.LoggerId, msg, nil)
+	if _, err := client.SendMessage(config.LoggerId, msg, nil); err != nil {
+		log.Warnf("send startup message to logger chat: %v", err)
+	}
 	manager.Idle()
 	client.Logger.Info("The bot is shutting down...")
 	calls.Calls.StopAllClients()

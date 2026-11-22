@@ -51,12 +51,14 @@ func (d *directLink) getInfo() (*utils.PlatformTracks, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("invalid or unplayable link: %w", err)
+		log.Errorf("probe direct media link failed: %v", err)
+		return nil, fmt.Errorf("This media link cannot be played. Please try another link.")
 	}
 
 	var info utils.FFProbeFormat
 	if err = json.Unmarshal(output, &info); err != nil {
-		return nil, fmt.Errorf("failed to parse ffprobe output: %w", err)
+		log.Errorf("parse direct media probe output failed: %v", err)
+		return nil, fmt.Errorf("Unable to read this media link. Please try another link.")
 	}
 
 	var duration int32

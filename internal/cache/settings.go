@@ -16,13 +16,6 @@ func SettingsAccess(c *td.Client, chatID, userID int64, setting string) error {
 		return nil
 	}
 
-	if setting == "silent" {
-		if !rights.CanDeleteMessages {
-			return errors.New("you need Delete Messages permission to change Silent Mode")
-		}
-		return nil
-	}
-
 	if !rights.CanManageChat {
 		return errors.New("you must be a group administrator to change settings")
 	}

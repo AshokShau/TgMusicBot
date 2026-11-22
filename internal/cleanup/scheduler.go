@@ -4,13 +4,15 @@ import (
 	"container/heap"
 	"context"
 	"errors"
-	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	td "github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/logger"
 )
+
+var log = logger.New()
 
 const MaxPending = 100000
 const BatchSize = 100
@@ -119,7 +121,7 @@ func (s *Scheduler) Track(chatID, oldID, finalID int64, due time.Time) bool {
 	}
 
 	if len(s.pending) >= MaxPending {
-		slog.Warn("auto-delete queue at capacity", "capacity", MaxPending)
+		log.Warnf("auto-delete queue at capacity (%d)", MaxPending)
 		return false
 	}
 
@@ -298,7 +300,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 			}
 			err := s.delete(chatID, ids)
 			if err != nil {
-				slog.Warn("auto-delete request failed", "chat_id", chatID, "count", len(ids))
+				log.Warnf("delete %d messages in chat %d: %v", len(ids), chatID, err)
 			}
 			s.finish(batch, err, time.Now())
 			// Pace successful calls as well as retries; no burst loop across groups.

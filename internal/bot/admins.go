@@ -106,15 +106,18 @@ func joinHandler(c *gotdbot.Client, m *gotdbot.Message) error {
 
 	acc, err := calls.Calls.JoinAssistant(c, m.ChatId, link)
 	if err != nil {
-		_, _ = reply.EditText(c, fmt.Sprintf("Failed to join assistant:\n\n%s", err.Error()), &gotdbot.EditMessageTextOpts{
-			ParseMode: "HTML",
-		})
+		c.Logger.Errorf("join assistant in chat %d: %v", m.ChatId, err)
+		if _, editErr := reply.EditText(c, fmt.Sprintf("Failed to join assistant:\n\n%v", err), nil); editErr != nil {
+			return fmt.Errorf("edit assistant join failure in chat %d: %w", m.ChatId, editErr)
+		}
 		return gotdbot.EndGroups
 	}
 
-	_, _ = reply.EditText(c, fmt.Sprintf("Assistant (<b>%s</b> | ID: <code>%d</code>) joined successfully!", html.EscapeString(acc.App.Me().FirstName), acc.App.Me().ID), &gotdbot.EditMessageTextOpts{
+	if _, err := reply.EditText(c, fmt.Sprintf("Assistant (<b>%s</b> | ID: <code>%d</code>) joined successfully!", html.EscapeString(acc.App.Me().FirstName), acc.App.Me().ID), &gotdbot.EditMessageTextOpts{
 		ParseMode: "HTML",
-	})
+	}); err != nil {
+		return fmt.Errorf("edit assistant join success in chat %d: %w", m.ChatId, err)
+	}
 
 	return gotdbot.EndGroups
 }

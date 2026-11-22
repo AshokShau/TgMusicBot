@@ -16,7 +16,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log/slog"
 	"math/big"
 	"sync"
 
@@ -161,7 +160,7 @@ func (c *TelegramCalls) StopAllClients() {
 
 	for _, acc := range accounts {
 		acc.Close()
-		slog.Info("[TelegramCalls] Stopping the client", "id", acc.self.ID)
+		logger.Infof("stopping assistant client %d", acc.self.ID)
 		_ = acc.App.Stop()
 	}
 }
@@ -188,8 +187,7 @@ func (c *TelegramCalls) getAccountIndex(chatID int64) (int, error) {
 
 	assignedIndex, err := db.Instance.GetAssistant(chatID)
 	if err != nil {
-		slog.Info("[TelegramCalls] DB.GetAssistant error", "error", err)
-		assignedIndex = -1
+		return -1, fmt.Errorf("get assistant for chat %d: %w", chatID, err)
 	}
 
 	if assignedIndex >= 0 && assignedIndex < totalAccounts {
@@ -198,21 +196,16 @@ func (c *TelegramCalls) getAccountIndex(chatID int64) (int, error) {
 
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(totalAccounts)))
 	if err != nil {
-		slog.Info("[TelegramCalls] Could not generate a random number", "error", err)
-		newAccountIndex := 0
-		if assignedIndex == -1 && chatID != 0 {
-			if _, err := db.Instance.AssignAssistant(chatID, newAccountIndex); err != nil {
-				logger.Info("[TelegramCalls] DB.AssignAssistant error", "error", err)
-			}
-		}
-		return newAccountIndex, nil
+		return -1, fmt.Errorf("select assistant for chat %d: %w", chatID, err)
 	}
 
 	newAccountIndex := int(n.Int64())
 	if chatID != 0 {
-		if _, err := db.Instance.AssignAssistant(chatID, newAccountIndex); err != nil {
-			logger.Info("[TelegramCalls] DB.AssignAssistant error", "error", err)
+		assigned, err := db.Instance.AssignAssistant(chatID, newAccountIndex)
+		if err != nil {
+			return -1, fmt.Errorf("assign assistant for chat %d: %w", chatID, err)
 		}
+		newAccountIndex = assigned
 	}
 
 	return newAccountIndex, nil

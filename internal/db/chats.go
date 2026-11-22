@@ -12,7 +12,7 @@ import (
 	"ashokshau/tgmusic/internal/utils"
 	"context"
 	"errors"
-	"log/slog"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -29,7 +29,6 @@ type Chats struct {
 	CmdDelete         bool   `bson:"cmd_delete"`
 	AutoDelete        bool   `bson:"auto_delete"`
 	AutoDeleteMinutes int    `bson:"auto_delete_minutes"`
-	SilentMode        bool   `bson:"silent_mode"`
 }
 
 // getChat retrieves a chat's data from the cache or database.
@@ -45,7 +44,7 @@ func (db *Database) getChat(chatID int64) (*Chats, error) {
 	ctx, cancel := db.ctx()
 	defer cancel()
 
-	for range 3 {
+	for attempt := range 3 {
 		err = db.chatDB.FindOne(ctx, bson.M{"_id": chatID}).Decode(&chat)
 		if err == nil {
 			break
@@ -53,16 +52,19 @@ func (db *Database) getChat(chatID int64) (*Chats, error) {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, nil
 		}
-
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
+		if attempt == 2 {
+			break
 		}
-		time.Sleep(100 * time.Millisecond)
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
 	}
 
 	if err != nil {
-		slog.Info("[DB] An error occurred while getting the chat", "error", err)
-		return nil, err
+		return nil, fmt.Errorf("get chat %d after retries: %w", chatID, err)
 	}
 
 	db.chatCache.Set(key, &chat)
@@ -80,9 +82,6 @@ func (db *Database) AddChat(chatID int64) error {
 	defer cancel()
 
 	_, err := db.chatDB.UpdateOne(ctx, bson.M{"_id": chatID}, bson.M{"$setOnInsert": bson.M{}}, options.UpdateOne().SetUpsert(true))
-	if err == nil {
-		slog.Info("[DB] A new chat has been added", "id", chatID)
-	}
 	return err
 }
 

@@ -17,7 +17,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log/slog"
 	"math/big"
 	"os"
 	"os/exec"
@@ -53,7 +52,7 @@ func newYouTubeData(query string) *youTubeData {
 
 func (y *youTubeData) isValid() bool {
 	if y.Query == "" {
-		slog.Info("The query or patterns are empty.")
+		log.Warn("YouTube query is empty")
 		return false
 	}
 
@@ -86,7 +85,7 @@ func (y *youTubeData) getInfo() (*utils.PlatformTracks, error) {
 
 	case videoID != "":
 		for _, query := range []string{videoID, y.Query} {
-			tracks, err := searchYouTube(query, 10)
+			tracks, err := searchYouTube(query, 10, ctx)
 			if err != nil {
 				continue
 			}
@@ -98,8 +97,8 @@ func (y *youTubeData) getInfo() (*utils.PlatformTracks, error) {
 			}
 		}
 
-		if title, err := getYouTubeTitleFromOEmbed(videoID); err == nil && title != "" {
-			tracks, err := searchYouTube(title, 10)
+		if title, err := getYouTubeTitleFromOEmbed(ctx, videoID); err == nil && title != "" {
+			tracks, err := searchYouTube(title, 10, ctx)
 			if err == nil {
 				for _, track := range tracks {
 					if track.Id == videoID {
@@ -109,7 +108,7 @@ func (y *youTubeData) getInfo() (*utils.PlatformTracks, error) {
 			}
 		}
 
-		slog.Warn("Video ID was extracted but no matching track was found in search results", "video_id", videoID)
+		log.Warnf("YouTube search returned no match for video %s", videoID)
 		return getYouTubeVideo(ctx, videoID)
 	}
 
@@ -141,6 +140,8 @@ func (y *youTubeData) getTrack() (*utils.TrackInfo, error) {
 	if y.ApiUrl != "" && y.APIKey != "" {
 		if trackInfo, err := newApiData(y.Query).getTrack(); err == nil {
 			return trackInfo, nil
+		} else {
+			log.Warnf("API track lookup failed; trying YouTube metadata: %v", err)
 		}
 	}
 
@@ -171,6 +172,8 @@ func (y *youTubeData) downloadTrack(info *utils.TrackInfo, video bool) (string, 
 	if !video && y.ApiUrl != "" && y.APIKey != "" {
 		if filePath, err := y.downloadWithApi(info.Id, video); err == nil {
 			return filePath, nil
+		} else {
+			log.Warnf("API download failed for video %s; trying yt-dlp: %v", info.Id, err)
 		}
 	}
 
@@ -243,14 +246,33 @@ func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, err
 			if cookieFile != "" && strings.Contains(stderr, "Sign in to confirm you're not a bot") {
 				_ = os.Remove(cookieFile)
 			}
-			return "", fmt.Errorf("yt-dlp failed with exit code %d: %s", exitErr.ExitCode(), stderr)
+			lower := strings.ToLower(stderr)
+			if strings.Contains(lower, "private video") || strings.Contains(lower, "age-restricted") || strings.Contains(lower, "video unavailable") || strings.Contains(lower, "sign in to confirm you're not a bot") {
+				log.Warnf("yt-dlp rejected video %s (exit %d): %s", videoID, exitErr.ExitCode(), stderr)
+			} else {
+				log.Errorf("yt-dlp download failed for video %s (exit %d): %s", videoID, exitErr.ExitCode(), stderr)
+			}
+			switch {
+			case strings.Contains(lower, "sign in to confirm you're not a bot"), strings.Contains(lower, "bot detection"):
+				return "", fmt.Errorf("YouTube restricted access for this track. Please try again later.")
+			case strings.Contains(lower, "private video"):
+				return "", fmt.Errorf("This video is private and cannot be played.")
+			case strings.Contains(lower, "age-restricted"), strings.Contains(lower, "confirm your age"):
+				return "", fmt.Errorf("This video is age-restricted and cannot be played.")
+			case strings.Contains(lower, "video unavailable"), strings.Contains(lower, "this video has been removed"):
+				return "", fmt.Errorf("This track is unavailable or has been removed.")
+			default:
+				return "", fmt.Errorf("YouTube could not download this track. Please try another.")
+			}
 		}
 
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return "", fmt.Errorf("yt-dlp timed out for video ID: %s", videoID)
+			log.Warnf("yt-dlp timed out for video %s", videoID)
+			return "", fmt.Errorf("YouTube download timed out. Please try again.")
 		}
 
-		return "", fmt.Errorf("an unexpected error occurred while downloading %s: %w", videoID, err)
+		log.Errorf("yt-dlp download failed for video %s: %v", videoID, err)
+		return "", fmt.Errorf("YouTube could not download this track. Please try another.")
 	}
 
 	downloadedPathStr := strings.TrimSpace(string(output))
@@ -267,13 +289,13 @@ func (y *youTubeData) downloadWithYtDlp(videoID string, video bool) (string, err
 
 // getCookieFile retrieves the path to a cookie file from the configured list.
 func (y *youTubeData) getCookieFile() string {
-	cookiesPath := config.CookiesPath
+	cookiesPath := config.CookieFiles()
 	if len(cookiesPath) == 0 {
 		return ""
 	}
 	n, err := rand.Int(rand.Reader, big.NewInt(int64(len(cookiesPath))))
 	if err != nil {
-		slog.Info("Could not generate a random number", "error", err)
+		log.Warnf("select YouTube cookie file: %v", err)
 		return cookiesPath[0]
 	}
 

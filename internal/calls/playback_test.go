@@ -28,23 +28,3 @@ func TestClassifyError(t *testing.T) {
 		}
 	}
 }
-
-func TestFatalMessage(t *testing.T) {
-	errClosed := errors.New("group call is closed")
-	msgClosed := fatalMessage(errClosed)
-	if msgClosed.Error() != "<b>No active video chat found.</b>\n\nPlease start one and <b>try again</b>" {
-		t.Errorf("unexpected fatalMessage for closed: %v", msgClosed)
-	}
-
-	errInvalid := errors.New("GROUPCALL_INVALID")
-	msgInvalid := fatalMessage(errInvalid)
-	if msgInvalid.Error() != "<b>GROUPCALL_INVALID:</b> start a video chat and try again.\n\nIf the problem persists, please report it to the developer." {
-		t.Errorf("unexpected fatalMessage for invalid: %v", msgInvalid)
-	}
-
-	errOther := errors.New("other error")
-	msgOther := fatalMessage(errOther)
-	if !errors.Is(msgOther, errOther) {
-		t.Errorf("expected original error returned, got %v", msgOther)
-	}
-}

@@ -12,10 +12,12 @@ import (
 	"ashokshau/tgmusic/internal/cache"
 	"ashokshau/tgmusic/internal/config"
 	"context"
+	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"time"
+
+	"github.com/AshokShau/gotdbot/logger"
 
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -45,6 +47,7 @@ type Database struct {
 
 // Instance is the global singleton for the database.
 var Instance *Database
+var log = logger.New()
 
 // InitDatabase initializes the database connection and sets up the global instance.
 func InitDatabase() error {
@@ -60,6 +63,16 @@ func InitDatabase() error {
 	client, err := mongo.Connect(opts)
 	if err != nil {
 		return err
+	}
+
+	if err := client.Ping(ctx, nil); err != nil {
+		pingErr := fmt.Errorf("ping database: %w", err)
+		closeCtx, cancelClose := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelClose()
+		if closeErr := client.Disconnect(closeCtx); closeErr != nil {
+			return errors.Join(pingErr, fmt.Errorf("disconnect failed database client: %w", closeErr))
+		}
+		return pingErr
 	}
 
 	db := client.Database(config.DbName)
@@ -84,11 +97,7 @@ func InitDatabase() error {
 		blUsersCache:   cache.NewCache[[]int64](20 * time.Minute),
 	}
 
-	if err := client.Ping(ctx, nil); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
-
-	slog.Info("[DB] The database connection has been successfully established.")
+	log.Infof("database connection established")
 	return nil
 }
 
@@ -101,7 +110,7 @@ func (db *Database) Close() error {
 	ctx, cancel := db.ctx()
 	defer cancel()
 
-	slog.Info("[DB] Closing the database connection...")
+	log.Infof("closing database connection")
 	return db.client.Disconnect(ctx)
 }
 

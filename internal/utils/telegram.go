@@ -11,7 +11,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 
@@ -56,7 +55,6 @@ func buildMessageLink(url string) (string, error) {
 func resolveMessage(client *td.Client, link string) (*td.Message, error) {
 	info, err := client.GetMessageLinkInfo(link)
 	if err != nil {
-		slog.Info("failed to get message link info", "link", link, "error", err)
 		return nil, fmt.Errorf("get message link info: %w", err)
 	}
 

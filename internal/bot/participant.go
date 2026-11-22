@@ -13,12 +13,14 @@ import (
 	"ashokshau/tgmusic/internal/config"
 	"ashokshau/tgmusic/internal/db"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 
 	"github.com/AshokShau/gotdbot"
+	"github.com/AshokShau/gotdbot/logger"
 )
+
+var log = logger.New()
 
 func handleNewChat(c *gotdbot.Client, update *gotdbot.UpdateNewChat) error {
 	chat := update.Chat
@@ -123,7 +125,7 @@ func dispatchStatusChange(client *gotdbot.Client, chatID, userID, assistantID in
 		return onBan(client, chatID, userID, assistantID)
 
 	case wasBanned && nowLeft:
-		slog.Info("User unbanned from chat", "user_id", userID, "chat_id", chatID)
+		client.Logger.Infof("user %d unbanned from chat %d", userID, chatID)
 		calls.Calls.UpdateMembership(chatID, userID, &gotdbot.ChatMemberStatusLeft{})
 		return nil
 
@@ -157,6 +159,7 @@ func onRestriction(client *gotdbot.Client, chatID, userID, assistantID int64, ol
 			if _, err := client.SendMessage(chatID, msg, &gotdbot.SendMessageOpts{
 				ParseMode: "HTML",
 			}); err != nil {
+				client.Logger.Warnf("send assistant restriction notice in chat %d: %v", chatID, err)
 				return err
 			}
 		}
@@ -214,6 +217,7 @@ func onBan(client *gotdbot.Client, chatID, userID, assistantID int64) error {
 		if _, err := client.SendMessage(chatID, msg, &gotdbot.SendMessageOpts{
 			ParseMode: "HTML",
 		}); err != nil {
+			client.Logger.Warnf("send assistant ban notice in chat %d: %v", chatID, err)
 			return err
 		}
 	}
@@ -282,20 +286,20 @@ func sendJoinLog(client *gotdbot.Client, chatID int64, _ *gotdbot.Supergroup) {
 }
 
 func storeChatToDB(chatID int64) {
-	slog.Debug("Storing chat reference", "chat_id", chatID)
+	log.Debug("storing chat reference", "chat_id", chatID)
 	switch {
 	case chatID > 0:
 		if err := db.Instance.AddUser(chatID); err != nil {
-			slog.Error("Failed to store user reference", "chat_id", chatID, "error", err)
+			log.Errorf("store user reference %d: %v", chatID, err)
 		}
 
 	case chatID < 0:
 		if err := db.Instance.AddChat(chatID); err != nil {
-			slog.Error("Failed to add chat to database", "chat_id", chatID, "error", err)
+			log.Errorf("store chat reference %d: %v", chatID, err)
 		}
 
 	default:
-		slog.Warn("Invalid chat ID", "chat_id", chatID)
+		log.Warnf("invalid chat ID %d", chatID)
 	}
 }
 

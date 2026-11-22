@@ -14,6 +14,7 @@ import (
 	"ashokshau/tgmusic/internal/downloader"
 	"ashokshau/tgmusic/internal/utils"
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -74,13 +75,20 @@ func mixHandler(c *td.Client, m *td.Message) error {
 	limit := int(config.AutoPlayLimit)
 	tracks, err := downloader.GetRecommendations(ctx, targetURL, limit)
 	if err != nil {
-		_, err = updater.EditText(c, "Failed to get mix: Please try again later.", nil)
-		return err
+		c.Logger.Errorf("load mix recommendations in chat %d: %v", chatID, err)
+		_, editErr := updater.EditText(c, "Unable to get a mix right now. Please try again later.", nil)
+		if editErr != nil {
+			return fmt.Errorf("edit mix error in chat %d: %w", chatID, editErr)
+		}
+		return nil
 	}
 
 	if len(tracks) == 0 {
 		_, err = updater.EditText(c, "No tracks found for mix.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit empty mix result in chat %d: %w", chatID, err)
+		}
+		return nil
 	}
 
 	var filtered []utils.GetUrlTrack
@@ -92,7 +100,10 @@ func mixHandler(c *td.Client, m *td.Message) error {
 
 	if len(filtered) == 0 {
 		_, err = updater.EditText(c, "All mix tracks are already in the queue or playing.", nil)
-		return err
+		if err != nil {
+			return fmt.Errorf("edit duplicate mix result in chat %d: %w", chatID, err)
+		}
+		return nil
 	}
 
 	return handleMultipleTracks(c, m, updater, filtered, chatID, false, false)

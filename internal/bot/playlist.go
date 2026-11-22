@@ -32,7 +32,11 @@ func createPlaylistHandler(c *td.Client, m *td.Message) error {
 
 	userPlaylists, err := db.Instance.GetUserPlaylists(userID)
 	if err != nil {
+		c.Logger.Errorf("load playlists before creation: %v", err)
 		_, err = m.ReplyText(c, "Unable to fetch your playlists. Please try again later.", nil)
+		if err != nil {
+			c.Logger.Warnf("send playlist load failure in chat %d: %v", m.ChatId, err)
+		}
 		return err
 	}
 
@@ -47,7 +51,11 @@ func createPlaylistHandler(c *td.Client, m *td.Message) error {
 
 	playlistID, err := db.Instance.CreatePlaylist(args, userID)
 	if err != nil {
-		_, err = m.ReplyText(c, fmt.Sprintf("Failed to create playlist: %s", err.Error()), nil)
+		c.Logger.Errorf("create playlist: %v", err)
+		_, err = m.ReplyText(c, "Unable to create playlist. Please try again.", nil)
+		if err != nil {
+			c.Logger.Warnf("send playlist creation failure in chat %d: %v", m.ChatId, err)
+		}
 		return err
 	}
 
@@ -100,11 +108,15 @@ func deletePlaylistHandler(c *td.Client, m *td.Message) error {
 
 	err = db.Instance.DeletePlaylist(args, userID)
 	if err != nil {
+		c.Logger.Errorf("delete playlist: %v", err)
 		_, err := m.ReplyText(
 			c,
-			fmt.Sprintf("Failed to delete the playlist: %s", err.Error()),
+			"Unable to delete playlist. Please try again.",
 			nil,
 		)
+		if err != nil {
+			c.Logger.Warnf("send playlist deletion failure in chat %d: %v", m.ChatId, err)
+		}
 		return err
 	}
 
@@ -165,11 +177,15 @@ func addToPlaylistHandler(c *td.Client, m *td.Message) error {
 
 	trackInfo, err := wrapper.GetInfo()
 	if err != nil {
+		c.Logger.Warnf("load playlist track info in chat %d: %v", m.ChatId, err)
 		_, err := m.ReplyText(
 			c,
-			fmt.Sprintf("Unable to retrieve track information: %s", err.Error()),
+			"Unable to retrieve track information. Please try again.",
 			nil,
 		)
+		if err != nil {
+			c.Logger.Warnf("send playlist track failure in chat %d: %v", m.ChatId, err)
+		}
 		return err
 	}
 
@@ -192,11 +208,15 @@ func addToPlaylistHandler(c *td.Client, m *td.Message) error {
 
 	err = db.Instance.AddSongToPlaylist(playlistID, song)
 	if err != nil {
+		c.Logger.Errorf("add track to playlist: %v", err)
 		_, err := m.ReplyText(
 			c,
-			fmt.Sprintf("Failed to add the track to the playlist: %s", err.Error()),
+			"Unable to add the track to the playlist. Please try again.",
 			nil,
 		)
+		if err != nil {
+			c.Logger.Warnf("send playlist add failure in chat %d: %v", m.ChatId, err)
+		}
 		return err
 	}
 
@@ -267,7 +287,11 @@ func removeFromPlaylistHandler(c *td.Client, m *td.Message) error {
 
 	err = db.Instance.RemoveSongFromPlaylist(playlistID, trackID)
 	if err != nil {
-		_, err = m.ReplyText(c, fmt.Sprintf("Error removing song: %s", err.Error()), nil)
+		c.Logger.Errorf("remove song from playlist: %v", err)
+		_, err = m.ReplyText(c, "Unable to remove the song. Please try again.", nil)
+		if err != nil {
+			c.Logger.Warnf("send playlist removal failure in chat %d: %v", m.ChatId, err)
+		}
 		return err
 	}
 
@@ -359,7 +383,11 @@ func myPlaylistsHandler(c *td.Client, m *td.Message) error {
 
 	playlists, err := db.Instance.GetUserPlaylists(userID)
 	if err != nil {
-		_, err := m.ReplyText(c, fmt.Sprintf("Error fetching playlists: %s", err.Error()), nil)
+		c.Logger.Errorf("load playlists: %v", err)
+		_, err := m.ReplyText(c, "Unable to load playlists. Please try again.", nil)
+		if err != nil {
+			c.Logger.Warnf("send playlist load failure in chat %d: %v", m.ChatId, err)
+		}
 		return err
 	}
 

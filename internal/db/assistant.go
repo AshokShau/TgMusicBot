@@ -10,7 +10,6 @@ package db
 
 import (
 	"errors"
-	"log/slog"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -105,7 +104,6 @@ func (db *Database) ClearAllAssistants() (int64, error) {
 
 	result, err := db.assistantDB.DeleteMany(ctx, bson.M{})
 	if err != nil {
-		slog.Info("[DB] Error clearing assistants", "error", err)
 		return 0, err
 	}
 

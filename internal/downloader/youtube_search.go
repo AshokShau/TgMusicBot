@@ -18,6 +18,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/url"
 	"regexp"
 	"slices"
 	"strconv"
@@ -239,6 +240,11 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 
 		res, err := client.Do(req)
 		if err != nil {
+			requestErr := err
+			if urlErr, ok := errors.AsType[*url.Error](err); ok {
+				requestErr = urlErr.Err
+			}
+			log.Warnf("YouTube %s request with %s failed: %v", path, prof.ClientName, requestErr)
 			lastErr = fmt.Errorf("%s (%s): %w", path, prof.ClientName, err)
 			continue
 		}
@@ -247,6 +253,7 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 			snippet, _ := io.ReadAll(io.LimitReader(res.Body, 2048))
 			_ = res.Body.Close()
 			lastErr = formatYTErr(fmt.Sprintf("youtube %s (%s)", path, prof.ClientName), res.StatusCode, res.Status, snippet)
+			log.Warnf("%v", lastErr)
 			continue
 		}
 
@@ -255,6 +262,7 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 		_ = res.Body.Close()
 		if err != nil {
 			lastErr = fmt.Errorf("decode response (%s): %w", prof.ClientName, err)
+			log.Warnf("YouTube %s: %v", path, lastErr)
 			continue
 		}
 
@@ -263,12 +271,14 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 		}
 		if searchRequest {
 			if err := youtubeSearchResponseError(out); err != nil {
+				log.Warnf("YouTube %s response with %s failed: %v", path, prof.ClientName, err)
 				return nil, err
 			}
 		}
 
 		if accept != nil {
 			lastErr = fmt.Errorf("youtube %s (%s): response rejected (empty/invalid)", path, prof.ClientName)
+			log.Warnf("%v", lastErr)
 			continue
 		}
 
@@ -277,6 +287,9 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 
 	if lastErr == nil {
 		lastErr = fmt.Errorf("youtube %s failed: no client profiles succeeded", path)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	return nil, lastErr
 }
@@ -427,10 +440,14 @@ func isLiveNow(vr map[string]any) bool {
 }
 
 // getYouTubeTitleFromOEmbed fetches the video title using YouTube's oEmbed API.
-func getYouTubeTitleFromOEmbed(videoID string) (string, error) {
+func getYouTubeTitleFromOEmbed(ctx context.Context, videoID string) (string, error) {
 	apiURL := fmt.Sprintf("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=%s&format=json", videoID)
 
-	resp, err := client.Get(apiURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("build oEmbed request: %w", err)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("oEmbed request failed: %w", err)
 	}

@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"slices"
 	"strconv"
@@ -25,7 +24,7 @@ func loadDevelopers() {
 	for idStr := range strings.FieldsSeq(value) {
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			slog.Warn("invalid developer ID",
+			log.Warn("invalid developer ID",
 				"id", idStr,
 				"error", err,
 			)
@@ -53,7 +52,7 @@ func getEnvInt64(key string, defaultValue int64) int64 {
 
 	result, err := strconv.ParseInt(value, 10, 64)
 	if err != nil {
-		slog.Warn("invalid integer configuration",
+		log.Warn("invalid integer configuration",
 			"key", key,
 			"value", value,
 			"default", defaultValue,
@@ -73,7 +72,7 @@ func getEnvInt32(key string, defaultValue int32) int32 {
 
 	result, err := strconv.ParseInt(value, 10, 32)
 	if err != nil {
-		slog.Warn("invalid integer configuration",
+		log.Warn("invalid integer configuration",
 			"key", key,
 			"value", value,
 			"default", defaultValue,
@@ -93,7 +92,7 @@ func getEnvBool(key string, defaultValue bool) bool {
 
 	result, err := strconv.ParseBool(value)
 	if err != nil {
-		slog.Warn("invalid boolean configuration",
+		log.Warn("invalid boolean configuration",
 			"key", key,
 			"value", value,
 			"default", defaultValue,

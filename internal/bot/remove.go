@@ -10,7 +10,6 @@ package bot
 
 import (
 	"ashokshau/tgmusic/internal/cache"
-	"ashokshau/tgmusic/internal/messaging"
 	"fmt"
 	"sort"
 	"strconv"
@@ -104,9 +103,12 @@ func removeHandler(c *td.Client, m *td.Message) error {
 
 	var err error
 	if len(sortedTracks) == 1 {
-		_, err = messaging.Reply(c, m, fmt.Sprintf("Track #%d has been removed by %s.", sortedTracks[0], firstName(c, m)), replyOpts)
+		_, err = m.ReplyText(c, fmt.Sprintf("Track #%d has been removed by %s.", sortedTracks[0], firstName(c, m)), replyOpts)
 	} else {
-		_, err = messaging.Reply(c, m, fmt.Sprintf("%d tracks have been removed by %s.", len(sortedTracks), firstName(c, m)), replyOpts)
+		_, err = m.ReplyText(c, fmt.Sprintf("%d tracks have been removed by %s.", len(sortedTracks), firstName(c, m)), replyOpts)
+	}
+	if err != nil {
+		c.Logger.Warnf("send queue removal in chat %d: %v", chatID, err)
 	}
 
 	return err
