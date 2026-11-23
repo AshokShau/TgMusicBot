@@ -33,7 +33,6 @@ const (
 	defaultAutoPlay       = int32(10)
 	defaultAutoLeave      = false
 	defaultVideoPlayback  = true
-	defaultAudioBitrate   = int64(128000)
 )
 
 var log = logger.New()
@@ -60,7 +59,6 @@ var (
 	AutoPlayLimit     = getEnvInt32("AUTO_PLAY_LIMIT", defaultAutoPlay)
 	MaxFileSize       = getEnvInt64("MAX_FILE_SIZE", defaultMaxFileSize)
 	SongDurationLimit = getEnvInt32("SONG_DURATION_LIMIT", defaultSongDuration)
-	AudioBitrate      = getEnvInt64("AUDIO_BITRATE", defaultAudioBitrate)
 	DownloadsDir      = getEnv("DOWNLOADS_DIR", defaultDownloadsDir)
 
 	SupportGroup   = getEnv("SUPPORT_GROUP", defaultSupportGroup)
@@ -143,10 +141,6 @@ func validate() error {
 	if SongDurationLimit <= 0 {
 		return fmt.Errorf("SONG_DURATION_LIMIT must be greater than 0")
 	}
-	if AudioBitrate < 6000 || AudioBitrate > 510000 {
-		return fmt.Errorf("AUDIO_BITRATE must be between 6000 and 510000 bits per second")
-	}
-
 	if !isValidService(DefaultService) {
 		log.Warn("invalid default service, falling back to default",
 			"service", DefaultService,

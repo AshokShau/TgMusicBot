@@ -205,6 +205,7 @@ typedef struct ntg_audio_description {
     bool keep_open;
     uint32_t* bitrate;
     ntg_format* format;
+    uint32_t* max_delay_ms;
 } ntg_audio_description;
 
 typedef struct ntg_call_info {

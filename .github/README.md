@@ -97,7 +97,6 @@ cp sample.env .env
 | `DEFAULT_SERVICE`     |    No    | `youtube`                     | Default search engine for track queries (`youtube` or `spotify`).      |
 | `SONG_DURATION_LIMIT` |    No    | `3600`                        | Maximum track duration allowed in seconds (default: 1 hour).           |
 | `MAX_FILE_SIZE`       |    No    | `524288000`                   | Maximum file download size limit in bytes (default: 500 MB).           |
-| `AUDIO_BITRATE`       |    No    | `128000`                      | Opus audio bitrate in bits per second (`6000` to `510000`).            |
 | `ENABLE_VPLAY`        |    No    | `true`                        | Enable or disable video streaming commands (`true` or `false`).        |
 | `AUTO_LEAVE`          |    No    | `false`                       | Automatically leave voice chat when idle or no members remain.         |
 | `COOKIES_URL`         |    No    | -                             | Comma-separated HTTP URLs pointing to raw YouTube `cookies.txt` files. |
