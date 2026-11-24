@@ -26,7 +26,7 @@ import (
 const (
 	destHeader = "ntgcalls"
 	destLib    = ""
-	releaseURL = "https://api.github.com/repos/pytgcalls/ntgcalls/releases/tags/v4.0.0-alpha03"
+	releaseURL = "https://api.github.com/repos/pytgcalls/ntgcalls/releases/tags/v4.0.0-beta01"
 )
 
 type Release struct {
