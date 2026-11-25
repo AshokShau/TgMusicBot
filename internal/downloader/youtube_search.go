@@ -206,6 +206,7 @@ func formatYTErr(action string, statusCode int, statusText string, body []byte) 
 func ytRequest(ctx context.Context, path string, extraFields map[string]any, accept func(map[string]any) bool) (map[string]any, error) {
 	var lastErr error
 	searchRequest := path == "/youtubei/v1/search"
+	searchQuery, _ := extraFields["query"].(string)
 	profiles := ytProfiles
 	if searchRequest {
 		profiles = slices.DeleteFunc(slices.Clone(ytProfiles), func(prof ytClientProfile) bool { return prof.EmbedURL != "" })
@@ -271,7 +272,7 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 		}
 		if searchRequest {
 			if err := youtubeSearchResponseError(out); err != nil {
-				log.Warnf("YouTube %s response with %s failed: %v", path, prof.ClientName, err)
+				log.Warnf("YouTube %s response with %s for query %q failed: %v", path, prof.ClientName, searchQuery, err)
 				return nil, err
 			}
 		}
@@ -324,9 +325,9 @@ func searchYouTube(query string, limit int, parentContext ...context.Context) ([
 		return []utils.GetUrlTrack{}, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("YouTube search for %q: %w", query, err)
 	}
-	return nil, errors.New("youtube search returned no results across client profiles")
+	return nil, fmt.Errorf("YouTube search for %q returned no results across client profiles", query)
 }
 
 func youtubeSearchResponseError(data map[string]any) error {
