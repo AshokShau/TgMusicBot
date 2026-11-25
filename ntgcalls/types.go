@@ -30,6 +30,8 @@ type EmojisCallback func(chatId int64, emojis string)
 type RequestParticipantsCallback func(chatId int64, request ParticipantsRequest)
 type OutboundBlockCallback func(chatId int64, block []byte)
 type SubchainRequestCallback func(chatId int64, subchainRequest SubchainRequest)
+type E2EFailureCallback func(chatId int64)
+type E2EParticipantsCallback func(chatId int64, participants []int64)
 
 const (
 	MicrophoneStream StreamDevice = iota

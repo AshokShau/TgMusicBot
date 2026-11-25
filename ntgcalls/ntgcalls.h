@@ -425,6 +425,17 @@ NTG_C_EXPORT ntg_result ntg_init_conference(
     const uint8_t* last_block, size_t last_block_len,
     ntg_conference_join_params* out
 );
+NTG_C_EXPORT ntg_result ntg_rejoin(
+    ntg_instance* handle,
+    int64_t chat_id,
+    char** out
+);
+NTG_C_EXPORT ntg_result ntg_rejoin_conference(
+    ntg_instance* handle,
+    int64_t chat_id,
+    const uint8_t* last_block, size_t last_block_len,
+    ntg_conference_join_params* out
+);
 NTG_C_EXPORT ntg_result ntg_connect(
     ntg_instance* handle,
     int64_t chat_id,
@@ -483,6 +494,11 @@ NTG_C_EXPORT ntg_result ntg_get_emojis_fingerprint(
     ntg_instance* handle,
     int64_t chat_id,
     char** out
+);
+NTG_C_EXPORT ntg_result ntg_get_e2e_participants(
+    ntg_instance* handle,
+    int64_t chat_id,
+    int64_t** out, size_t* out_len
 );
 NTG_C_EXPORT ntg_result ntg_encrypt_message(
     ntg_instance* handle,
@@ -577,6 +593,12 @@ NTG_C_EXPORT ntg_result ntg_finish_subchain_request(
     ntg_instance* handle,
     int64_t chat_id,
     int32_t subchain
+);
+NTG_C_EXPORT ntg_result ntg_create_remove_block(
+    ntg_instance* handle,
+    int64_t chat_id,
+    const int64_t* user_ids, size_t user_ids_len,
+    uint8_t** out, size_t* out_len
 );
 NTG_C_EXPORT ntg_result ntg_calls(
     ntg_instance* handle,
@@ -679,6 +701,21 @@ typedef void (*ntg_update_emojis_callback_cb)(
     void* user_data
 );
 NTG_C_EXPORT ntg_result ntg_on_update_emojis_callback(ntg_instance* handle, ntg_update_emojis_callback_cb callback, void* user_data);
+
+typedef void (*ntg_e2e_failure_callback_cb)(
+    ntg_instance* handle,
+    int64_t chat_id,
+    void* user_data
+);
+NTG_C_EXPORT ntg_result ntg_on_e2e_failure_callback(ntg_instance* handle, ntg_e2e_failure_callback_cb callback, void* user_data);
+
+typedef void (*ntg_e2e_participants_callback_cb)(
+    ntg_instance* handle,
+    int64_t chat_id,
+    const int64_t* participants, size_t participants_len,
+    void* user_data
+);
+NTG_C_EXPORT ntg_result ntg_on_e2e_participants_callback(ntg_instance* handle, ntg_e2e_participants_callback_cb callback, void* user_data);
 
 #ifdef __cplusplus
 }
