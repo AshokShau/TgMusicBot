@@ -205,6 +205,7 @@ func formatYTErr(action string, statusCode int, statusText string, body []byte) 
 
 func ytRequest(ctx context.Context, path string, extraFields map[string]any, accept func(map[string]any) bool) (map[string]any, error) {
 	var lastErr error
+	var searchErr error
 	searchRequest := path == "/youtubei/v1/search"
 	searchQuery, _ := extraFields["query"].(string)
 	profiles := ytProfiles
@@ -272,8 +273,11 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 		}
 		if searchRequest {
 			if err := youtubeSearchResponseError(out); err != nil {
-				log.Warnf("YouTube %s response with %s for query %q failed: %v", path, prof.ClientName, searchQuery, err)
-				return nil, err
+				log.Debugf("YouTube %s response with %s for query %q failed: %v", path, prof.ClientName, searchQuery, err)
+				if searchErr == nil || errors.Is(searchErr, errYouTubeSearchNoResults) {
+					searchErr = err
+				}
+				continue
 			}
 		}
 
@@ -291,6 +295,10 @@ func ytRequest(ctx context.Context, path string, extraFields map[string]any, acc
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	if searchErr != nil {
+		log.Warnf("YouTube %s search for query %q failed across client profiles: %v", path, searchQuery, searchErr)
+		return nil, searchErr
 	}
 	return nil, lastErr
 }
@@ -319,6 +327,13 @@ func searchYouTube(query string, limit int, parentContext ...context.Context) ([
 	})
 
 	if len(tracks) > 0 {
+		if tracks[0].Duration == 0 {
+			metadataCtx, metadataCancel := context.WithTimeout(ctx, 3*time.Second)
+			if metadata, metadataErr := getYouTubeVideo(metadataCtx, tracks[0].Id); metadataErr == nil && len(metadata.Results) > 0 {
+				tracks[0].Duration = metadata.Results[0].Duration
+			}
+			metadataCancel()
+		}
 		return tracks, nil
 	}
 	if errors.Is(err, errYouTubeSearchNoResults) {
@@ -414,12 +429,51 @@ func parseResults(node any, tracks *[]utils.GetUrlTrack, limit int) {
 				})
 				continue
 			}
+			if item, ok := dig(v, "musicResponsiveListItemRenderer").(map[string]any); ok {
+				if track, valid := musicSearchTrack(item); valid {
+					*tracks = append(*tracks, track)
+				}
+				continue
+			}
 
 			for _, child := range v {
 				stack = append(stack, child)
 			}
 		}
 	}
+}
+
+func musicSearchTrack(item map[string]any) (utils.GetUrlTrack, bool) {
+	columns := digArray(item, "flexColumns")
+	if len(columns) < 2 {
+		return utils.GetUrlTrack{}, false
+	}
+	titleRun := dig(columns[0], "musicResponsiveListItemFlexColumnRenderer", "text", "runs", 0)
+	title := digStr(titleRun, "text")
+	id := digStr(titleRun, "navigationEndpoint", "watchEndpoint", "videoId")
+	if id == "" {
+		id = digStr(item, "playlistItemData", "videoId")
+	}
+	itemType := digStr(columns[1], "musicResponsiveListItemFlexColumnRenderer", "text", "runs", 0, "text")
+	if title == "" || id == "" || (itemType != "Song" && itemType != "Video") {
+		return utils.GetUrlTrack{}, false
+	}
+
+	var channel string
+	for _, run := range digArray(columns[1], "musicResponsiveListItemFlexColumnRenderer", "text", "runs") {
+		if digStr(run, "navigationEndpoint", "browseEndpoint", "browseId") != "" {
+			channel = digStr(run, "text")
+			break
+		}
+	}
+	return utils.GetUrlTrack{
+		Id:        id,
+		Url:       ytWatchURL + id,
+		Title:     title,
+		Thumbnail: lastThumbURL(digArray(item, "thumbnail", "musicThumbnailRenderer", "thumbnail", "thumbnails")),
+		Channel:   channel,
+		Platform:  utils.YouTube,
+	}, true
 }
 
 // isLiveNow reports whether a videoRenderer map carries the LIVE_NOW badge.
