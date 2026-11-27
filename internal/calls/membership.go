@@ -516,6 +516,9 @@ func (c *TelegramCalls) handleJoinError(bot *td.Client, chatID, userID int64, in
 		return fmt.Errorf(
 			"The invite link is invalid.\n\n"+
 				"Please run /reload so the bot can generate a new invite link.\n\nReason: %s", reason)
+
+	case classifyError(err) != errUnknown:
+		return fmt.Errorf("assistant %d could not join chat %d: %w", userID, chatID, err)
 	}
 
 	return fmt.Errorf(

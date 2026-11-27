@@ -84,7 +84,15 @@ func (y *youTubeData) getInfo() (*utils.PlatformTracks, error) {
 		return getYouTubePlaylist(ctx, playlistID)
 
 	case videoID != "":
-		for _, query := range []string{videoID, y.Query} {
+		var fallback *utils.GetUrlTrack
+		if track, err := getYouTubeTrackFromOEmbed(ctx, videoID); err == nil {
+			fallback = &track
+		}
+		queries := []string{videoID, y.Query}
+		if fallback != nil {
+			queries = append(queries, fallback.Title)
+		}
+		for _, query := range queries {
 			tracks, err := searchYouTube(query, 10, ctx)
 			if err != nil {
 				continue
@@ -97,15 +105,8 @@ func (y *youTubeData) getInfo() (*utils.PlatformTracks, error) {
 			}
 		}
 
-		if title, err := getYouTubeTitleFromOEmbed(ctx, videoID); err == nil && title != "" {
-			tracks, err := searchYouTube(title, 10, ctx)
-			if err == nil {
-				for _, track := range tracks {
-					if track.Id == videoID {
-						return &utils.PlatformTracks{Results: []utils.GetUrlTrack{track}}, nil
-					}
-				}
-			}
+		if fallback != nil {
+			return &utils.PlatformTracks{Results: []utils.GetUrlTrack{*fallback}}, nil
 		}
 
 		log.Warnf("YouTube search returned no match for video %s", videoID)

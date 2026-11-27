@@ -47,7 +47,8 @@ func classifyError(err error) errorKind {
 		return errRetryOnce
 	case strings.Contains(msg, "CHANNELS_TOO_MUCH"),
 		strings.Contains(msg, "FROZEN_METHOD_INVALID"),
-		strings.Contains(msg, "FLOOD_WAIT_X"),
+		strings.Contains(msg, "FLOOD_WAIT_"),
+		strings.Contains(msg, "FLOOD_PREMIUM_WAIT_"),
 		strings.Contains(msg, "limiting join attempts"),
 		strings.Contains(msg, "USER_DEACTIVATED"):
 		return errRotate
@@ -62,7 +63,6 @@ func (c *TelegramCalls) playMediaWithAssistant(bot *td.Client, chatID int64, fil
 	}
 
 	if err := c.ensureAssistantMember(bot, chatID, call, index); err != nil {
-		cache.ChatCache.ClearChat(chatID)
 		return err
 	}
 
@@ -74,7 +74,6 @@ func (c *TelegramCalls) playMediaWithAssistant(bot *td.Client, chatID int64, fil
 
 	mediaDesc := getMediaDescription(filePath, video, chatID, ffmpegParameters)
 	if err := c.startCallStream(context.Background(), call, chatID, mediaDesc); err != nil {
-		cache.ChatCache.ClearChat(chatID)
 		return err
 	}
 
@@ -88,7 +87,9 @@ func (c *TelegramCalls) playMediaWithAssistant(bot *td.Client, chatID int64, fil
 func (c *TelegramCalls) PlayMedia(bot *td.Client, chatID int64, filePath string, video bool, ffmpegParameters ...string) (err error) {
 	release := disk.Hold(filePath)
 	defer func() {
-		if err == nil {
+		if err != nil {
+			cache.ChatCache.ClearChat(chatID)
+		} else {
 			disk.SetPlaying(chatID, filePath)
 		}
 		release()
@@ -107,32 +108,19 @@ func (c *TelegramCalls) PlayMedia(bot *td.Client, chatID int64, filePath string,
 		logger.Errorf("get playback assistant for chat %d: %v", chatID, err)
 		return fmt.Errorf("No playback assistant is available right now. Please try again later.")
 	}
-	err = c.playMediaWithAssistant(bot, chatID, filePath, video, ffParam, call, index)
-	if err == nil {
-		if saveErr := db.Instance.SetAssistant(chatID, index); saveErr != nil {
-			logger.Errorf("save assistant %d for chat %d: %v", index, chatID, saveErr)
-		}
-		return nil
-	}
-	logger.Errorf("start playback in chat %d with assistant %d: %v", chatID, index, err)
-	switch classifyError(err) {
-	case errRetryOnce:
-		err = c.playMediaWithAssistant(bot, chatID, filePath, video, ffParam, call, index)
-		if err == nil {
-			if saveErr := db.Instance.SetAssistant(chatID, index); saveErr != nil {
-				logger.Errorf("save assistant %d for chat %d: %v", index, chatID, saveErr)
+	err = c.playWithAssistants(chatID, call, index, playbackActions{
+		attempt: func(call *AssistantAccount, index int) error {
+			return c.playMediaWithAssistant(bot, chatID, filePath, video, ffParam, call, index)
+		},
+		save: func(index int) {
+			if err := db.Instance.SetAssistant(chatID, index); err != nil {
+				logger.Errorf("save assistant %d for chat %d: %v", index, chatID, err)
 			}
-			return nil
-		}
-		logger.Errorf("retry playback in chat %d with assistant %d: %v", chatID, index, err)
-		if classifyError(err) == errRotate {
+		},
+		evict: func(index int, err error) {
 			c.evictAssistant(chatID, index, err)
-			err = c.rotateAndPlay(bot, chatID, filePath, video, ffParam, map[int]bool{index: true}, err)
-		}
-	case errRotate:
-		c.evictAssistant(chatID, index, err)
-		err = c.rotateAndPlay(bot, chatID, filePath, video, ffParam, map[int]bool{index: true}, err)
-	}
+		},
+	})
 	if err == nil {
 		return nil
 	}
@@ -144,6 +132,8 @@ func (c *TelegramCalls) PlayMedia(bot *td.Client, chatID int64, filePath string,
 		return fmt.Errorf("<b>No active video chat found.</b> Please start one and try again.")
 	case strings.Contains(message, "flood_wait"), strings.Contains(message, "limiting join attempts"):
 		return fmt.Errorf("Telegram is temporarily limiting assistant joins. Please try again later.")
+	case strings.Contains(message, "channels_too_much"):
+		return fmt.Errorf("The assistant has joined too many channels or supergroups. No available assistant could start playback. Please try again later.")
 	case strings.Contains(message, "invite link"), strings.Contains(message, "invite_hash"):
 		return fmt.Errorf("The assistant invite link is invalid or expired. Please run /reload and try again.")
 	case strings.Contains(message, "banned"), strings.Contains(message, "restricted"), strings.Contains(message, "admin"):
@@ -160,49 +150,45 @@ func (c *TelegramCalls) evictAssistant(chatID int64, index int, err error) {
 	}
 }
 
-func (c *TelegramCalls) rotateAndPlay(bot *td.Client, chatID int64, filePath string, video bool, ffmpegParameters string, tried map[int]bool, lastErr error) error {
-	for {
-		call, nextIndex, err := c.nextUntried(tried)
-		if err != nil {
-			logger.Errorf("find another playback assistant in chat %d: %v; last playback error: %v", chatID, err, lastErr)
-			return lastErr
-		}
-		tried[nextIndex] = true
+type playbackActions struct {
+	attempt func(*AssistantAccount, int) error
+	save    func(int)
+	evict   func(int, error)
+}
 
-		err = c.playMediaWithAssistant(bot, chatID, filePath, video, ffmpegParameters, call, nextIndex)
+// playWithAssistants tries each assistant once, retrying transient call errors
+// once on the same account before rotating.
+func (c *TelegramCalls) playWithAssistants(chatID int64, call *AssistantAccount, index int, actions playbackActions) error {
+	tried := make(map[int]bool)
+	for {
+		tried[index] = true
+		err := actions.attempt(call, index)
 		if err == nil {
-			if err := db.Instance.SetAssistant(chatID, nextIndex); err != nil {
-				logger.Errorf("save assistant %d for chat %d: %v", nextIndex, chatID, err)
-			}
+			actions.save(index)
 			return nil
 		}
-		lastErr = err
-		logger.Warnf("start playback in chat %d with assistant %d: %v", chatID, nextIndex, err)
+		logger.Warnf("start playback in chat %d with assistant %d: %v", chatID, index, err)
 
-		switch classifyError(err) {
-		case errRetryOnce:
-			err = c.playMediaWithAssistant(bot, chatID, filePath, video, ffmpegParameters, call, nextIndex)
+		if classifyError(err) == errRetryOnce {
+			err = actions.attempt(call, index)
 			if err == nil {
-				if err := db.Instance.SetAssistant(chatID, nextIndex); err != nil {
-					logger.Errorf("save assistant %d for chat %d: %v", nextIndex, chatID, err)
-				}
+				actions.save(index)
 				return nil
 			}
-			lastErr = err
-			logger.Warnf("retry playback in chat %d with assistant %d: %v", chatID, nextIndex, err)
-			if classifyError(err) == errRotate {
-				c.evictAssistant(chatID, nextIndex, err)
-				continue
-			}
-			return lastErr
-
-		case errRotate:
-			c.evictAssistant(chatID, nextIndex, err)
-			continue
-
-		default:
-			return lastErr
+			logger.Warnf("retry playback in chat %d with assistant %d: %v", chatID, index, err)
 		}
+		if classifyError(err) != errRotate {
+			return err
+		}
+		actions.evict(index, err)
+
+		nextCall, nextIndex, nextErr := c.nextUntried(tried)
+		if nextErr != nil {
+			logger.Errorf("find another playback assistant in chat %d: %v; last playback error: %v", chatID, nextErr, err)
+			return err
+		}
+		logger.Infof("retrying playback in chat %d with assistant %d after assistant %d failed", chatID, nextIndex, index)
+		call, index = nextCall, nextIndex
 	}
 }
 
