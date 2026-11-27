@@ -96,6 +96,11 @@ typedef enum {
     NTG_FORMAT_OGG,
     NTG_FORMAT_I420,
     NTG_FORMAT_MATROSKA,
+    NTG_FORMAT_AUTO,
+    NTG_FORMAT_WEBM,
+    NTG_FORMAT_MP4,
+    NTG_FORMAT_WAV,
+    NTG_FORMAT_FLAC,
 } ntg_format;
 
 typedef enum {
@@ -208,6 +213,14 @@ typedef struct ntg_audio_description {
     uint32_t* max_delay_ms;
 } ntg_audio_description;
 
+typedef struct ntg_audio_info {
+    char* codec;
+    uint32_t sample_rate;
+    uint8_t channels;
+    bool supported;
+    bool passthrough;
+} ntg_audio_info;
+
 typedef struct ntg_call_info {
     ntg_stream_status playback;
     ntg_stream_status capture;
@@ -228,6 +241,23 @@ typedef struct ntg_media_devices {
     ntg_device_info* screen;
     size_t screen_len;
 } ntg_media_devices;
+
+typedef struct ntg_video_info {
+    char* codec;
+    uint16_t width;
+    uint16_t height;
+    double frame_rate;
+    bool b_frames;
+    bool supported;
+    bool passthrough;
+} ntg_video_info;
+
+typedef struct ntg_media_info {
+    char* container;
+    int64_t duration_ms;
+    ntg_audio_info* audio;
+    ntg_video_info* video;
+} ntg_media_info;
 
 typedef struct ntg_media_state {
     bool muted;
@@ -355,9 +385,12 @@ NTG_C_EXPORT void ntg_connection_info_free(ntg_connection_info* value);
 NTG_C_EXPORT void ntg_remote_source_free(ntg_remote_source* value);
 NTG_C_EXPORT void ntg_subchain_request_free(ntg_subchain_request* value);
 NTG_C_EXPORT void ntg_audio_description_free(ntg_audio_description* value);
+NTG_C_EXPORT void ntg_audio_info_free(ntg_audio_info* value);
 NTG_C_EXPORT void ntg_call_info_free(ntg_call_info* value);
 NTG_C_EXPORT void ntg_device_info_free(ntg_device_info* value);
 NTG_C_EXPORT void ntg_media_devices_free(ntg_media_devices* value);
+NTG_C_EXPORT void ntg_video_info_free(ntg_video_info* value);
+NTG_C_EXPORT void ntg_media_info_free(ntg_media_info* value);
 NTG_C_EXPORT void ntg_media_state_free(ntg_media_state* value);
 NTG_C_EXPORT void ntg_video_description_free(ntg_video_description* value);
 NTG_C_EXPORT void ntg_media_description_free(ntg_media_description* value);
@@ -543,6 +576,11 @@ NTG_C_EXPORT ntg_result ntg_ping(
 );
 NTG_C_EXPORT ntg_result ntg_get_media_devices(
     ntg_media_devices* out
+);
+NTG_C_EXPORT ntg_result ntg_get_media_info(
+    const char* path,
+    ntg_stream_mode mode,
+    ntg_media_info* out
 );
 NTG_C_EXPORT ntg_result ntg_get_protocol(
     ntg_protocol* out

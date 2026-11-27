@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -133,6 +134,20 @@ func shellQuote(value string) string {
 var urlRegex = regexp.MustCompile(`^https?://`)
 
 func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegParameters string) ntgcalls.MediaDescription {
+	// Let the native reader handle supported local files so compatible streams
+	// can pass through without starting FFmpeg.
+	if ffmpegParameters == "" {
+		if file, err := os.Stat(filePath); err == nil && file.Mode().IsRegular() {
+			if info, err := ntgcalls.GetMediaInfo(filePath, ntgcalls.CaptureStream); err == nil {
+				if desc, ok := nativeMediaDescription(filePath, isVideo, info); ok {
+					return desc
+				}
+			} else {
+				logger.Debug("NTgCalls could not inspect local media", "path", filePath, "error", err)
+			}
+		}
+	}
+
 	probe, probeErr := probeMedia(filePath)
 	if probeErr != nil {
 		logger.Warn("[getMediaDescription] ffprobe failed for %s: %v", filePath, probeErr)
@@ -189,30 +204,9 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 	}
 
 	video := probe.stream("video")
-	width := 1280
-	height := 720
-
-	if video != nil && video.Width > 0 && video.Height > 0 {
-		ratio := float64(video.Width) / float64(video.Height)
-
-		newW := min(video.Width, width)
-		newH := int(float64(newW) / ratio)
-
-		if newH > height {
-			newH = height
-			newW = int(float64(newH) * ratio)
-		}
-
-		if newW%2 != 0 {
-			newW--
-		}
-
-		if newH%2 != 0 {
-			newH--
-		}
-
-		width = newW
-		height = newH
+	width, height := 1280, 720
+	if video != nil {
+		width, height = fitVideoResolution(video.Width, video.Height)
 	}
 
 	videoFormat := ntgcalls.MediaFormatI420
@@ -235,6 +229,52 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 		Microphone: audioDescription,
 		Camera:     videoDescription,
 	}
+}
+
+func nativeMediaDescription(path string, isVideo bool, info ntgcalls.MediaInfo) (ntgcalls.MediaDescription, bool) {
+	if info.Audio == nil || !info.Audio.Supported || (isVideo && (info.Video == nil || !info.Video.Supported)) {
+		return ntgcalls.MediaDescription{}, false
+	}
+	format := ntgcalls.MediaFormatAuto
+	desc := ntgcalls.MediaDescription{
+		Microphone: &ntgcalls.AudioDescription{
+			MediaSource:  ntgcalls.MediaSourceFile,
+			Input:        path,
+			SampleRate:   48000,
+			ChannelCount: 2,
+			Format:       &format,
+		},
+	}
+	if info.Audio.Passthrough && (info.Audio.Channels == 1 || info.Audio.Channels == 2) {
+		desc.Microphone.ChannelCount = info.Audio.Channels
+	}
+	if isVideo {
+		width, height := fitVideoResolution(int(info.Video.Width), int(info.Video.Height))
+		desc.Camera = &ntgcalls.VideoDescription{
+			MediaSource: ntgcalls.MediaSourceFile,
+			Input:       path,
+			Width:       int16(width),
+			Height:      int16(height),
+			Fps:         30,
+			Format:      &format,
+		}
+	}
+	return desc, true
+}
+
+func fitVideoResolution(sourceWidth, sourceHeight int) (int, int) {
+	width, height := 1280, 720
+	if sourceWidth <= 0 || sourceHeight <= 0 {
+		return width, height
+	}
+	ratio := float64(sourceWidth) / float64(sourceHeight)
+	width = min(sourceWidth, width)
+	height = int(float64(width) / ratio)
+	if height > 720 {
+		height = 720
+		width = int(float64(height) * ratio)
+	}
+	return width &^ 1, height &^ 1
 }
 
 func filterFlagsWithSpace(flags string) string {

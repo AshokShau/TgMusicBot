@@ -12,6 +12,7 @@ type StreamMode int
 type StreamDevice int
 type MediaSource int
 type MediaFormat int
+type Codec int
 type MediaSegmentQuality int
 type MediaSegmentStatus int
 type CallType int
@@ -58,6 +59,21 @@ const (
 	MediaFormatOgg
 	MediaFormatI420
 	MediaFormatMatroska
+	MediaFormatAuto
+	MediaFormatWebm
+	MediaFormatMP4
+	MediaFormatWAV
+	MediaFormatFLAC
+)
+
+const (
+	CodecPCM Codec = iota
+	CodecOpus
+	CodecI420
+	CodecH264
+	CodecVP8
+	CodecVP9
+	CodecAV1
 )
 
 func (ctx MediaFormat) ParseToC() C.ntg_format {
@@ -68,8 +84,56 @@ func (ctx MediaFormat) ParseToC() C.ntg_format {
 		return C.NTG_FORMAT_I420
 	case MediaFormatMatroska:
 		return C.NTG_FORMAT_MATROSKA
+	case MediaFormatAuto:
+		return C.NTG_FORMAT_AUTO
+	case MediaFormatWebm:
+		return C.NTG_FORMAT_WEBM
+	case MediaFormatMP4:
+		return C.NTG_FORMAT_MP4
+	case MediaFormatWAV:
+		return C.NTG_FORMAT_WAV
+	case MediaFormatFLAC:
+		return C.NTG_FORMAT_FLAC
 	default:
 		return C.NTG_FORMAT_PCM
+	}
+}
+
+func (ctx Codec) ParseToC() C.ntg_codec {
+	switch ctx {
+	case CodecOpus:
+		return C.NTG_CODEC_OPUS
+	case CodecI420:
+		return C.NTG_CODEC_I420
+	case CodecH264:
+		return C.NTG_CODEC_H264
+	case CodecVP8:
+		return C.NTG_CODEC_VP8
+	case CodecVP9:
+		return C.NTG_CODEC_VP9
+	case CodecAV1:
+		return C.NTG_CODEC_AV1
+	default:
+		return C.NTG_CODEC_PCM
+	}
+}
+
+func parseCodec(codec C.ntg_codec) Codec {
+	switch codec {
+	case C.NTG_CODEC_OPUS:
+		return CodecOpus
+	case C.NTG_CODEC_I420:
+		return CodecI420
+	case C.NTG_CODEC_H264:
+		return CodecH264
+	case C.NTG_CODEC_VP8:
+		return CodecVP8
+	case C.NTG_CODEC_VP9:
+		return CodecVP9
+	case C.NTG_CODEC_AV1:
+		return CodecAV1
+	default:
+		return CodecPCM
 	}
 }
 

@@ -167,6 +167,8 @@ func handleFrames(handle *C.ntg_instance, chatID C.int64_t, streamMode C.ntg_str
 				Width:                      uint16(rawFrame.frame_data.width),
 				Height:                     uint16(rawFrame.frame_data.height),
 				Rotation:                   uint16(rawFrame.frame_data.rotation),
+				Codec:                      parseCodec(rawFrame.frame_data.codec),
+				Keyframe:                   bool(rawFrame.frame_data.keyframe),
 			},
 		}
 	}
@@ -555,6 +557,41 @@ func (ctx *Client) SendSignalingData(chatId int64, data []byte) error {
 	dataC, dataSize := parseBytes(data)
 	defer freeBytes(dataC)
 	return parseResult(C.ntg_send_signaling_data(ctx.handle, C.int64_t(chatId), dataC, dataSize))
+}
+
+func GetMediaInfo(path string, mode StreamMode) (MediaInfo, error) {
+	pathC := C.CString(path)
+	defer C.free(unsafe.Pointer(pathC))
+	var buffer C.ntg_media_info
+	if err := parseResult(C.ntg_get_media_info(pathC, mode.ParseToC(), &buffer)); err != nil {
+		return MediaInfo{}, err
+	}
+	defer C.ntg_media_info_free(&buffer)
+	info := MediaInfo{
+		Container:  C.GoString(buffer.container),
+		DurationMs: int64(buffer.duration_ms),
+	}
+	if buffer.audio != nil {
+		info.Audio = &AudioInfo{
+			Codec:       C.GoString(buffer.audio.codec),
+			SampleRate:  uint32(buffer.audio.sample_rate),
+			Channels:    uint8(buffer.audio.channels),
+			Supported:   bool(buffer.audio.supported),
+			Passthrough: bool(buffer.audio.passthrough),
+		}
+	}
+	if buffer.video != nil {
+		info.Video = &VideoInfo{
+			Codec:       C.GoString(buffer.video.codec),
+			Width:       uint16(buffer.video.width),
+			Height:      uint16(buffer.video.height),
+			FrameRate:   float64(buffer.video.frame_rate),
+			BFrames:     bool(buffer.video.b_frames),
+			Supported:   bool(buffer.video.supported),
+			Passthrough: bool(buffer.video.passthrough),
+		}
+	}
+	return info, nil
 }
 
 //goland:noinspection GoUnusedExportedFunction
