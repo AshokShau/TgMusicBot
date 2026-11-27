@@ -133,6 +133,8 @@ func shellQuote(value string) string {
 
 var urlRegex = regexp.MustCompile(`^https?://`)
 
+const opusBitrate uint32 = 128_000
+
 func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegParameters string) ntgcalls.MediaDescription {
 	// Let the native reader handle supported local files so compatible streams
 	// can pass through without starting FFmpeg.
@@ -154,10 +156,12 @@ func getMediaDescription(filePath string, isVideo bool, chatId int64, ffmpegPara
 	}
 
 	audioFormat := ntgcalls.MediaFormatPCM
+	bitrate := opusBitrate
 	audioDescription := &ntgcalls.AudioDescription{
 		MediaSource:  ntgcalls.MediaSourceShell,
 		SampleRate:   48000,
 		ChannelCount: 2,
+		Bitrate:      &bitrate,
 		Format:       &audioFormat,
 	}
 
@@ -236,12 +240,14 @@ func nativeMediaDescription(path string, isVideo bool, info ntgcalls.MediaInfo) 
 		return ntgcalls.MediaDescription{}, false
 	}
 	format := ntgcalls.MediaFormatAuto
+	bitrate := opusBitrate
 	desc := ntgcalls.MediaDescription{
 		Microphone: &ntgcalls.AudioDescription{
 			MediaSource:  ntgcalls.MediaSourceFile,
 			Input:        path,
 			SampleRate:   48000,
 			ChannelCount: 2,
+			Bitrate:      &bitrate,
 			Format:       &format,
 		},
 	}
