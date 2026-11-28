@@ -99,10 +99,17 @@ func handleParticipant(client *gotdbot.Client, update *gotdbot.UpdateChatMember)
 		"chat_id", chatID,
 	)
 
-	return dispatchStatusChange(client, chatID, userID, assistantID, oldStatus, newStatus, chat)
+	return dispatchStatusChange(client, chatID, userID, assistantID, update.ActorUserId, oldStatus, newStatus, chat)
 }
 
-func dispatchStatusChange(client *gotdbot.Client, chatID, userID, assistantID int64, oldStatus, newStatus gotdbot.ChatMemberStatus, chat *gotdbot.Supergroup) error {
+func actorMention(actorID int64) string {
+	if actorID <= 0 {
+		return "an unknown user"
+	}
+	return fmt.Sprintf("<a href=\"tg://user?id=%d\">user %d</a>", actorID, actorID)
+}
+
+func dispatchStatusChange(client *gotdbot.Client, chatID, userID, assistantID, actorID int64, oldStatus, newStatus gotdbot.ChatMemberStatus, chat *gotdbot.Supergroup) error {
 	wasLeft := isStatus[*gotdbot.ChatMemberStatusLeft](oldStatus)
 	nowLeft := isStatus[*gotdbot.ChatMemberStatusLeft](newStatus)
 	wasMember := isStatus[*gotdbot.ChatMemberStatusMember](oldStatus)
@@ -115,14 +122,17 @@ func dispatchStatusChange(client *gotdbot.Client, chatID, userID, assistantID in
 	nowRestricted := isStatus[*gotdbot.ChatMemberStatusRestricted](newStatus)
 
 	switch {
-	case wasLeft && (nowMember || nowAdmin || nowRestricted):
+	case wasLeft && (nowMember || nowAdmin):
 		return onJoin(client, chatID, userID, assistantID, chat)
+
+	case wasLeft && nowRestricted:
+		return onRestriction(client, chatID, userID, assistantID, actorID, oldStatus, newStatus)
 
 	case (wasMember || wasAdmin || wasRestricted) && nowLeft:
 		return onLeave(client, chatID, userID, assistantID)
 
 	case nowBanned:
-		return onBan(client, chatID, userID, assistantID)
+		return onBan(client, chatID, userID, assistantID, actorID)
 
 	case wasBanned && nowLeft:
 		client.Logger.Infof("user %d unbanned from chat %d", userID, chatID)
@@ -130,14 +140,14 @@ func dispatchStatusChange(client *gotdbot.Client, chatID, userID, assistantID in
 		return nil
 
 	case nowRestricted || wasRestricted:
-		return onRestriction(client, chatID, userID, assistantID, oldStatus, newStatus)
+		return onRestriction(client, chatID, userID, assistantID, actorID, oldStatus, newStatus)
 
 	default:
 		return onPromotionOrDemotion(client, chatID, userID, wasAdmin, nowAdmin, chat)
 	}
 }
 
-func onRestriction(client *gotdbot.Client, chatID, userID, assistantID int64, oldStatus, newStatus gotdbot.ChatMemberStatus) error {
+func onRestriction(client *gotdbot.Client, chatID, userID, assistantID, actorID int64, oldStatus, newStatus gotdbot.ChatMemberStatus) error {
 	_, wasRestricted := oldStatus.(*gotdbot.ChatMemberStatusRestricted)
 	newRestricted, nowRestricted := newStatus.(*gotdbot.ChatMemberStatusRestricted)
 
@@ -152,9 +162,9 @@ func onRestriction(client *gotdbot.Client, chatID, userID, assistantID int64, ol
 
 		if userID == assistantID {
 			msg := fmt.Sprintf(
-				"⚠️ My assistant has been restricted in this chat.\n\n"+
-					"If this was a mistake, please unrestrict <code>%d</code>.",
-				assistantID,
+				"⚠️ My assistant <code>%d</code> has been restricted in this chat by %s.\n\n"+
+					"Please unrestrict this assistant to restore playback.",
+				assistantID, actorMention(actorID),
 			)
 			if _, err := client.SendMessage(chatID, msg, &gotdbot.SendMessageOpts{
 				ParseMode: "HTML",
@@ -203,16 +213,16 @@ func onLeave(client *gotdbot.Client, chatID, userID, assistantID int64) error {
 	return nil
 }
 
-func onBan(client *gotdbot.Client, chatID, userID, assistantID int64) error {
+func onBan(client *gotdbot.Client, chatID, userID, assistantID, actorID int64) error {
 	client.Logger.Debug("User banned from chat", "user_id", userID, "chat_id", chatID)
 	calls.Calls.UpdateMembership(chatID, userID, &gotdbot.ChatMemberStatusBanned{})
 
 	if userID == assistantID {
 		cache.ChatCache.ClearChat(chatID)
 		msg := fmt.Sprintf(
-			"🚫 My assistant has been banned from this chat.\n\n"+
-				"If this was a mistake, please unban <code>%d</code>.",
-			assistantID,
+			"🚫 My assistant <code>%d</code> has been banned from this chat by %s.\n\n"+
+				"Please unban this assistant to restore playback.",
+			assistantID, actorMention(actorID),
 		)
 		if _, err := client.SendMessage(chatID, msg, &gotdbot.SendMessageOpts{
 			ParseMode: "HTML",

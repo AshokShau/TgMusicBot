@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	td "github.com/AshokShau/gotdbot"
+	gogram "github.com/xAmarnath/gogram"
 )
 
 // errorKind classifies a Telegram group call error for retry strategy.
@@ -33,7 +34,45 @@ const (
 	errUnknown                    // log and return as-is
 )
 
+type playbackFailure struct {
+	assistantID int64
+	err         error
+}
+
+func (e *playbackFailure) Error() string { return e.err.Error() }
+func (e *playbackFailure) Unwrap() error { return e.err }
+
+func assistantAccountID(call *AssistantAccount) int64 {
+	if call != nil && call.self != nil {
+		return call.self.ID
+	}
+	return 0
+}
+
+func failedPlayback(call *AssistantAccount, err error) error {
+	if id := assistantAccountID(call); id != 0 {
+		return &playbackFailure{assistantID: id, err: err}
+	}
+	return err
+}
+
+func telegramErrorCode(err error) string {
+	var rpc *gogram.ErrResponseCode
+	if errors.As(err, &rpc) {
+		return rpc.Message
+	}
+	return ""
+}
+
 func classifyError(err error) errorKind {
+	switch telegramErrorCode(err) {
+	case "GROUPCALL_FORBIDDEN", "GROUPCALL_INVALID":
+		return errFatal
+	case "CHANNELS_TOO_MUCH", "FROZEN_METHOD_INVALID", "FLOOD_WAIT_X", "FLOOD_PREMIUM_WAIT_X", "USER_DEACTIVATED":
+		return errRotate
+	case "GROUPCALL_ADD_PARTICIPANTS_FAILED", "INTERDC_X_CALL_ERROR":
+		return errRetryOnce
+	}
 	msg := err.Error()
 	switch {
 	case strings.Contains(msg, "is closed"),
@@ -54,6 +93,38 @@ func classifyError(err error) errorKind {
 		return errRotate
 	default:
 		return errUnknown
+	}
+}
+
+func playbackErrorMessage(err error) string {
+	identity := "The assistant"
+	var failure *playbackFailure
+	if errors.As(err, &failure) && failure.assistantID != 0 {
+		identity = fmt.Sprintf("Assistant <code>%d</code>", failure.assistantID)
+	}
+	code := telegramErrorCode(err)
+	message := strings.ToLower(err.Error())
+	switch {
+	case code == "GROUPCALL_INVALID" || strings.Contains(message, "groupcall_invalid") || strings.Contains(message, "no active group call"):
+		return "<b>Voice chat is unavailable.</b> Start a new voice chat and try again."
+	case code == "GROUPCALL_FORBIDDEN" || strings.Contains(message, "is closed") || strings.Contains(message, "groupcall_forbidden"):
+		return "<b>No active video chat found.</b> Please start one and try again."
+	case code == "USER_BANNED_IN_CHANNEL":
+		return identity + " cannot join. Please unban this account in the group's member settings and try again."
+	case code == "CHANNEL_PRIVATE":
+		return identity + " cannot join. Check whether this account is banned or lacks access to the group, then try again."
+	case code == "CHAT_ADMIN_REQUIRED":
+		return identity + " cannot join. Check the bot's admin permissions and the assistant's group access."
+	case code == "FLOOD_WAIT_X" || code == "FLOOD_PREMIUM_WAIT_X" || strings.Contains(message, "flood_wait") || strings.Contains(message, "limiting join attempts"):
+		return "Telegram is temporarily limiting assistant joins. Please try again later."
+	case code == "CHANNELS_TOO_MUCH" || strings.Contains(message, "channels_too_much"):
+		return "The assistant has joined too many channels or supergroups. No available assistant could start playback. Please try again later."
+	case strings.Contains(message, "invite link"), strings.Contains(message, "invite_hash"):
+		return "The assistant invite link is invalid or expired. Please run /reload and try again."
+	case strings.Contains(message, "banned"), strings.Contains(message, "restricted"), strings.Contains(message, "admin"):
+		return identity + " cannot join. Please unban or unrestrict this account, or give the bot permission to ban users so it can restore the assistant."
+	default:
+		return "Unable to start playback: " + html.EscapeString(err.Error())
 	}
 }
 
@@ -124,23 +195,7 @@ func (c *TelegramCalls) PlayMedia(bot *td.Client, chatID int64, filePath string,
 	if err == nil {
 		return nil
 	}
-	message := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(message, "groupcall_invalid"), strings.Contains(message, "no active group call"):
-		return fmt.Errorf("<b>Voice chat is unavailable.</b> Start a new voice chat and try again.")
-	case strings.Contains(message, "is closed"), strings.Contains(message, "groupcall_forbidden"):
-		return fmt.Errorf("<b>No active video chat found.</b> Please start one and try again.")
-	case strings.Contains(message, "flood_wait"), strings.Contains(message, "limiting join attempts"):
-		return fmt.Errorf("Telegram is temporarily limiting assistant joins. Please try again later.")
-	case strings.Contains(message, "channels_too_much"):
-		return fmt.Errorf("The assistant has joined too many channels or supergroups. No available assistant could start playback. Please try again later.")
-	case strings.Contains(message, "invite link"), strings.Contains(message, "invite_hash"):
-		return fmt.Errorf("The assistant invite link is invalid or expired. Please run /reload and try again.")
-	case strings.Contains(message, "banned"), strings.Contains(message, "restricted"), strings.Contains(message, "admin"):
-		return fmt.Errorf("The assistant cannot join. Check that it is not banned and the bot has the required admin permissions.")
-	default:
-		return fmt.Errorf("Unable to start playback. Please try again.")
-	}
+	return errors.New(playbackErrorMessage(err))
 }
 
 func (c *TelegramCalls) evictAssistant(chatID int64, index int, err error) {
@@ -167,7 +222,7 @@ func (c *TelegramCalls) playWithAssistants(chatID int64, call *AssistantAccount,
 			actions.save(index)
 			return nil
 		}
-		logger.Warnf("start playback in chat %d with assistant %d: %v", chatID, index, err)
+		logger.Warnf("start playback in chat %d with assistant index %d (ID %d): %v", chatID, index, assistantAccountID(call), err)
 
 		if classifyError(err) == errRetryOnce {
 			err = actions.attempt(call, index)
@@ -175,17 +230,17 @@ func (c *TelegramCalls) playWithAssistants(chatID int64, call *AssistantAccount,
 				actions.save(index)
 				return nil
 			}
-			logger.Warnf("retry playback in chat %d with assistant %d: %v", chatID, index, err)
+			logger.Warnf("retry playback in chat %d with assistant index %d (ID %d): %v", chatID, index, assistantAccountID(call), err)
 		}
 		if classifyError(err) != errRotate {
-			return err
+			return failedPlayback(call, err)
 		}
 		actions.evict(index, err)
 
 		nextCall, nextIndex, nextErr := c.nextUntried(tried)
 		if nextErr != nil {
 			logger.Errorf("find another playback assistant in chat %d: %v; last playback error: %v", chatID, nextErr, err)
-			return err
+			return failedPlayback(call, err)
 		}
 		logger.Infof("retrying playback in chat %d with assistant %d after assistant %d failed", chatID, nextIndex, index)
 		call, index = nextCall, nextIndex
