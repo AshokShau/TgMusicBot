@@ -82,6 +82,7 @@ func main() {
 	}
 
 	clientConfig.DatabaseDirectory = tdDir
+	clientConfig.UpdateWorkers = 16
 	clientConfig.ParseMode = gotdbot.ParseModeHTML
 	clientConfig.FilesDirectory = filepath.Join(downloadsDir, "main")
 	client, err := manager.RegisterClient(config.ApiId, config.ApiHash, config.Token, clientConfig)
@@ -93,9 +94,11 @@ func main() {
 		dlClientConfig := gotdbot.DefaultClientConfig()
 		dlClientConfig.AutoRetry = &gotdbot.AutoRetry{
 			ChatNotFound: true,
+			MaxFloodWait: 3 * time.Second,
 		}
 
 		dlClientConfig.DatabaseDirectory = tdDir + "_dl"
+		dlClientConfig.UpdateWorkers = 8
 		dlClientConfig.FilesDirectory = filepath.Join(downloadsDir, "dl")
 		_ = os.Remove(dlClientConfig.DatabaseDirectory)
 
